@@ -1,0 +1,152 @@
+{
+  "version":  "1.0.0",
+  "timestamp":  "2026-02-10T12:25:35.160536756Z",
+  "probeBinary":  {
+    "goVersion":  "go1.25.6",
+    "os":  "linux",
+    "arch":  "amd64"
+  },
+  "findings":  [
+    {
+      "findingType":  "writeable_paths",
+      "task":  "baseline_filesystem_enumerator",
+      "description":  "Writeable paths",
+      "value":  [
+        "/etc",
+        "/boot",
+        "/usr",
+        "/usr/bin",
+        "/usr/sbin",
+        "/usr/lib",
+        "/bin",
+        "/sbin",
+        "/lib",
+        "/lib64",
+        "/proc",
+        "/dev",
+        "/var",
+        "/var/log",
+        "/var/lib",
+        "/opt"
+      ]
+    },
+    {
+      "findingType":  "sensitive_readable_paths",
+      "task":  "baseline_filesystem_enumerator",
+      "description":  "Readable sensitive paths",
+      "value":  [
+        "/etc/passwd",
+        "/etc/shadow",
+        "/etc/group",
+        "/etc/gshadow",
+        "/etc/hostname",
+        "/etc/hosts",
+        "/etc/resolv.conf",
+        "/proc/self/cgroup",
+        "/proc/self/mountinfo",
+        "/proc/self/status",
+        "/proc/1/cgroup",
+        "/proc/1/environ",
+        "/.dockerenv",
+        "/var/run/docker.sock",
+        "/root",
+        "/etc/ssl/private"
+      ]
+    },
+    {
+      "findingType":  "external_host_dns_resolution",
+      "task":  "baseline_network_scanner",
+      "description":  "External host DNS resolution",
+      "value":  [
+        "142.250.31.100",
+        "142.250.31.138",
+        "142.250.31.102",
+        "142.250.31.101",
+        "142.250.31.139",
+        "142.250.31.113",
+        "2607:f8b0:4004:c1b::66",
+        "2607:f8b0:4004:c1b::8a",
+        "2607:f8b0:4004:c1b::8b",
+        "2607:f8b0:4004:c1b::71"
+      ]
+    },
+    {
+      "findingType":  "external_host_connectivity",
+      "task":  "baseline_network_scanner",
+      "description":  "External host connectivity",
+      "value":  [
+        "google.com"
+      ]
+    },
+    {
+      "findingType":  "udp_ports_open",
+      "task":  "baseline_network_scanner",
+      "description":  "Open UDP ports",
+      "value":  [
+        39102
+      ]
+    },
+    {
+      "findingType":  "proxy_detection",
+      "task":  "baseline_proxy_detector",
+      "description":  "Proxy configuration",
+      "value":  {
+        "all_proxy":  "",
+        "http_proxy":  "",
+        "https_proxy":  "",
+        "no_proxy":  "",
+        "pac_url":  "",
+        "socks_proxy":  ""
+      }
+    },
+    {
+      "findingType":  "unix_socket_detection",
+      "task":  "baseline_socket_scanner",
+      "description":  "Unix sockets detected",
+      "value":  [
+        "/run/docker.sock"
+      ]
+    },
+    {
+      "findingType":  "process_detection",
+      "task":  "baseline_process_scanner",
+      "description":  "Running processes",
+      "value":  [
+        "tail -f /dev/null",
+        "sh -e /__w/_temp/dce6f32f-7843-4bd9-90f4-7ef5f8e7fc32.sh",
+        "./artifacts/sandbox-probe"
+      ]
+    },
+    {
+      "findingType":  "parent_process_detection",
+      "task":  "baseline_process_scanner",
+      "description":  "Parent process",
+      "value":  [
+        "sh -e /__w/_temp/dce6f32f-7843-4bd9-90f4-7ef5f8e7fc32.sh"
+      ]
+    },
+    {
+      "findingType":  "hostname_detection",
+      "task":  "baseline_hostname",
+      "description":  "Hostname",
+      "value":  "ca2637f325c7"
+    },
+    {
+      "findingType":  "mounted_volumes_detections",
+      "task":  "baseline_mount_scanner",
+      "description":  "Host-mounted volumes",
+      "value":  [
+        "/dev/root -> /__w (ext4)",
+        "/dev/root -> /__e (ext4)",
+        "/dev/root -> /__t (ext4)",
+        "/dev/root -> /__w/_temp (ext4)",
+        "/dev/root -> /__w/_actions (ext4)",
+        "/dev/root -> /github/home (ext4)",
+        "/dev/root -> /github/workflow (ext4)",
+        "/dev/root -> /etc/resolv.conf (ext4)",
+        "/dev/root -> /etc/hostname (ext4)",
+        "/dev/root -> /etc/hosts (ext4)"
+      ]
+    }
+  ]
+}

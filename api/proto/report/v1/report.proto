@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package report.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/controlplaneio/sandbox-probe/api/proto/report/v1;reportv1";
+
+// ProbeBinary contains information about the probe binary
+message ProbeBinary {
+  string go_version = 1;
+  string os = 2;
+  string arch = 3;
+  bool static = 4;
+}
+
+// Finding represents a security finding discovered by a task
+message Finding {
+  // The type of finding that was discovered
+  string finding_type = 1;
+  // Task that produced the finding
+  string task = 2;
+  // Description contains an explanation of the finding
+  string description = 3;
+  // Value holds the finding's data (supports arbitrary JSON-like values)
+  google.protobuf.Value value = 4;
+}
+
+// Report contains the complete probe execution results
+message Report {
+  // Version of the report format
+  string version = 1;
+  // Timestamp when the report was generated
+  google.protobuf.Timestamp timestamp = 2;
+  // Information about the probe binary
+  ProbeBinary probe_binary = 3;
+  // List of findings discovered during execution
+  repeated Finding findings = 4;
+}
