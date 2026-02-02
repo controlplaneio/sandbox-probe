@@ -1,0 +1,31 @@
+site_name: CP Repo Template
+theme:
+  name: material
+plugins:
+  - search
+  - mermaid2
+  - plantuml:
+      puml_url: https://www.plantuml.com/plantuml/
+      num_workers: 8
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      # make exceptions to highlighting of code:
+      custom_fences:
+          - name: mermaid
+            class: mermaid
+            format: !!python/name:mermaid2.fence_mermaid
+  - pymdownx.snippets:
+      check_paths: true
+nav:
+  - 'Home': 'index.md'
+  - Tutorials:
+      - Placeholder: tutorials/index.md
+  - How to Guides:
+      - MkDocs: how-to/mkdocs.md
+      - Diagrams as Code: how-to/diagrams-as-code.md
+  - Reference:
+      - Placeholder: reference/index.md
+  - Explanation:
+      - Placeholder: explanation/index.md
