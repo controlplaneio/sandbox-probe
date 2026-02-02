@@ -1,0 +1,33 @@
+---
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      time: "06:12"
+      timezone: UTC
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      gha:
+        patterns:
+          - "*"
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      time: "06:12"
+      timezone: UTC
+    allow:
+      # direct and indirect updates
+      - dependency-type: "all"
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      gomod:
+        patterns:
+          - "*"

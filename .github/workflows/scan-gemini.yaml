@@ -1,0 +1,175 @@
+name: scan-gemini
+
+on:
+  workflow_dispatch: # Allows manual triggering
+  schedule:
+    - cron: "0 8 * * *"
+    
+jobs:
+  # Job A: build binary and get latest sandbox tag
+  build-and-resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      hash: ${{ steps.resolve.outputs.hash }}
+      hash_clean: ${{ steps.resolve.outputs.hash_clean }}
+      # should_scan: ${{ steps.check-existing.outputs.should_scan }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve latest Gemini sandbox tag
+        id: resolve
+        run: |
+          echo "Using $(jq --version)"
+          hash_tag=$(curl -s "https://us-docker.pkg.dev/v2/gemini-code-dev/gemini-cli/sandbox/tags/list" \
+            | jq -r '.manifest
+                     | to_entries
+                     | sort_by(.value.timeCreatedMs | tonumber)
+                     | reverse
+                     | map(.value.tag |= map(select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))))
+                     | map(select(.value.tag | length > 0))
+                     | .[0]
+                     | [.key, .value.tag[0]] | join(",")')
+
+          HASH=$(echo "$hash_tag" | cut -d',' -f1)
+          # sha256:xyzxyz -> xyzxyz
+          HASH_CLEAN=$(echo "$HASH" | cut -d: -f 2)
+          TAG=$(echo "$hash_tag" | cut -d',' -f2)
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "hash=$HASH" >> "$GITHUB_OUTPUT"
+          echo "hash_clean=$HASH_CLEAN" >> "$GITHUB_OUTPUT"
+          echo -e "Outputs\nTAG: $TAG\nHASH: $HASH\HASH_CLEAN: $HASH_CLEAN"
+
+      #  not storing reports in GH right now
+      # - name: Check if report already exists
+      #   id: check-existing
+      #   run: |
+      #     echo "Listing previous scans"
+      #     ls -larth gemini-scans || echo "no previous scans found"
+      #     TAG="${{ steps.resolve.outputs.tag }}"
+      #     HASH="${{ steps.resolve.outputs.hash }}"
+
+      #     REPORT_FILE="gemini-scans/report-${TAG}-${HASH}.json"
+
+      #     if [ -f "$REPORT_FILE" ]; then
+      #       echo "Report already exists: $REPORT_FILE"
+      #       echo "should_scan=false" >> "$GITHUB_OUTPUT"
+      #     else
+      #       echo "Report not found, will proceed with scan"
+      #       echo "should_scan=true" >> "$GITHUB_OUTPUT"
+      #     fi
+
+      - name: Build binary
+        # if: steps.check-existing.outputs.should_scan == 'true'
+        run: |
+          mkdir -p build
+          go build -o sandbox-probe .
+
+      - name: Publish binary
+        # if: steps.check-existing.outputs.should_scan == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-probe-binary
+          path: sandbox-probe
+
+  # Job B: run binary in Gemini sandbox container
+  container-test-job:
+    needs: build-and-resolve
+    # if: needs.build-and-resolve.outputs.should_scan == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      report: ${{ steps.save-results.outputs.report }}
+
+    container:
+      image: us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:${{ needs.build-and-resolve.outputs.tag }}
+      options: --user root
+    steps:
+      - name: Download artifact manually
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Use the GitHub REST API to get the latest artifact download URL
+          echo "querying... https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts"
+          curl -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" 
+          ARTIFACT_URL=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" \
+            | jq -r '.artifacts[] | select(.name=="sandbox-probe-binary") | .archive_download_url')
+
+          # Download and unzip the artifact
+          curl -L -o sandbox-probe.zip -H "Authorization: token $GITHUB_TOKEN" "$ARTIFACT_URL"
+          unzip -o sandbox-probe.zip -d ./artifacts
+          
+
+      - name: Run binary in container
+        run: |
+          echo "Running binary for gemini-cli/sandbox:${{ needs.build-and-resolve.outputs.tag }} (hash: ${{ needs.build-and-resolve.outputs.hash }})"
+          ls -larth ./artifacts
+          chmod +x ./artifacts/sandbox-probe
+          ./artifacts/sandbox-probe scan --tasksets baseline
+
+      - name: Save results to outputs
+        id: save-results
+        if: always()
+        run: |
+          # Save report.json content to output (base64 encoded to handle special chars)
+          if [ -f "report.json" ]; then
+            REPORT_CONTENT=$(cat report.json | base64 -w 0)
+            echo "report=$REPORT_CONTENT" >> "$GITHUB_OUTPUT"
+          else
+            echo "report=" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Job C: Write results with proper naming
+  write-results:
+    needs: [build-and-resolve, container-test-job]
+    runs-on: ubuntu-latest
+    # if: needs.build-and-resolve.outputs.should_scan == 'true'
+    steps:
+      # - name: Checkout repository
+      #   uses: actions/checkout@v4
+      - name: Write report.json with tag and hash
+        run: |
+          TAG="${{ needs.build-and-resolve.outputs.tag }}"
+          HASH_CLEAN="${{ needs.build-and-resolve.outputs.hash_clean }}"
+
+          # Decode and write report
+          if [ -n "${{ needs.container-test-job.outputs.report }}" ]; then
+            echo "${{ needs.container-test-job.outputs.report }}" | base64 -d > "report-${TAG}-${HASH_CLEAN}.json"
+            echo "Created: report-${TAG}-${HASH_CLEAN}.json"
+            cat "report-${TAG}-${HASH_CLEAN}.json"
+          else
+            echo "No report.json found"
+          fi
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          # artifacts have to be zip files currently
+          name: report-${{ needs.build-and-resolve.outputs.tag }}-${{ needs.build-and-resolve.outputs.hash_clean }}.json.zip
+          path: report-${{ needs.build-and-resolve.outputs.tag }}-${{ needs.build-and-resolve.outputs.hash_clean }}.json
+      # - name: Push results to repository
+      #   run: |
+      #     TAG="${{ needs.build-and-resolve.outputs.tag }}"
+      #     HASH="${{ needs.build-and-resolve.outputs.hash }}"
+
+      #     # Create gemini-scans folder
+      #     mkdir -p gemini-scans
+
+      #     # Move files to gemini-scans folder
+      #     if [ -f "report-${TAG}-${HASH}.json" ]; then
+      #       mv "report-${TAG}-${HASH}.json" "gemini-scans/"
+      #     fi
+
+      #     # Configure git
+      #     git config user.name "github-actions[bot]"
+      #     git config user.email "github-actions[bot]@control-plane.io"
+
+      #     # Add and commit files
+      #     git add gemini-scans/
+      #     git commit -m "Add Gemini scan results for ${TAG} (${HASH})" || echo "No changes to commit"
+
+      #     # Push to repository
+      #     git push
