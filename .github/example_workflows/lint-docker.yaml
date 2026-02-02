@@ -1,0 +1,27 @@
+---
+name: Linting - Dockerfile
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "Dockerfile*"
+  pull_request:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "Dockerfile*"
+
+jobs:
+  hadolint:
+    name: hadolint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2.4.0
+
+      - name: Run hadolint
+        uses: reviewdog/action-hadolint@v1.26
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review

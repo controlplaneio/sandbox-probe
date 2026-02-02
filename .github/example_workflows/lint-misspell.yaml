@@ -1,0 +1,23 @@
+---
+name: Linting - Spellcheck
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  misspell:
+    name: runner / misspell
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code.
+        uses: actions/checkout@v2.4.0
+      - name: misspell
+        uses: reviewdog/action-misspell@v1.9.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          locale: "UK"
+          exclude: |
+            "./.git*"
+          reporter: github-pr-review
