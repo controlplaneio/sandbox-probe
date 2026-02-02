@@ -1,0 +1,617 @@
+package tasks
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"strings"
+
+	reportv1 "github.com/controlplaneio/sandbox-probe/api/gen/proto/report/v1"
+	baselineTasks "github.com/controlplaneio/sandbox-probe/pkg/tasks/baseline"
+	"github.com/rs/zerolog/log"
+	"google.golang.org/protobuf/types/known/structpb"
+)
+
+// var expectedTypes = map[string]reflect.Type{
+// 	WRITEABLEPATHS:            reflect.TypeOf([]string{}),
+// SENSITIVEREADABLEPATHS:    reflect.TypeOf([]string{}),
+
+const TaskPrefix = "baseline"
+
+// Helper function to convert []string to []interface{} for structpb
+func stringSliceToInterface(slice []string) []interface{} {
+	result := make([]interface{}, len(slice))
+	for i, v := range slice {
+		result[i] = v
+	}
+	return result
+}
+
+// Helper function to convert []int to []interface{} for structpb
+func intSliceToInterface(slice []int) []interface{} {
+	result := make([]interface{}, len(slice))
+	for i, v := range slice {
+		result[i] = v
+	}
+	return result
+}
+
+type PathTask struct {
+	Task
+
+	name string
+}
+
+func NewPathTask() *PathTask {
+	return &PathTask{
+		name: fmt.Sprintf("%s_filesystem_enumerator", TaskPrefix),
+	}
+}
+
+func (t *PathTask) GetName() string {
+	return t.name
+}
+
+func (t *PathTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
+	log.Info().Str("task", t.GetName()).Msg("Starting filesystem enumeration task")
+
+	paths := baselineTasks.ScanTargetedPaths()
+	log.Info().
+		Int("writable_count", len(paths.WritablePaths)).
+		Int("readable_count", len(paths.ReadablePaths)).
+		Msg("Completed filesystem scan")
+
+	// Convert []string to structpb.Value
+	writableValue, err := structpb.NewValue(stringSliceToInterface(paths.WritablePaths))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert writable paths to protobuf value")
+		return nil, err
+	}
+
+	readableValue, err := structpb.NewValue(stringSliceToInterface(paths.ReadablePaths))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert readable paths to protobuf value")
+		return nil, err
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("Filesystem enumeration task completed successfully")
+	return []*reportv1.Finding{
+		{
+			FindingType: WRITEABLEPATHS,
+			Task:        t.GetName(),
+			Description: "Writeable paths",
+			Value:       writableValue,
+		},
+		{
+			FindingType: SENSITIVEREADABLEPATHS,
+			Task:        t.GetName(),
+			Description: "Readable sensitive paths",
+			Value:       readableValue,
+		},
+	}, nil
+}
+
+// NetworkTask produces: EXTERNALHOSTDNSRESOLUTION, EXTERNALHOSTCONNECTIVITY, TCPPORTSOPEN, UDPPORTSOPEN
+type NetworkTask struct {
+	Task
+	name         string
+	testHost     string
+	testHostname string
+}
+
+func NewNetworkTask() *NetworkTask {
+	return &NetworkTask{
+		name:         fmt.Sprintf("%s_network_scanner", TaskPrefix),
+		testHost:     "localhost",
+		testHostname: "google.com",
+	}
+}
+
+func (t *NetworkTask) GetName() string {
+	return t.name
+}
+
+func (t *NetworkTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
+	log.Info().Str("task", t.GetName()).Msg("Starting network scanning task")
+	var findings []*reportv1.Finding
+
+	// EXTERNALHOSTDNSRESOLUTION
+	log.Info().Str("hostname", t.testHostname).Msg("Performing DNS query")
+	ips, err := baselineTasks.DnsQuery(t.testHostname)
+	var dnsHosts []string
+	if err == nil {
+		for _, ip := range ips {
+			dnsHosts = append(dnsHosts, ip.String())
+		}
+		log.Info().Int("ip_count", len(dnsHosts)).Msg("DNS query successful")
+	} else {
+		log.Warn().Err(err).Msg("DNS query failed")
+	}
+	dnsValue, err := structpb.NewValue(stringSliceToInterface(dnsHosts))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert DNS hosts to protobuf value")
+		return nil, err
+	}
+	findings = append(findings, &reportv1.Finding{
+		FindingType: EXTERNALHOSTDNSRESOLUTION,
+		Task:        t.GetName(),
+		Description: "External host DNS resolution",
+		Value:       dnsValue,
+	})
+
+	// EXTERNALHOSTCONNECTIVITY
+	connHosts := []string{}
+	if len(dnsHosts) > 0 {
+		connHosts = append(connHosts, t.testHostname)
+		log.Info().Str("host", t.testHostname).Msg("External connectivity confirmed")
+	}
+	connValue, err := structpb.NewValue(stringSliceToInterface(connHosts))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert connectivity hosts to protobuf value")
+		return nil, err
+	}
+	findings = append(findings, &reportv1.Finding{
+		FindingType: EXTERNALHOSTCONNECTIVITY,
+		Task:        t.GetName(),
+		Description: "External host connectivity",
+		Value:       connValue,
+	})
+
+	// TCPPORTSOPEN
+	log.Info().Str("host", t.testHost).Msg("Scanning TCP ports")
+	tcpPorts := baselineTasks.ScanTCP(t.testHost)
+	log.Info().Int("open_tcp_ports", len(tcpPorts)).Msg("TCP scan completed")
+
+	if len(tcpPorts) > 0 {
+		tcpValue, err := structpb.NewValue(intSliceToInterface(tcpPorts))
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to convert TCP ports to protobuf value")
+			return nil, err
+		}
+		findings = append(findings, &reportv1.Finding{
+			FindingType: TCPPORTSOPEN,
+			Task:        t.GetName(),
+			Description: "Open TCP ports",
+			Value:       tcpValue,
+		})
+	}
+
+	// UDPPORTSOPEN
+	log.Info().Str("host", t.testHost).Msg("Scanning UDP ports")
+	udpPorts := baselineTasks.ScanUDP(t.testHost)
+	log.Info().Int("open_udp_ports", len(udpPorts)).Msg("UDP scan completed")
+
+	if len(udpPorts) > 0 {
+		udpValue, err := structpb.NewValue(intSliceToInterface(udpPorts))
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to convert UDP ports to protobuf value")
+			return nil, err
+		}
+		findings = append(findings, &reportv1.Finding{
+			FindingType: UDPPORTSOPEN,
+			Task:        t.GetName(),
+			Description: "Open UDP ports",
+			Value:       udpValue,
+		})
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("Network scanning task completed successfully")
+	return findings, nil
+}
+
+// ProxyTask produces: PROXYDETECTION
+type ProxyTask struct {
+	Task
+	name string
+}
+
+func NewProxyTask() *ProxyTask {
+	return &ProxyTask{
+		name: fmt.Sprintf("%s_proxy_detector", TaskPrefix),
+	}
+}
+
+func (t *ProxyTask) GetName() string {
+	return t.name
+}
+
+func (t *ProxyTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
+	log.Info().Str("task", t.GetName()).Msg("Starting proxy detection task")
+
+	proxy, err := baselineTasks.GetProxy()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get proxy configuration")
+		return nil, err
+	}
+
+	log.Info().
+		Str("http_proxy", proxy.HTTPProxy).
+		Str("https_proxy", proxy.HTTPSProxy).
+		Msg("Proxy configuration detected")
+
+	// Convert ProxyConfig struct to map for protobuf
+	proxyMap := map[string]interface{}{
+		"http_proxy":  proxy.HTTPProxy,
+		"https_proxy": proxy.HTTPSProxy,
+		"all_proxy":   proxy.ALLProxy,
+		"no_proxy":    proxy.NoProxy,
+		"socks_proxy": proxy.SOCKSProxy,
+		"pac_url":     proxy.PACURL,
+	}
+
+	proxyValue, err := structpb.NewValue(proxyMap)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert proxy config to protobuf value")
+		return nil, err
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("Proxy detection task completed successfully")
+	return []*reportv1.Finding{
+		{
+			FindingType: PROXYDETECTION,
+			Task:        t.GetName(),
+			Description: "Proxy configuration",
+			Value:       proxyValue,
+		},
+	}, nil
+}
+
+// SocketTask produces: UNIXSOCKETDETECTION
+type SocketTask struct {
+	Task
+	name      string
+	startPath string
+}
+
+func NewSocketTask() *SocketTask {
+	return &SocketTask{
+		name:      fmt.Sprintf("%s_socket_scanner", TaskPrefix),
+		startPath: "/",
+	}
+}
+
+func (t *SocketTask) GetName() string {
+	return t.name
+}
+
+func (t *SocketTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
+	log.Info().Str("task", t.GetName()).Str("start_path", t.startPath).Msg("Starting Unix socket scanning task")
+
+	sockets, err := baselineTasks.GetSockets(t.startPath)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to scan for Unix sockets")
+		return nil, err
+	}
+
+	log.Info().Int("socket_count", len(sockets)).Msg("Unix socket scan completed")
+
+	socketsValue, err := structpb.NewValue(stringSliceToInterface(sockets))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert sockets to protobuf value")
+		return nil, err
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("Unix socket scanning task completed successfully")
+	return []*reportv1.Finding{
+		{
+			FindingType: UNIXSOCKETDETECTION,
+			Task:        t.GetName(),
+			Description: "Unix sockets detected",
+			Value:       socketsValue,
+		},
+	}, nil
+}
+
+// ProcessTask produces: PROCESSDETECTION, PARENTPROCESSDETECTION
+type ProcessTask struct {
+	Task
+	name string
+}
+
+func NewProcessTask() *ProcessTask {
+	return &ProcessTask{
+		name: fmt.Sprintf("%s_process_scanner", TaskPrefix),
+	}
+}
+
+func (t *ProcessTask) GetName() string {
+	return t.name
+}
+
+func (t *ProcessTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
+	log.Info().Str("task", t.GetName()).Msg("Starting process scanning task")
+	var findings []*reportv1.Finding
+
+	// PROCESSDETECTION - All running processes
+	log.Info().Msg("Scanning running processes")
+	processes, err := baselineTasks.GetRunningProcesses()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get running processes")
+		return nil, err
+	}
+
+	log.Info().Int("process_count", len(processes)).Msg("Process scan completed")
+
+	var processStrings []string
+	for _, cmd := range processes {
+		if len(cmd) < 1 {
+			continue
+		}
+		processStrings = append(processStrings, strings.Join(cmd, " "))
+	}
+
+	if len(processStrings) < 1 {
+		return []*reportv1.Finding{}, nil
+	}
+
+	processValue, err := structpb.NewValue(stringSliceToInterface(processStrings))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert processes to protobuf value")
+		return nil, err
+	}
+
+	findings = append(findings, &reportv1.Finding{
+		FindingType: PROCESSDETECTION,
+		Task:        t.GetName(),
+		Description: "Running processes",
+		Value:       processValue,
+	})
+
+	// PARENTPROCESSDETECTION - Parent process
+	log.Info().Int("pid", os.Getpid()).Msg("Detecting parent process")
+	parentProc, err := baselineTasks.GetRunningParentProcess(os.Getpid())
+	var parentProcStr []string
+	if err == nil {
+		parentProcStr = []string{strings.Join(parentProc, " ")}
+		log.Info().Str("parent", parentProcStr[0]).Msg("Parent process detected")
+	} else {
+		log.Warn().Err(err).Msg("Failed to get parent process")
+	}
+
+	parentValue, err := structpb.NewValue(stringSliceToInterface(parentProcStr))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert parent process to protobuf value")
+		return nil, err
+	}
+
+	findings = append(findings, &reportv1.Finding{
+		FindingType: PARENTPROCESSDETECTION,
+		Task:        t.GetName(),
+		Description: "Parent process",
+		Value:       parentValue,
+	})
+
+	log.Info().Str("task", t.GetName()).Msg("Process scanning task completed successfully")
+	return findings, nil
+}
+
+// UserContextTask produces: USERCONTEXTDETECTION
+type UserContextTask struct {
+	Task
+	name string
+}
+
+func NewUserContextTask() *UserContextTask {
+	return &UserContextTask{
+		name: fmt.Sprintf("%s_user_context", TaskPrefix),
+	}
+}
+
+func (t *UserContextTask) GetName() string {
+	return t.name
+}
+
+func (t *UserContextTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
+	log.Info().Str("task", t.GetName()).Msg("Starting user context detection task")
+
+	userInfo, err := baselineTasks.GetUserGroupInfo()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get user/group information")
+		return nil, err
+	}
+
+	log.Info().
+		Int("uid", userInfo.UID).
+		Int("gid", userInfo.GID).
+		Int("euid", userInfo.EUID).
+		Int("egid", userInfo.EGID).
+		Msg("User context information retrieved")
+
+	userValue, err := structpb.NewValue(userInfo)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert user info to protobuf value")
+		return nil, err
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("User context detection task completed successfully")
+	return []*reportv1.Finding{
+		{
+			FindingType: USERCONTEXTDETECTION,
+			Task:        t.GetName(),
+			Description: "User context information",
+			Value:       userValue,
+		},
+	}, nil
+}
+
+// HostnameTask produces: HOSTNAMEDETECTION
+type HostnameTask struct {
+	Task
+	name string
+}
+
+func NewHostnameTask() *HostnameTask {
+	return &HostnameTask{
+		name: fmt.Sprintf("%s_hostname", TaskPrefix),
+	}
+}
+
+func (t *HostnameTask) GetName() string {
+	return t.name
+}
+
+func (t *HostnameTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
+	log.Info().Str("task", t.GetName()).Msg("Starting hostname detection task")
+
+	hostname, err := baselineTasks.GetHostName()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get hostname")
+		return nil, err
+	}
+
+	log.Info().Str("hostname", hostname).Msg("Hostname detected")
+
+	hostnameValue, err := structpb.NewValue(hostname)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert hostname to protobuf value")
+		return nil, err
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("Hostname detection task completed successfully")
+	return []*reportv1.Finding{
+		{
+			FindingType: HOSTNAMEDETECTION,
+			Task:        t.GetName(),
+			Description: "Hostname",
+			Value:       hostnameValue,
+		},
+	}, nil
+}
+
+// SandboxTask produces: SANDBOXDETECTION
+type SandboxTask struct {
+	Task
+	name string
+}
+
+func NewSandboxTask() *SandboxTask {
+	return &SandboxTask{
+		name: fmt.Sprintf("%s_sandbox_detector", TaskPrefix),
+	}
+}
+
+func (t *SandboxTask) GetName() string {
+	return t.name
+}
+
+func (t *SandboxTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
+	log.Info().Str("task", t.GetName()).Msg("Starting sandbox detection task")
+
+	// Detect container runtime
+	log.Info().Msg("Detecting container runtime")
+	runtime := baselineTasks.GetContainerRuntime(0, os.Getpid())
+	runtimeStr := "none"
+	switch runtime {
+	case baselineTasks.RuntimeDocker:
+		runtimeStr = "docker"
+	case baselineTasks.RuntimePodman:
+		runtimeStr = "podman"
+	case baselineTasks.RuntimeLXC:
+		runtimeStr = "lxc"
+	case baselineTasks.RuntimeOpenVZ:
+		runtimeStr = "openvz"
+	case baselineTasks.RuntimeGVisor:
+		runtimeStr = "gvisor"
+	case baselineTasks.RuntimeWSL:
+		runtimeStr = "wsl"
+	case baselineTasks.RuntimeFirejail:
+		runtimeStr = "firejail"
+	}
+
+	// Detect bwrap
+	log.Info().Msg("Checking for bubblewrap")
+	isBwrap, _ := baselineTasks.GetBubbleWrap(os.Getpid())
+	if isBwrap {
+		runtimeStr = "bubblewrap"
+	}
+
+	// TODO: Detect Seatbelt
+
+	log.Info().Str("runtime", runtimeStr).Msg("Sandbox detection completed")
+
+	if runtimeStr == "none" {
+		return []*reportv1.Finding{}, nil
+	}
+
+	sandboxValue, err := structpb.NewValue(runtimeStr)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert sandbox info to protobuf value")
+		return nil, err
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("Sandbox detection task completed successfully")
+
+	return []*reportv1.Finding{
+		{
+			FindingType: SANDBOXDETECTION,
+			Task:        t.GetName(),
+			Description: "Sandbox/container runtime",
+			Value:       sandboxValue,
+		},
+	}, nil
+}
+
+// MountTask produces: MOUNTEDVOLUMESDETECTION
+type MountTask struct {
+	Task
+	name string
+}
+
+func NewMountTask() *MountTask {
+	return &MountTask{
+		name: fmt.Sprintf("%s_mount_scanner", TaskPrefix),
+	}
+}
+
+func (t *MountTask) GetName() string {
+	return t.name
+}
+
+func (t *MountTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
+	log.Info().Str("task", t.GetName()).Msg("Starting mount detection task")
+
+	mounts, err := baselineTasks.GetHostMounts()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get host mounts")
+		return nil, err
+	}
+
+	log.Info().Int("mount_count", len(mounts)).Msg("Host mounts detected")
+
+	// Convert []Mount to []string for easier display
+	mountStrings := make([]string, len(mounts))
+	for i, m := range mounts {
+		mountStrings[i] = fmt.Sprintf("%s -> %s (%s)", m.Source, m.Target, m.FSType)
+	}
+
+	mountValue, err := structpb.NewValue(stringSliceToInterface(mountStrings))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert mounts to protobuf value")
+		return nil, err
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("Mount detection task completed successfully")
+	return []*reportv1.Finding{
+		{
+			FindingType: MOUNTEDVOLUMESDETECTION,
+			Task:        t.GetName(),
+			Description: "Host-mounted volumes",
+			Value:       mountValue,
+		},
+	}, nil
+}
+
+// GetAllTasks returns all baseline tasks
+func GetBaselineTasks() []Task {
+	return []Task{
+		NewPathTask(),        // WRITEABLEPATHS, SENSITIVEREADABLEPATHS
+		NewNetworkTask(),     // EXTERNALHOSTDNSRESOLUTION, EXTERNALHOSTCONNECTIVITY, TCPPORTSOPEN, UDPPORTSOPEN
+		NewProxyTask(),       // PROXYDETECTION
+		NewSocketTask(),      // UNIXSOCKETDETECTION
+		NewProcessTask(),     // PROCESSDETECTION, PARENTPROCESSDETECTION
+		NewUserContextTask(), // USERCONTEXTDETECTION
+		NewHostnameTask(),    // HOSTNAMEDETECTION
+		NewSandboxTask(),     // SANDBOXDETECTION
+		NewMountTask(),       // MOUNTEDVOLUMESDETECTION
+	}
+}

@@ -13,6 +13,7 @@
 *.o
 *.so
 *.pyc
+bin
 
 # Packages #
 ############
@@ -30,6 +31,7 @@
 # Logs and databases #
 ######################
 *.log
+logs/
 *.sqlite
 pip-log.txt
 
@@ -114,3 +116,16 @@ conf/.config/keybase/
 # Pipenv
 
 Pipfile*
+
+# Custom
+.mcp.json
+.profile
+.ripgreprc
+.vscode
+.zprofile
+.zshrc
+.bashrc
+.bash_profile
+.idea
+report.json
+results/
