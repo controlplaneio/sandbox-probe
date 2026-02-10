@@ -1,0 +1,641 @@
+[0;36m++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++[0;0m
+[0;33m _______  _     _  ___   _______  _______  _______  _______  ___      _______
+|       || | _ | ||   | |       ||       ||  _    ||       ||   |    |       |
+|  _____|| || || ||   | |    ___||_     _|| |_|   ||    ___||   |    |_     _|
+| |_____ |       ||   | |   |___   |   |  |       ||   |___ |   |      |   |
+|_____  ||       ||   | |    ___|  |   |  |  _   | |    ___||   |___   |   |
+ _____| ||   _   ||   | |   |      |   |  | |_|   ||   |___ |       |  |   |
+|_______||__| |__||___| |___|      |___|  |_______||_______||_______|  |___|[0;0m
+
+SwiftBelt: A MacOS enumerator similar to @harmjoy's Seatbelt. Does not use any command line utilities
+author: @cedowens
+[0;36m++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++[0;0m
+
+[0;0m[0;33m##########################################[0;0m
+==> Full Disk Access Check:
+[0;32m[+] Your app context HAS ALREADY been given full disk access (mdquery API calls can see the user's TCC database)[0;0m
+[0;0m[0;33m##########################################[0;0m
+[0;33m##########################################[0;0m
+==> Security Tools Found:
+[-] No security products found.
+[0;33m##########################################[0;0m
+==> Current process context:[0;32m
+com.microsoft.VSCode[0;0m
+==> Accessibility TCC Check:
+[0;31m[-] Your current app context does NOT have Accessibility TCC permissions![0;0m
+==> Hardware Model: [0;32mMacmini8,1[0;0m
+[0;32m[+] Host is a physical machine and is not in a VM based on the hardware model value of Macmini8,1[0;0m
+==> Last boot time: [0;32m2024-10-27 19:39:27 +0000[0;0m
+==> Kernel Info: [0;32mDarwin Kernel Version 23.6.0: Wed Jul 31 20:48:44 PDT 2024; root:xnu-10063.141.1.700.5~1/RELEASE_X86_64[0;0m
+==> Idle Time (no keyboard/mouse interaction) in seconds: [0;32m0[0;0m
+[-] The screen is [0;31mNOT[0;0m currently locked!
+[0;33m##########################################[0;0m
+==> System Info:[0;32m
+ AppleScript version:"2.8"
+'AppleScript Studio version':"1.5.3"
+'OS Version':"14.7"
+'Short User Name':"admin"
+'Long User Name':"admin"
+'user ID':502
+'User Locale':"en_US"
+'Home Directory':"/Users/admin/"
+
+'Computer Name':"DE819"
+'Host Name':"DE819"
+'IP Address':"185.25.242.219"
+'Primary Ethernet Address':"00:50:56:a2:95:b6"
+'CPU Type':"Intel x86-64h Haswell"
+'CPU Speed':3044
+'Memory':8192 
+[0;31m[-] No direct AD binding found on this host[0;0m
+
+[0;32mOpen Directory Nodes Found On This Host:[0;0m
+/Contacts
+/Local/Default
+/Platform SSO
+/Search
+
+
+Internal IP Addresses:[0;32m
+fe80::c6f:1915:a13d:705b%en0
+185.25.242.219
+fe80::a396:5786:8ff7:47e5%utun0
+fe80::50f4:7071:95f:95aa%utun1
+fe80::e5e0:d7f4:f150:e8c7%utun2
+fe80::ce81:b1c:bd2c:69e%utun3
+
+[0;0mEnvironment variable info:[0;32m
+(key: "__CFBundleIdentifier", value: "com.microsoft.VSCode")
+(key: "VSCODE_GIT_ASKPASS_MAIN", value: "/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/git/dist/askpass-main.js")
+(key: "USER", value: "admin")
+(key: "VSCODE_GIT_IPC_HANDLE", value: "/var/folders/pb/wh665b7d69l7y01jpzc6w6qw0000gp/T/vscode-git-92ad3375cb.sock")
+(key: "__CF_USER_TEXT_ENCODING", value: "0x1F6:0x0:0x0")
+(key: "COMMAND_MODE", value: "unix2003")
+(key: "TERM_PROGRAM", value: "vscode")
+(key: "PATH", value: "/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/usr/local/go/bin")
+(key: "VSCODE_GIT_ASKPASS_EXTRA_ARGS", value: "")
+(key: "_", value: "/Users/admin/repos/SwiftBelt/./SwiftBelt")
+(key: "XPC_FLAGS", value: "0x0")
+(key: "HOME", value: "/Users/admin")
+(key: "USER_ZDOTDIR", value: "/Users/admin")
+(key: "GEMINI_API_KEY", value: "AIzaSyAyPb8ubohg8uxVuecireilKxQ9Q6ycbAM")
+(key: "SHLVL", value: "1")
+(key: "OLDPWD", value: "/Users/admin/repos/SwiftBelt/Sources")
+(key: "SSH_AUTH_SOCK", value: "/private/tmp/com.apple.launchd.bm3IG9lmMh/Listeners")
+(key: "TERM_PROGRAM_VERSION", value: "1.88.1")
+(key: "PWD", value: "/Users/admin/repos/SwiftBelt")
+(key: "COLORTERM", value: "truecolor")
+(key: "SHELL", value: "/bin/zsh")
+(key: "ZDOTDIR", value: "/Users/admin")
+(key: "TMPDIR", value: "/var/folders/pb/wh665b7d69l7y01jpzc6w6qw0000gp/T/")
+(key: "TERM", value: "xterm-256color")
+(key: "MallocNanoZone", value: "0")
+(key: "VSCODE_GIT_ASKPASS_NODE", value: "/Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper (Plugin).app/Contents/MacOS/Code Helper (Plugin)")
+(key: "GIT_ASKPASS", value: "/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/git/dist/askpass.sh")
+(key: "VSCODE_INJECTION", value: "1")
+(key: "ORIGINAL_XDG_CURRENT_DESKTOP", value: "undefined")
+(key: "XPC_SERVICE_NAME", value: "0")
+(key: "LOGNAME", value: "admin")
+(key: "LANG", value: "en_US.UTF-8")
+
+[0;0m[0;33m##########################################[0;0m
+[0;0mSSH/AWS/gcloud Credentials Search:[0;32m
+[0;0m==>SSH Key Info Found:[0;32m
+[0;0mknown_hosts:[0;32m
+github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+
+
+[0;31m[-] ~/.aws directory not found on this host[0;0m
+
+[0;31m[-] ~/.config/gcloud/credentials.db not found on this host[0;0m
+
+[0;31m[-] ~/.azure directory not found on this host[0;0m
+[0;0m[0;33m##########################################[0;0m
+[0;33m##########################################[0;0m
+==> Clipboard Info:[0;32m
+
+[0;0m[0;33m##########################################[0;0m[0;0m
+[0;33m##########################################[0;0m
+==>Count of Running Apps: 58
+1. Name: vmware-tools-daemon
+===>[0;32mPath: Optional(file:///Library/Application%20Support/VMware%20Tools/vmware-tools-daemon/)[0;0m
+===>[0;32mPID: 284[0;0m
+Hidden: NO
+2. Name: loginwindow
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/loginwindow.app/)[0;0m
+===>[0;32mPID: 162[0;0m
+Hidden: NO
+3. Name: ViewBridgeAuxiliary
+===>[0;32mPath: Optional(file:///System/Library/PrivateFrameworks/ViewBridge.framework/Versions/A/XPCServices/ViewBridgeAuxiliary.xpc/)[0;0m
+===>[0;32mPID: 381[0;0m
+Hidden: NO
+4. Name: universalaccessd
+===>[0;32mPath: Optional(file:///usr/sbin/universalaccessd/)[0;0m
+===>[0;32mPID: 24983[0;0m
+Hidden: NO
+5. Name: CoreServicesUIAgent
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/CoreServicesUIAgent.app/)[0;0m
+===>[0;32mPID: 24982[0;0m
+Hidden: NO
+6. Name: BackgroundTaskManagementAgent
+===>[0;32mPath: Optional(file:///System/Library/PrivateFrameworks/BackgroundTaskManagement.framework/Support/BackgroundTaskManagementAgent.app/)[0;0m
+===>[0;32mPID: 24986[0;0m
+Hidden: NO
+7. Name: WindowManager
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/WindowManager.app/)[0;0m
+===>[0;32mPID: 24995[0;0m
+Hidden: NO
+8. Name: talagent
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/talagent/)[0;0m
+===>[0;32mPID: 24994[0;0m
+Hidden: NO
+9. Name: Notification Center
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/NotificationCenter.app/)[0;0m
+===>[0;32mPID: 25024[0;0m
+Hidden: NO
+10. Name: CoreLocationAgent
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/CoreLocationAgent.app/)[0;0m
+===>[0;32mPID: 25043[0;0m
+Hidden: NO
+11. Name: IOUIAgent
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/IOUIAgent.app/)[0;0m
+===>[0;32mPID: 25028[0;0m
+Hidden: NO
+12. Name: chronod
+===>[0;32mPath: Optional(file:///System/Library/PrivateFrameworks/ChronoCore.framework/Support/chronod/)[0;0m
+===>[0;32mPID: 25044[0;0m
+Hidden: NO
+13. Name: ViewBridgeAuxiliary
+===>[0;32mPath: Optional(file:///System/Library/PrivateFrameworks/ViewBridge.framework/Versions/A/XPCServices/ViewBridgeAuxiliary.xpc/)[0;0m
+===>[0;32mPID: 25064[0;0m
+Hidden: NO
+14. Name: Single Sign-On
+===>[0;32mPath: Optional(file:///System/Library/PrivateFrameworks/AppSSO.framework/Support/AppSSOAgent.app/)[0;0m
+===>[0;32mPID: 25076[0;0m
+Hidden: NO
+15. Name: RemindersIntentsExtension
+===>[0;32mPath: Optional(file:///System/Applications/Reminders.app/Contents/PlugIns/RemindersIntentsExtension.appex/)[0;0m
+===>[0;32mPID: 25088[0;0m
+Hidden: NO
+16. Name: UIKitSystem
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/UIKitSystem.app/)[0;0m
+===>[0;32mPID: 25143[0;0m
+Hidden: NO
+17. Name: macOSWidgetExtension
+===>[0;32mPath: Optional(file:///System/Applications/Reminders.app/Contents/PlugIns/RemindersWidgetExtension.appex/)[0;0m
+===>[0;32mPID: 25055[0;0m
+Hidden: NO
+18. Name: TipsWidgetExtension
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/Tips.app/Contents/PlugIns/TipsWidget.appex/)[0;0m
+===>[0;32mPID: 25119[0;0m
+Hidden: NO
+19. Name: Wallpaper
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/WallpaperAgent.app/)[0;0m
+===>[0;32mPID: 25156[0;0m
+Hidden: NO
+20. Name: SystemUIServer
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/SystemUIServer.app/)[0;0m
+===>[0;32mPID: 25163[0;0m
+Hidden: NO
+21. Name: Dock
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/Dock.app/)[0;0m
+===>[0;32mPID: 25161[0;0m
+Hidden: NO
+22. Name: Control Center
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/ControlCenter.app/)[0;0m
+===>[0;32mPID: 25162[0;0m
+Hidden: NO
+23. Name: Finder
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/Finder.app/)[0;0m
+===>[0;32mPID: 25164[0;0m
+Hidden: NO
+24. Name: QuickLookUIService (Finder)
+===>[0;32mPath: Optional(file:///System/Library/Frameworks/QuickLookUI.framework/Versions/A/XPCServices/QuickLookUIService.xpc/)[0;0m
+===>[0;32mPID: 25169[0;0m
+Hidden: NO
+25. Name: Dock Extra
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/Dock.app/Contents/XPCServices/com.apple.dock.extra.xpc/)[0;0m
+===>[0;32mPID: 25179[0;0m
+Hidden: NO
+26. Name: TextInputMenuAgent
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/TextInputMenuAgent.app/)[0;0m
+===>[0;32mPID: 25191[0;0m
+Hidden: NO
+27. Name: TextInputSwitcher
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/TextInputSwitcher.app/)[0;0m
+===>[0;32mPID: 25197[0;0m
+Hidden: NO
+28. Name: Spotlight
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/Spotlight.app/)[0;0m
+===>[0;32mPID: 25198[0;0m
+Hidden: NO
+29. Name: CursorUIViewService
+===>[0;32mPath: Optional(file:///System/Library/PrivateFrameworks/TextInputUIMacHelper.framework/Versions/A/XPCServices/CursorUIViewService.xpc/)[0;0m
+===>[0;32mPID: 25201[0;0m
+Hidden: NO
+30. Name: AirPlayUIAgent
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/AirPlayUIAgent.app/)[0;0m
+===>[0;32mPID: 25187[0;0m
+Hidden: NO
+31. Name: vmware-tools-daemon
+===>[0;32mPath: Optional(file:///Library/Application%20Support/VMware%20Tools/vmware-tools-daemon/)[0;0m
+===>[0;32mPID: 25192[0;0m
+Hidden: NO
+32. Name: Wi-Fi
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/WiFiAgent.app/)[0;0m
+===>[0;32mPID: 25230[0;0m
+Hidden: NO
+33. Name: AppSSODaemon
+===>[0;32mPath: Optional(file:///System/Library/PrivateFrameworks/AppSSO.framework/Support/AppSSODaemon/)[0;0m
+===>[0;32mPID: 25079[0;0m
+Hidden: NO
+34. Name: SoftwareUpdateNotificationManager
+===>[0;32mPath: Optional(file:///System/Library/PrivateFrameworks/SoftwareUpdate.framework/Versions/A/Resources/SoftwareUpdateNotificationManager.app/)[0;0m
+===>[0;32mPID: 25247[0;0m
+Hidden: NO
+35. Name: Code
+===>[0;32mPath: Optional(file:///Applications/Visual%20Studio%20Code.app/)[0;0m
+===>[0;32mLaunch Date: 2026-02-09 16:39:34 +0000[0;0m
+===>[0;32mPID: 25379[0;0m
+Hidden: NO
+36. Name: Install Command Line Developer Tools
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/Install%20Command%20Line%20Developer%20Tools.app/)[0;0m
+===>[0;32mPID: 26343[0;0m
+Hidden: YES
+37. Name: Google Chrome
+===>[0;32mPath: Optional(file:///Applications/Google%20Chrome.app/)[0;0m
+===>[0;32mLaunch Date: 2026-02-09 17:13:53 +0000[0;0m
+===>[0;32mPID: 26499[0;0m
+Hidden: NO
+38. Name: Google Chrome Helper (Plugin)
+===>[0;32mPath: Optional(file:///Applications/Google%20Chrome.app/Contents/Frameworks/Google%20Chrome%20Framework.framework/Versions/124.0.6367.62/Helpers/Google%20Chrome%20Helper%20(Plugin).app/)[0;0m
+===>[0;32mPID: 26612[0;0m
+Hidden: NO
+39. Name: softwareupdated
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/Software%20Update.app/Contents/Resources/softwareupdated/)[0;0m
+===>[0;32mPID: 264[0;0m
+Hidden: NO
+40. Name: nsattributedstringagent
+===>[0;32mPath: Optional(file:///System/Library/PrivateFrameworks/UIFoundation.framework/Versions/A/XPCServices/nsattributedstringagent.xpc/)[0;0m
+===>[0;32mPID: 26737[0;0m
+Hidden: NO
+41. Name: ThemeWidgetControlViewService (Code)
+===>[0;32mPath: Optional(file:///System/Library/Frameworks/AppKit.framework/Versions/C/XPCServices/ThemeWidgetControlViewService.xpc/)[0;0m
+===>[0;32mPID: 27795[0;0m
+Hidden: NO
+42. Name: Open and Save Panel Service (Code)
+===>[0;32mPath: Optional(file:///System/Library/Frameworks/AppKit.framework/Versions/C/XPCServices/com.apple.appkit.xpc.openAndSavePanelService.xpc/)[0;0m
+===>[0;32mPID: 29812[0;0m
+Hidden: NO
+43. Name: QuickLookUIService (Open and Save Panel Service (Code))
+===>[0;32mPath: Optional(file:///System/Library/Frameworks/QuickLookUI.framework/Versions/A/XPCServices/QuickLookUIService.xpc/)[0;0m
+===>[0;32mPID: 29813[0;0m
+Hidden: NO
+44. Name: DockHelper
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/Dock.app/Contents/XPCServices/DockHelper.xpc/)[0;0m
+===>[0;32mPID: 29840[0;0m
+Hidden: NO
+45. Name: ThumbnailExtension_macOS
+===>[0;32mPath: Optional(file:///System/Library/Frameworks/QuickLookThumbnailing.framework/Versions/A/PlugIns/ThumbnailExtension_macOS.appex/)[0;0m
+===>[0;32mPID: 29873[0;0m
+Hidden: NO
+46. Name: AuthenticationServicesAgent
+===>[0;32mPath: Optional(file:///System/Volumes/Preboot/Cryptexes/App/usr/libexec/AuthenticationServicesAgent/)[0;0m
+===>[0;32mPID: 31721[0;0m
+Hidden: NO
+47. Name: Freeform
+===>[0;32mPath: Optional(file:///System/Applications/Freeform.app/)[0;0m
+===>[0;32mLaunch Date: 2026-02-09 18:19:43 +0000[0;0m
+===>[0;32mPID: 31877[0;0m
+Hidden: NO
+48. Name: UserNotificationCenter
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/UserNotificationCenter.app/)[0;0m
+===>[0;32mPID: 35632[0;0m
+Hidden: NO
+49. Name: Dictation
+===>[0;32mPath: Optional(file:///System/Library/Input%20Methods/DictationIM.app/)[0;0m
+===>[0;32mPID: 35951[0;0m
+Hidden: NO
+50. Name: Mail
+===>[0;32mPath: Optional(file:///System/Applications/Mail.app/)[0;0m
+===>[0;32mLaunch Date: 2026-02-09 19:40:53 +0000[0;0m
+===>[0;32mPID: 42739[0;0m
+Hidden: NO
+51. Name: Calendar
+===>[0;32mPath: Optional(file:///System/Applications/Calendar.app/)[0;0m
+===>[0;32mLaunch Date: 2026-02-09 19:53:53 +0000[0;0m
+===>[0;32mPID: 43195[0;0m
+Hidden: NO
+52. Name: printtool
+===>[0;32mPath: Optional(file:///System/Library/Frameworks/ApplicationServices.framework/Versions/A/Frameworks/PrintCore.framework/Versions/A/printtool/)[0;0m
+===>[0;32mPID: 48918[0;0m
+Hidden: NO
+53. Name: ARDAgent
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/RemoteManagement/ARDAgent.app/)[0;0m
+===>[0;32mPID: 49083[0;0m
+Hidden: NO
+54. Name: Keychain Circle Notification
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/Keychain%20Circle%20Notification.app/)[0;0m
+===>[0;32mPID: 52902[0;0m
+Hidden: NO
+55. Name: SSMenuAgent
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/RemoteManagement/SSMenuAgent.app/)[0;0m
+===>[0;32mPID: 56319[0;0m
+Hidden: NO
+56. Name: ScreensharingAgent
+===>[0;32mPath: Optional(file:///System/Library/CoreServices/RemoteManagement/ScreensharingAgent.bundle/)[0;0m
+===>[0;32mPID: 60070[0;0m
+Hidden: NO
+57. Name: universalAccessAuthWarn
+===>[0;32mPath: Optional(file:///System/Library/PrivateFrameworks/UniversalAccess.framework/Versions/A/Resources/universalAccessAuthWarn.app/)[0;0m
+===>[0;32mPID: 60877[0;0m
+Hidden: NO
+58. Name: SwiftBelt
+===>[0;32mPath: Optional(file:///Users/admin/repos/SwiftBelt/SwiftBelt/)[0;0m
+===>[0;32mPID: 60895[0;0m
+Hidden: NO
+[0;33m##########################################[0;0m
+[0;33m##########################################[0;0m
+==>Local User Account Info:[0;32m
+.localized
+admin
+Shared
+sysadmin
+[0;0m[0;33m##########################################[0;0m
+[0;33m##########################################[0;0m
+==>LaunchAgent/LaunchDaemon Info:
+[0;0mUser LaunchAgent Info:[0;32m
+file:///Users/admin/Library/LaunchAgents/com.google.keystone.xpcservice.plist
+file:///Users/admin/Library/LaunchAgents/com.google.keystone.agent.plist
+file:///Users/admin/Library/LaunchAgents/com.google.GoogleUpdater.wake.plist
+
+[0;0mSystem LaunchDaemon Info:[0;32m
+file:///Library/LaunchDaemons/com.display.refresh.plist
+file:///Library/LaunchDaemons/com.soma-zone.LaunchControl.Helper.plist
+file:///Library/LaunchDaemons/com.vmware.launchd.tools.plist
+file:///Library/LaunchDaemons/setResolution.job.plist
+
+[0;0mSystem LaunchAgent Info:[0;32m
+file:///Library/LaunchAgents/com.vmware.launchd.vmware-tools-userd.plist
+
+[0;0mConfiguration Profile Info:[0;32m
+file:///Library/Managed%20Preferences/admin/
+file:///Library/Managed%20Preferences/com.apple.assistant.support.plist
+file:///Library/Managed%20Preferences/com.apple.Siri.plist
+file:///Library/Managed%20Preferences/com.apple.loginwindow.plist
+file:///Library/Managed%20Preferences/com.apple.SetupAssistant.managed.plist
+[0;0m[0;33m##########################################[0;0m
+[0;0m[0;33m##########################################[0;0m
+==>Browser History Info:
+
+[0;32m***************Quarantine History Results for user admin***************[0;0m
+
+[0;32m***************Safari history results for user admin***************[0;0m
+Date: 2026-02-09 18:13:23 | URL: https://platform.claude.com/oauth/authorize?code=true&client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A50798%2Fcallback&scope=org%3Acreate_api_key+user%3Aprofile+user%3Ainference+user%3Asessions%3Aclaude_code+user%3Amcp_servers&code_challenge=LLKu755R0Nj7Y2S5ChJd4jR1wDQfVhmQwhTAqRkcs1I&code_challenge_method=S256&state=P1giQQMg0s_UkVDmw89LEndTyjC4cfsRXe2AcyywmeI
+Date: 2026-02-09 18:13:24 | URL: https://platform.claude.com/oauth/authorize?code=true&client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A50798%2Fcallback&scope=org%3Acreate_api_key+user%3Aprofile+user%3Ainference+user%3Asessions%3Aclaude_code+user%3Amcp_servers&code_challenge=LLKu755R0Nj7Y2S5ChJd4jR1wDQfVhmQwhTAqRkcs1I&code_challenge_method=S256&state=P1giQQMg0s_UkVDmw89LEndTyjC4cfsRXe2AcyywmeI
+Date: 2026-02-09 18:13:25 | URL: https://platform.claude.com/login?selectAccount=true&returnTo=%2Foauth%2Fauthorize%3Fcode%3Dtrue%26client_id%3D9d1c250a-e61b-44d9-88ed-5944d1962f5e%26response_type%3Dcode%26redirect_uri%3Dhttp%253A%252F%252Flocalhost%253A50798%252Fcallback%26scope%3Dorg%253Acreate_api_key%2Buser%253Aprofile%2Buser%253Ainference%2Buser%253Asessions%253Aclaude_code%2Buser%253Amcp_servers%26code_challenge%3DLLKu755R0Nj7Y2S5ChJd4jR1wDQfVhmQwhTAqRkcs1I%26code_challenge_method%3DS256%26state%3DP1giQQMg0s_UkVDmw89LEndTyjC4cfsRXe2AcyywmeI
+Date: 2026-02-09 18:16:44 | URL: https://platform.claude.com/oauth/authorize?code=true&client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A50806%2Fcallback&scope=org%3Acreate_api_key+user%3Aprofile+user%3Ainference+user%3Asessions%3Aclaude_code+user%3Amcp_servers&code_challenge=5iuBziI-dioXFZIHq513DaxEX9isaLsYzQVvxqLAOSg&code_challenge_method=S256&state=mvywjsxObp5BhQDLM2W7EjTkQsLHY5MckUQCVKPWBCY
+Date: 2026-02-09 18:16:44 | URL: https://platform.claude.com/oauth/authorize?code=true&client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A50806%2Fcallback&scope=org%3Acreate_api_key+user%3Aprofile+user%3Ainference+user%3Asessions%3Aclaude_code+user%3Amcp_servers&code_challenge=5iuBziI-dioXFZIHq513DaxEX9isaLsYzQVvxqLAOSg&code_challenge_method=S256&state=mvywjsxObp5BhQDLM2W7EjTkQsLHY5MckUQCVKPWBCY
+Date: 2026-02-09 18:16:45 | URL: https://platform.claude.com/login?selectAccount=true&returnTo=%2Foauth%2Fauthorize%3Fcode%3Dtrue%26client_id%3D9d1c250a-e61b-44d9-88ed-5944d1962f5e%26response_type%3Dcode%26redirect_uri%3Dhttp%253A%252F%252Flocalhost%253A50806%252Fcallback%26scope%3Dorg%253Acreate_api_key%2Buser%253Aprofile%2Buser%253Ainference%2Buser%253Asessions%253Aclaude_code%2Buser%253Amcp_servers%26code_challenge%3D5iuBziI-dioXFZIHq513DaxEX9isaLsYzQVvxqLAOSg%26code_challenge_method%3DS256%26state%3DmvywjsxObp5BhQDLM2W7EjTkQsLHY5MckUQCVKPWBCY
+Date: 2026-02-09 18:16:49 | URL: https://accounts.google.com/o/oauth2/v2/auth?gsiwebsdk=3&client_id=1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com&scope=openid%20profile%20email&redirect_uri=storagerelay%3A%2F%2Fhttps%2Fplatform.claude.com%3Fid%3Dauth125222&prompt=select_account%20consent&access_type=offline&response_type=code&include_granted_scopes=true&enable_granular_consent=true
+Date: 2026-02-09 18:16:49 | URL: https://accounts.google.com/v3/signin/identifier?opparams=%253Fenable_granular_consent%253Dtrue&dsh=S-500921621%3A1770661009370109&access_type=offline&client_id=1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com&gsiwebsdk=3&include_granted_scopes=true&o2v=2&prompt=select_account+consent&redirect_uri=storagerelay%3A%2F%2Fhttps%2Fplatform.claude.com%3Fid%3Dauth125222&response_type=code&scope=openid+profile+email&service=lso&flowName=GeneralOAuthFlow&continue=https%3A%2F%2Faccounts.google.com%2Fsignin%2Foauth%2Fconsent%3Fauthuser%3Dunknown%26part%3DAJi8hAP33LW-FY8H1lHgz2hnqbUJHVisDMOARt1sTQjE2oQb72n0Je483s8zfPIH6XCu7octHZaqln3m_wwyg5S9mT9Dx2-__hASK424h7ChZ-27ByhyxldjLNs4rXQpIuFvLJKebloMxM3TB6G7h8oKeXSq4ffJ6BGuvQdHJVIIWSSWte__DRmN5mwszht41XSiJQ5kCOJmmQhd3u8JNo_wbL1xgi3MIDueB3xnp9tkiexP_YC8B_T80Vlo9TFVpf355PJ19C0fcaRP00vCXm__lBOhvNsYeOawfgXx7w44iuIrIjjENeHp2Ye1lDzIj2hxEuTlpM--eh7cFPK__IY51CMxbxloxQZNMetpuGRGgHFMtPprG0IBIOIc0ChLtY-0kYhL_7j-ohG9k1H7ybEuOJlFLJdypfcfzQ-ky8KWM9HG-LRq-i8zRVZw9GFVCBG141cb1J7FkQChArp49DW5dZYB_lgtuxCV_Ok2_itFBNNCSQAJY1c%26flowName%3DGeneralOAuthFlow%26as%3DS-500921621%253A1770661009370109%26client_id%3D1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com%26requestPath%3D%252Fsignin%252Foauth%252Fconsent%23&app_domain=https%3A%2F%2Fplatform.claude.com&rart=ANgoxcf6Xym5YdRn54zpo5kEo54wPvN2i0Nnj_KC98Dxmg8m2OyfOxs-gGCv8MlrJUJBgk9C27PoT2f80fwa4tooRBtwcpigb_HYS1Pja_fELwMCV97YtZ4
+Date: 2026-02-09 18:16:49 | URL: https://accounts.google.com/v3/signin/identifier?opparams=%253Fenable_granular_consent%253Dtrue&dsh=S-500921621%3A1770661009370109&access_type=offline&client_id=1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com&gsiwebsdk=3&include_granted_scopes=true&o2v=2&prompt=select_account+consent&redirect_uri=storagerelay%3A%2F%2Fhttps%2Fplatform.claude.com%3Fid%3Dauth125222&response_type=code&scope=openid+profile+email&service=lso&flowName=GeneralOAuthFlow&continue=https%3A%2F%2Faccounts.google.com%2Fsignin%2Foauth%2Fconsent%3Fauthuser%3Dunknown%26part%3DAJi8hAP33LW-FY8H1lHgz2hnqbUJHVisDMOARt1sTQjE2oQb72n0Je483s8zfPIH6XCu7octHZaqln3m_wwyg5S9mT9Dx2-__hASK424h7ChZ-27ByhyxldjLNs4rXQpIuFvLJKebloMxM3TB6G7h8oKeXSq4ffJ6BGuvQdHJVIIWSSWte__DRmN5mwszht41XSiJQ5kCOJmmQhd3u8JNo_wbL1xgi3MIDueB3xnp9tkiexP_YC8B_T80Vlo9TFVpf355PJ19C0fcaRP00vCXm__lBOhvNsYeOawfgXx7w44iuIrIjjENeHp2Ye1lDzIj2hxEuTlpM--eh7cFPK__IY51CMxbxloxQZNMetpuGRGgHFMtPprG0IBIOIc0ChLtY-0kYhL_7j-ohG9k1H7ybEuOJlFLJdypfcfzQ-ky8KWM9HG-LRq-i8zRVZw9GFVCBG141cb1J7FkQChArp49DW5dZYB_lgtuxCV_Ok2_itFBNNCSQAJY1c%26flowName%3DGeneralOAuthFlow%26as%3DS-500921621%253A1770661009370109%26client_id%3D1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com%26requestPath%3D%252Fsignin%252Foauth%252Fconsent%23&app_domain=https%3A%2F%2Fplatform.claude.com&rart=ANgoxcf6Xym5YdRn54zpo5kEo54wPvN2i0Nnj_KC98Dxmg8m2OyfOxs-gGCv8MlrJUJBgk9C27PoT2f80fwa4tooRBtwcpigb_HYS1Pja_fELwMCV97YtZ4
+Date: 2026-02-09 18:16:59 | URL: https://accounts.google.com/v3/signin/challenge/pk/presend?TL=APgKAcZkgRA52ekcA-79_Tr6Y-RsDINitapbxiGJcetjj1BygDDL6jSNbyKXGUiI&access_type=offline&app_domain=https%3A%2F%2Fplatform.claude.com&checkConnection=youtube%3A123&checkedDomains=youtube&cid=1&client_id=1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com&continue=https%3A%2F%2Faccounts.google.com%2Fsignin%2Foauth%2Fconsent%3Fauthuser%3Dunknown%26part%3DAJi8hAP33LW-FY8H1lHgz2hnqbUJHVisDMOARt1sTQjE2oQb72n0Je483s8zfPIH6XCu7octHZaqln3m_wwyg5S9mT9Dx2-__hASK424h7ChZ-27ByhyxldjLNs4rXQpIuFvLJKebloMxM3TB6G7h8oKeXSq4ffJ6BGuvQdHJVIIWSSWte__DRmN5mwszht41XSiJQ5kCOJmmQhd3u8JNo_wbL1xgi3MIDueB3xnp9tkiexP_YC8B_T80Vlo9TFVpf355PJ19C0fcaRP00vCXm__lBOhvNsYeOawfgXx7w44iuIrIjjENeHp2Ye1lDzIj2hxEuTlpM--eh7cFPK__IY51CMxbxloxQZNMetpuGRGgHFMtPprG0IBIOIc0ChLtY-0kYhL_7j-ohG9k1H7ybEuOJlFLJdypfcfzQ-ky8KWM9HG-LRq-i8zRVZw9GFVCBG141cb1J7FkQChArp49DW5dZYB_lgtuxCV_Ok2_itFBNNCSQAJY1c%26flowName%3DGeneralOAuthFlow%26as%3DS-500921621%253A1770661009370109%26client_id%3D1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com%26requestPath%3D%252Fsignin%252Foauth%252Fconsent%23&dsh=S-500921621%3A1770661009370109&flowName=GeneralOAuthFlow&gsiwebsdk=3&include_granted_scopes=true&o2v=2&opparams=%253Fenable_granular_consent%253Dtrue&prompt=select_account%20consent&pstMsg=1&rart=ANgoxcf6Xym5YdRn54zpo5kEo54wPvN2i0Nnj_KC98Dxmg8m2OyfOxs-gGCv8MlrJUJBgk9C27PoT2f80fwa4tooRBtwcpigb_HYS1Pja_fELwMCV97YtZ4&redirect_uri=storagerelay%3A%2F%2Fhttps%2Fplatform.claude.com%3Fid%3Dauth125222&response_type=code&scope=openid%20profile%20email&service=lso
+Date: 2026-02-09 18:19:09 | URL: https://accounts.google.com/v3/signin/challenge/pk/error?TL=APgKAcZkgRA52ekcA-79_Tr6Y-RsDINitapbxiGJcetjj1BygDDL6jSNbyKXGUiI&access_type=offline&app_domain=https%3A%2F%2Fplatform.claude.com&checkConnection=youtube%3A123&checkedDomains=youtube&cid=1&client_id=1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com&continue=https%3A%2F%2Faccounts.google.com%2Fsignin%2Foauth%2Fconsent%3Fauthuser%3Dunknown%26part%3DAJi8hAP33LW-FY8H1lHgz2hnqbUJHVisDMOARt1sTQjE2oQb72n0Je483s8zfPIH6XCu7octHZaqln3m_wwyg5S9mT9Dx2-__hASK424h7ChZ-27ByhyxldjLNs4rXQpIuFvLJKebloMxM3TB6G7h8oKeXSq4ffJ6BGuvQdHJVIIWSSWte__DRmN5mwszht41XSiJQ5kCOJmmQhd3u8JNo_wbL1xgi3MIDueB3xnp9tkiexP_YC8B_T80Vlo9TFVpf355PJ19C0fcaRP00vCXm__lBOhvNsYeOawfgXx7w44iuIrIjjENeHp2Ye1lDzIj2hxEuTlpM--eh7cFPK__IY51CMxbxloxQZNMetpuGRGgHFMtPprG0IBIOIc0ChLtY-0kYhL_7j-ohG9k1H7ybEuOJlFLJdypfcfzQ-ky8KWM9HG-LRq-i8zRVZw9GFVCBG141cb1J7FkQChArp49DW5dZYB_lgtuxCV_Ok2_itFBNNCSQAJY1c%26flowName%3DGeneralOAuthFlow%26as%3DS-500921621%253A1770661009370109%26client_id%3D1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com%26requestPath%3D%252Fsignin%252Foauth%252Fconsent%23&dsh=S-500921621%3A1770661009370109&flowName=GeneralOAuthFlow&gsiwebsdk=3&include_granted_scopes=true&o2v=2&opparams=%253Fenable_granular_consent%253Dtrue&prompt=select_account%20consent&pstMsg=1&rart=ANgoxcf6Xym5YdRn54zpo5kEo54wPvN2i0Nnj_KC98Dxmg8m2OyfOxs-gGCv8MlrJUJBgk9C27PoT2f80fwa4tooRBtwcpigb_HYS1Pja_fELwMCV97YtZ4&redirect_uri=storagerelay%3A%2F%2Fhttps%2Fplatform.claude.com%3Fid%3Dauth125222&response_type=code&scope=openid%20profile%20email&service=lso
+Date: 2026-02-09 18:33:00 | URL: https://platform.claude.com/oauth/authorize?code=true&client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A50992%2Fcallback&scope=org%3Acreate_api_key+user%3Aprofile+user%3Ainference+user%3Asessions%3Aclaude_code+user%3Amcp_servers&code_challenge=JB78QGlVRLC48EiDL_zQw3us9zJRp3h3rRd46lGDokQ&code_challenge_method=S256&state=hKHogpoEBmrgnNG8CijEJ2glWQY3VFTnN44oWpDOUpk
+Date: 2026-02-09 18:33:00 | URL: https://platform.claude.com/oauth/authorize?code=true&client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A50992%2Fcallback&scope=org%3Acreate_api_key+user%3Aprofile+user%3Ainference+user%3Asessions%3Aclaude_code+user%3Amcp_servers&code_challenge=JB78QGlVRLC48EiDL_zQw3us9zJRp3h3rRd46lGDokQ&code_challenge_method=S256&state=hKHogpoEBmrgnNG8CijEJ2glWQY3VFTnN44oWpDOUpk
+Date: 2026-02-09 18:33:01 | URL: https://platform.claude.com/login?selectAccount=true&returnTo=%2Foauth%2Fauthorize%3Fcode%3Dtrue%26client_id%3D9d1c250a-e61b-44d9-88ed-5944d1962f5e%26response_type%3Dcode%26redirect_uri%3Dhttp%253A%252F%252Flocalhost%253A50992%252Fcallback%26scope%3Dorg%253Acreate_api_key%2Buser%253Aprofile%2Buser%253Ainference%2Buser%253Asessions%253Aclaude_code%2Buser%253Amcp_servers%26code_challenge%3DJB78QGlVRLC48EiDL_zQw3us9zJRp3h3rRd46lGDokQ%26code_challenge_method%3DS256%26state%3DhKHogpoEBmrgnNG8CijEJ2glWQY3VFTnN44oWpDOUpk
+
+[0;32m***************Chrome history results for user admin***************[0;0m
+Date: 2026-02-09 17:14:39 | URL: https://www.google.com/search?q=mac+install+git&oq=mac+install+gi&gs_lcrp=EgZjaHJvbWUqBwgAEAAYgAQyBwgAEAAYgAQyBwgBEAAYgAQyBggCEEUYOTIHCAMQABiABDIHCAQQABiABDIHCAUQABiABDIHCAYQABiABDIHCAcQABiABDIHCAgQABiABDIHCAkQABiABKgCCLACAQ&sourceid=chrome&ie=UTF-8 | Title: mac install git - Google Search
+Date: 2026-02-09 17:14:40 | URL: https://www.google.com/search?q=mac+install+git&oq=mac+install+gi&gs_lcrp=EgZjaHJvbWUqBwgAEAAYgAQyBwgAEAAYgAQyBwgBEAAYgAQyBggCEEUYOTIHCAMQABiABDIHCAQQABiABDIHCAUQABiABDIHCAYQABiABDIHCAcQABiABDIHCAgQABiABDIHCAkQABiABKgCCLACAQ&sourceid=chrome&ie=UTF-8&sei=_xWKaeyZKv639u8P2YrTiA0 | Title: mac install git - Google Search
+Date: 2026-02-09 17:14:45 | URL: https://git-scm.com/install/mac | Title: Git - Install for macOS
+Date: 2026-02-09 17:14:53 | URL: https://www.google.com/search?q=mac+install+brew&oq=mac+install+b&gs_lcrp=EgZjaHJvbWUqDAgAEAAYQxiABBiKBTIMCAAQABhDGIAEGIoFMgYIARBFGDkyBwgCEAAYgAQyBwgDEAAYgAQyBwgEEAAYgAQyBwgFEAAYgAQyBwgGEAAYgAQyBwgHEAAYgAQyBwgIEAAYgAQyBwgJEAAYgASoAgCwAgA&sourceid=chrome&ie=UTF-8 | Title: mac install brew - Google Search
+Date: 2026-02-09 17:14:56 | URL: https://brew.sh/ | Title: Homebrew — The Missing Package Manager for macOS (or Linux)
+Date: 2026-02-09 18:04:29 | URL: https://www.google.com/search?q=https%3A%2F%2Fbrew.install+go+in+mac&rlz=1C5CHFA_enGB1201GB1201&oq=https%3A%2F%2Fbrew.install+go+in+mac&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIGCAEQRRg60gEIMjAxMWowajSoAgCwAgE&sourceid=chrome&ie=UTF-8 | Title: https://brew.install go in mac - Google Search
+Date: 2026-02-09 18:04:38 | URL: https://www.google.com/search?q=install+go+in+mac&sca_esv=896419ed210a4547&rlz=1C5CHFA_enGB1201GB1201&ei=rCGKafCDLMTrhbIP6rq-0Qc&biw=1200&bih=839&ved=0ahUKEwjwidfC_8ySAxXEdUEAHWqdL3oQ4dUDCBM&uact=5&oq=install+go+in+mac&gs_lp=Egxnd3Mtd2l6LXNlcnAiEWluc3RhbGwgZ28gaW4gbWFjMgYQABgHGB4yBhAAGAcYHjIGEAAYBxgeMgYQABgHGB4yCBAAGAcYHhgKMgYQABgHGB4yBhAAGAcYHjIGEAAYBxgeMgYQABgHGB4yBhAAGAcYHkjPKFDCGliGJnACeAGQAQCYAVugAYkEqgECMTC4AQPIAQD4AQGYAgugAuMDwgIKEAAYRxjWBBiwA8ICBhAAGAUYHsICBhAAGAgYHpgDAIgGAZAGCJIHAjExoAfRM7IHATm4B9cDwgcGMC4xLjEwyAcsgAgB&sclient=gws-wiz-serp | Title: install go in mac - Google Search
+Date: 2026-02-09 18:04:50 | URL: https://go.dev/dl/ | Title: All releases - The Go Programming Language
+Date: 2026-02-09 18:05:15 | URL: https://go.dev/doc/install | Title: Download and install - The Go Programming Language
+Date: 2026-02-09 18:22:03 | URL: https://www.google.com/search?q=install+gemini+cli&rlz=1C5CHFA_enGB1201GB1201&oq=install+gem&gs_lcrp=EgZjaHJvbWUqBwgAEAAYgAQyBwgAEAAYgAQyBggBEEUYOTIHCAIQABiABDIHCAMQABiABDIHCAQQABiABDIHCAUQABiABDIHCAYQABiABDIHCAcQABiABDIHCAgQABiABDIHCAkQABiABKgCALACAA&sourceid=chrome&ie=UTF-8 | Title: install gemini cli - Google Search
+Date: 2026-02-09 18:22:06 | URL: https://geminicli.com/docs/get-started/installation/ | Title: Gemini CLI installation, execution, and deployment | Gemini CLI
+Date: 2026-02-09 18:33:58 | URL: https://platform.claude.com/oauth/authorize?code=true&client_id=9d1c250a-e61b-44d9-88ed-5944d1962f5e&response_type=code&redirect_uri=https%3A%2F%2Fplatform.claude.com%2Foauth%2Fcode%2Fcallback&scope=org%3Acreate_api_key+user%3Aprofile+user%3Ainference+user%3Asessions%3Aclaude_code+user%3Amcp_servers&code_challenge=JB78QGlVRLC48EiDL_zQw3us9zJRp3h3rRd46lGDokQ&code_challenge_method=S256&state=hKHogpoEBmrgnNG8CijEJ2glWQY3VFTnN44oWpDOUpk | Title: Authorize Application | Claude Developer Platform
+Date: 2026-02-09 18:33:59 | URL: https://platform.claude.com/login?selectAccount=true&returnTo=%2Foauth%2Fauthorize%3Fcode%3Dtrue%26client_id%3D9d1c250a-e61b-44d9-88ed-5944d1962f5e%26response_type%3Dcode%26redirect_uri%3Dhttps%253A%252F%252Fplatform.claude.com%252Foauth%252Fcode%252Fcallback%26scope%3Dorg%253Acreate_api_key%2Buser%253Aprofile%2Buser%253Ainference%2Buser%253Asessions%253Aclaude_code%2Buser%253Amcp_servers%26code_challenge%3DJB78QGlVRLC48EiDL_zQw3us9zJRp3h3rRd46lGDokQ%26code_challenge_method%3DS256%26state%3DhKHogpoEBmrgnNG8CijEJ2glWQY3VFTnN44oWpDOUpk | Title: Sign In | Claude Developer Platform
+Date: 2026-02-09 18:34:03 | URL: https://accounts.google.com/o/oauth2/v2/auth?gsiwebsdk=3&client_id=1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com&scope=openid%20profile%20email&redirect_uri=storagerelay%3A%2F%2Fhttps%2Fplatform.claude.com%3Fid%3Dauth122741&prompt=select_account%20consent&access_type=offline&response_type=code&include_granted_scopes=true&enable_granular_consent=true | Title: Sign in - Google Accounts
+Date: 2026-02-09 18:34:03 | URL: https://accounts.google.com/v3/signin/identifier?opparams=%253Fenable_granular_consent%253Dtrue&dsh=S-369034104%3A1770662043468278&access_type=offline&client_id=1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com&gsiwebsdk=3&include_granted_scopes=true&o2v=2&prompt=select_account+consent&redirect_uri=storagerelay%3A%2F%2Fhttps%2Fplatform.claude.com%3Fid%3Dauth122741&response_type=code&scope=openid+profile+email&service=lso&flowName=GeneralOAuthFlow&continue=https%3A%2F%2Faccounts.google.com%2Fsignin%2Foauth%2Fconsent%3Fauthuser%3Dunknown%26part%3DAJi8hAMSlm-x9gyJcFpzSEHZHe0iDKsEa1mSi_r039Qzd_4GzlR7w67BmDpiPF7QZ1WZvk4ZfEUCKxz4med6kB5wE2NJOsLq4KKPv2qtnAeaxzvwX6ARGRL25o-cNxCzuArXRkzc1qNnOFbcxp92PAJMKD3irzfnA91SmopGJfey_f6kJDwjplYWp9B2H_bg_KVk-2ifRbBh2jNscGld30_2Vo6m9Y-PQaRRS0lT6tOMm8YZ4IYeJkVvr9fQjPXpWquAEG24Pe_tr7QgoO3U-ybl6mvjy7GhvmXLsZkqvPanvFWnzwRKuQoYLDZxw4lB65g9Iig_hEqJq_302W2uJdmlMxvutARLKYuDGOrPmcKH2wa2wR_f8JBrOyuAbTCq43jdxd7WpXId0ht6vQs337CqiCXr0yF1rRUzkS4XEyb_1UDHgSB6q1ZDStVCF7_oR7QJVSgDC7W_qFcXUJHONAwpUv2PyL-tLgBPQN1o4VGey2j_XHJCz4U%26flowName%3DGeneralOAuthFlow%26as%3DS-369034104%253A1770662043468278%26client_id%3D1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com%26requestPath%3D%252Fsignin%252Foauth%252Fconsent%23&app_domain=https%3A%2F%2Fplatform.claude.com&rart=ANgoxccf42EKhzDN88xg47CN1pH2BxkTh9f8Xkz4mfY3BP5CAaH2EJoY_ewP9sQE4SNmV01BUnmKiB5u1yYMuxqfc5tzUmcWjOP5ogiAFf3knvyywI09PYk | Title: Sign in - Google Accounts
+Date: 2026-02-09 18:34:12 | URL: https://accounts.google.com/v3/signin/challenge/pk/presend?TL=APgKAca5UJoCJ5R3-Q9GVeA9gN96fIoLAWAQpk9XyeyjH4vLgMvgYZS9zyFLdJt7&access_type=offline&app_domain=https%3A%2F%2Fplatform.claude.com&checkConnection=youtube%3A86&checkedDomains=youtube&cid=1&client_id=1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com&continue=https%3A%2F%2Faccounts.google.com%2Fsignin%2Foauth%2Fconsent%3Fauthuser%3Dunknown%26part%3DAJi8hAMSlm-x9gyJcFpzSEHZHe0iDKsEa1mSi_r039Qzd_4GzlR7w67BmDpiPF7QZ1WZvk4ZfEUCKxz4med6kB5wE2NJOsLq4KKPv2qtnAeaxzvwX6ARGRL25o-cNxCzuArXRkzc1qNnOFbcxp92PAJMKD3irzfnA91SmopGJfey_f6kJDwjplYWp9B2H_bg_KVk-2ifRbBh2jNscGld30_2Vo6m9Y-PQaRRS0lT6tOMm8YZ4IYeJkVvr9fQjPXpWquAEG24Pe_tr7QgoO3U-ybl6mvjy7GhvmXLsZkqvPanvFWnzwRKuQoYLDZxw4lB65g9Iig_hEqJq_302W2uJdmlMxvutARLKYuDGOrPmcKH2wa2wR_f8JBrOyuAbTCq43jdxd7WpXId0ht6vQs337CqiCXr0yF1rRUzkS4XEyb_1UDHgSB6q1ZDStVCF7_oR7QJVSgDC7W_qFcXUJHONAwpUv2PyL-tLgBPQN1o4VGey2j_XHJCz4U%26flowName%3DGeneralOAuthFlow%26as%3DS-369034104%253A1770662043468278%26client_id%3D1062961139910-l2m55cb9h51u5cuc9c56eb3fevouidh9.apps.googleusercontent.com%26requestPath%3D%252Fsignin%252Foauth%252Fconsent%23&dsh=S-369034104%3A1770662043468278&flowName=GeneralOAuthFlow&gsiwebsdk=3&include_granted_scopes=true&o2v=2&opparams=%253Fenable_granular_consent%253Dtrue&prompt=select_account%20consent&pstMsg=1&rart=ANgoxccf42EKhzDN88xg47CN1pH2BxkTh9f8Xkz4mfY3BP5CAaH2EJoY_ewP9sQE4SNmV01BUnmKiB5u1yYMuxqfc5tzUmcWjOP5ogiAFf3knvyywI09PYk&redirect_uri=storagerelay%3A%2F%2Fhttps%2Fplatform.claude.com%3Fid%3Dauth122741&response_type=code&scope=openid%20profile%20email&service=lso | Title: Use your passkey to confirm it’s really you
+72 bytes
+[0;0m[0;33m##########################################[0;0m
+[0;0m[0;33m##########################################[0;0m
+==> Slack Info:
+[0;0m[0;33m##########################################[0;0m
+[0;31m[-] ~/.bash_history file not found on this host[0;0m
+==> Zsh History Data:[0;32m
+mkdir repos
+cd repos
+git
+cd repos
+cat <<EOF> .github_token\
+github_pat_11APSPS7Q086ebIJm6u6bO_6iyJ8uHCW1kCCiwz6sfWsNZMxIBFC5Qt0jdfiBBsNOkRM3VX\
+EOF
+git clone https://github.com/controlplaneio/sandbox-probe.git
+git
+brew install git
+xcode-select --install
+git
+sudo xcode-select --install
+git
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+git
+git clone https://github.com/controlplaneio/sandbox-probe.git
+git clone https://github.com/controlplaneio/sandbox-probe.git -h
+git clone https://github.com/controlplaneio/sandbox-probe.git -h | grep token
+git clone https://github.com/controlplaneio/sandbox-probe.git
+git clone https://github.com/controlplaneio/sandbox-probe.git | grep -i pass
+git clone https://github.com/controlplaneio/sandbox-probe.git -h | grep -i pass
+	PAT_TOKEN='github_pat_11APSPS7Q086ebIJm6u6bO_6iyJ8uHCW1kCCiwz6sfWsNZMxIBFC5Qt0jdfiBBsNOkRM3VX'
+git clone https://${PAT_TOKEN}@github.com/controlplaneio/sandbox-probe.git 
+git clone https:/albrodfer1:/${PAT_TOKEN}@github.com/controlplaneio/sandbox-probe.git 
+git clone https://albrodfer1:${PAT_TOKEN}@github.com/controlplaneio/sandbox-probe.git 
+git clone https://controlplaneio:${PAT_TOKEN}@github.com/controlplaneio/sandbox-probe.git 
+echo $PAT_TOKEN | sha1sum
+echo $PAT_TOKEN |wc -c
+PAT_TOKEN='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'
+echo $PAT_TOKEN |wc -c
+git clone https://albrodfer1:${PAT_TOKEN}@github.com/controlplaneio/sandbox-probe.git 
+echo $PAT_TOKEN > .github_token
+echo 'ghp_E6yMdISOe7JsOfWT7zWb080XTAAMYx0spDgV' | wc -c
+echo 'ghp_E6yMdISOe7JsOfWT7zWb080XTAAMYx0spDgV' > .github_classic
+PAT_TOKEN='ghp_E6yMdISOe7JsOfWT7zWb080XTAAMYx0spDgV'
+git clone https://albrodfer1:${PAT_TOKEN}@github.com/controlplaneio/sandbox-probe.git 
+echo $PAT_TOKEN
+sha1sum
+echo $PAT_TOKEN |shasum
+echo hello | shasum
+echo ${PAT_TOKEN:0:10} |shasum
+echo ${PAT_TOKEN:0:20} |shasum
+echo ${PAT_TOKEN:0:15} |shasum
+echo ${PAT_TOKEN:0:12} |shasum
+echo ${PAT_TOKEN:10:10} |shasum
+echo ${PAT_TOKEN:10:5} |shasum
+echo ${PAT_TOKEN:10:2} |shasum
+echo ${PAT_TOKEN:10:2
+echo ${PAT_TOKEN:10:2}
+PAT_TOKEN='ghp_E6yMdISOe7Js0fWT7zWb080XTAAMYx0spDgV'
+git clone https://albrodfer1:${PAT_TOKEN}@github.com/controlplaneio/sandbox-probe.git 
+echo ${PAT_TOKEN:10:10} |shasum
+echo ${PAT_TOKEN:10:5} |shasum
+echo ${PAT_TOKEN:10:2} |shasum
+echo ${PAT_TOKEN:10:2}
+PAT_TOKEN='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'
+git clone https://albrodfer1:${PAT_TOKEN}@github.com/controlplaneio/sandbox-probe.git 
+code sandbox-probe
+cat repos/.github_token
+git checkout initial-branch
+go
+chmod +x ~/Downloads/go1.25.7.darwin-amd64.pkg
+~/Downloads/go1.25.7.darwin-amd64.pkg
+go version
+claude -p "hello"
+bash tests/sandbox_claude.sh
+go build -o bin/sandbox-probe .
+ps -ef | grep claude.sh
+kill 30150
+ps -ef | grep claude.sh
+kill 38860
+ps -ef | grep claude.sh
+kill 38867 37311
+ps -ef | grep claude.sh
+kill 38912
+ps -ef | grep claude.sh
+go build -o bin/sandbox-probe .
+brew install docker podman
+brew install jq
+jq
+ps -ef | grep sandbox-probe
+kill 44684 37313 44682
+ps -ef | grep sandbox-probe
+kill 44796
+ps -ef | grep sandbox-probe
+git pull
+go build -o bin/sandbox-probe
+.
+bash tests/baseline_claude.sh
+claude 
+claude 
+./bin/sandbox-probe
+git pull
+go build -o bin/sandbox-probe .
+claude
+git reset HEAD~5 --Hhard
+git reset HEAD~5 --hard
+git pull
+git pull
+./bin/sandbox-probe 
+./bin/sandbox-probe 
+./bin/sandbox-probe git pullgit p
+git 
+go version
+go mod tidy
+bash tests/baseline_claude.sh Makefile
+bash tests/baseline_claude.sh 
+brew install claude
+claude
+brew install claude-code
+claude
+vi ~/.zshrc
+claude
+vi ~/.zshrc
+npm install -g google/gemini-cli
+brew install npm
+npm install -g @google/gemini-cli
+source ~/.zshrc
+gemini  -p "hellow"
+echo $GEMINI_API_KKEY | shasum
+echo $GEMINI_API_KEY | shasum
+echo ${GEMINI_API_KEY:0:5} | shasum
+echo ${GEMINI_API_KEY:0:5} 
+vi ~/.zshrc
+source ~/.zshrc
+gemini  -p "hellow"
+claude
+./bin/sandbox-probe
+ps -ef | grep  bash
+loññ 37304
+kill 37304
+fo run main.go
+go run main.go
+go run main.go
+bash tests/baseline_claude.sh
+bash tests/baseline_clago build -o bin/sandbox-probveude.sh
+go build -o bin/sandbox-probe .
+bash tests/baseline_claude.sh 
+ls -larth ~/.sandbox-probe/tmp
+cp ~/.sandbox-probe/tmp/tmp.ZjQw5qlmxL/report.json baseline-claude-macos.json 
+cp ~/.sandbox-probe/tmp/tmp.ZjQw5qlmxL/logs/sandbox-probe-2026-02-09-18-56-47.log baseline-claude-macos.log 
+bash tests/sandbox_claude.sh 
+ls -larth ~/.sandbox-probe/tmp
+cp ~/.sandbox-probe/tmp/tmp.Je7Ucs9EUN/logs/sandbox-probe-2026-02-09-19-04-01.log sandbox-claude-macos.log.txt
+cp ~/.sandbox-probe/tmp/tmp.Je7Ucs9EUN/report.json sandbox-claude-macos.json
+git add .
+git commit -m "macos changes"
+git config --global user.email "alberto.rodriguez@controlplane.io"
+git config --global user.name "albrodfer1"
+git commit -m "macos changes" 
+git push
+lsof -iUDP -n -P
+git config --global user.name "albrodfer1"bash tests/baseline_    
+bash tests/baseline_claude.sh 
+bash tests/baseline_claude.sh 
+git status
+git add baseline-claude-macos.json 
+bash tests/sandbox_claude.sh 
+bash tests/sandbox_gemini.sh
+bash tests/baseline_gemini.sh
+git add .
+git commit -m "feat: macos results"
+git push
+git reset HEAD~11 --hard
+git pull
+cd pkg/tasks/baseline 
+go test -v -run Test_SscanUDP
+go test -v -run Test_scanUDP
+go build -o bin/sandbox-probe .
+cd ..
+cd ..
+cd ..
+go build -o bin/sandbox-probe . 
+bin/sandbox-probe
+lsof -iUDP 
+lsof -iUDP  -n -P
+go build -o bin/sandbox-probe . 
+bash tests/baselinebash tests/baseline_gemini.sh
+bash tests/baseline_claude.sh
+go build -o bin/sandbox-probe . 
+git pull
+git log
+!
+git  pull
+go build -o bin/sandbox-probe . 
+bash tests/sandbox_claude.sh
+git add .
+git commit -m "results"
+git push
+bash tests/baseline_claude.sh && bash tests/baseline_gemini.sh&& bash tests/sandbox_gemini.sh
+git add .
+git commit -m "feaat: results"
+git push
+cd ..
+git clone https://github.com/cedowens/SwiftBelt/.git
+git clone https://github.com/cedowens/SwiftBelt.git
+cd SwiftBelt
+
+[0;0m[0;33m##########################################[0;0m
+==> com.apple.universalaccessAuthWarning.plist check: (note: 1=allowed, 2=denied)
+
+[0;33m-->Found Chrome Login Data sqlite3 db[0;0m
+[0;33m---->Attempting to grab username and url info....:[0;0m
+Format: origin_domain [0;36m || [0;0m username_value
+[0;0m[0;33m##########################################[0;0m
+==> Checking for Stickie Note contents:
+[0;33m[-] No stickie file contents found on this host[0;0m
+[0;31m[-] ~/.ipython/profile_default/history.sqlite not found on this host[0;0m
