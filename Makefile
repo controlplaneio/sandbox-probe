@@ -21,6 +21,10 @@ gen: ## Generate protobuf code from buf schemas
 fmt: ## Format Go code
 	go fmt ./...
 
+.PHONY: tests
+tests: ## Run all Go tests
+	go test -v ./...
+
 # Testing targets
 .PHONY: e2etests
 e2etests: ## Run end-to-end tests
