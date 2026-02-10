@@ -62,8 +62,10 @@ func main() {
 	zlog.Info().Msg("Starting sandbox-probe")
 
 	p, err := probes.NewProbe(
-		probes.WithName("baseline"),
+		probes.WithName("myprobe"),
+		// TODO: make probes configurable
 		probes.WithTasks(tasks.GetBaselineTasks()),
+		// probes.WithTasks(tasks.GetPSTasks()),
 		// probes.WithTasks([]tasks.Task{
 		// 	tasks.NewNetworkTask()}),
 	)

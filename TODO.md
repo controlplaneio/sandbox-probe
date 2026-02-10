@@ -32,6 +32,9 @@
 - [ ] Add Seatbelt to the `ContainerRuntime` enum
 - [ ] Add test case for Seatbelt detection
 
+### macOS PS test
+- [ ] Test ps commands in macOS
+
 ### E2E Testing Expansion
 - [ ] Add more controlled environment tests
   - [ ] Firejail detection test
@@ -43,6 +46,7 @@
 - [ ] Document test setup for each environment
 
 ### Tool Integration
+- [ ] Integrate with [`SwiftBelt`](https://github.com/cedowens/SwiftBelt/tree/master)
 - [ ] Integrate with Falco
 - [ ] Add support for other security tools
   - [ ] AppArmor profile generation

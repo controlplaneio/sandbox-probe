@@ -153,7 +153,7 @@ For tasks that execute system commands, use the generic command-based probe patt
    }
    ```
 
-2. **Implement the `cmdProbe[T]` interface**:
+2. **Implement the `CmdTask[T]` interface**:
    ```go
    // getCommand returns the command and arguments to execute
    func (p *myCustomProbe) getCommand() ([]string, error) {
@@ -172,7 +172,7 @@ For tasks that execute system commands, use the generic command-based probe patt
 3. **Execute the probe** using the generic runner:
    ```go
    probe := &myCustomProbe{}
-   result, err := runCmdProbe(probe)
+   result, err := runCmdTask(probe)
    ```
 
 4. **Write tests** using the mock pattern:
