@@ -25,4 +25,4 @@ bwrap \
   --unshare-cgroup \
   --share-net \
   --die-with-parent \
-  /data/${BINARY_NAME}
+  /data/${BINARY_NAME} scan --tasks baseline_sandbox_task

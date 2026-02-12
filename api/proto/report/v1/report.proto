@@ -13,6 +13,9 @@ message ProbeBinary {
   string os = 2;
   string arch = 3;
   bool static = 4;
+  string binary_version = 5;
+  string commit = 6;
+  string build_date = 7;
 }
 
 // Finding represents a security finding discovered by a task

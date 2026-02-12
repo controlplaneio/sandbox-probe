@@ -2,8 +2,7 @@
 
 ### Other probes
 
-- [ ] Network namespace detection (/proc/self/ns/net comparison)
-- [ ] PID namespace detection
+
 - [ ] Tmpfs detection
 - [ ] Symlink resolution across mount boundaries
 - [ ] `/proc/self/root` traversal
@@ -71,3 +70,5 @@
 - [x] Debug why Gemini refuses to run the binary
 - [x] Update `scripts/run-gemini-podman.sh` to work correctly
 - [x] Document Gemini-specific requirements
+- [x] Network namespace detection (/proc/self/ns/net comparison)
+- [x] PID namespace detection

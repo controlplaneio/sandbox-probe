@@ -30,6 +30,9 @@ type ProbeBinary struct {
 	Os            string                 `protobuf:"bytes,2,opt,name=os,proto3" json:"os,omitempty"`
 	Arch          string                 `protobuf:"bytes,3,opt,name=arch,proto3" json:"arch,omitempty"`
 	Static        bool                   `protobuf:"varint,4,opt,name=static,proto3" json:"static,omitempty"`
+	BinaryVersion string                 `protobuf:"bytes,5,opt,name=binary_version,json=binaryVersion,proto3" json:"binary_version,omitempty"`
+	Commit        string                 `protobuf:"bytes,6,opt,name=commit,proto3" json:"commit,omitempty"`
+	BuildDate     string                 `protobuf:"bytes,7,opt,name=build_date,json=buildDate,proto3" json:"build_date,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -90,6 +93,27 @@ func (x *ProbeBinary) GetStatic() bool {
 		return x.Static
 	}
 	return false
+}
+
+func (x *ProbeBinary) GetBinaryVersion() string {
+	if x != nil {
+		return x.BinaryVersion
+	}
+	return ""
+}
+
+func (x *ProbeBinary) GetCommit() string {
+	if x != nil {
+		return x.Commit
+	}
+	return ""
+}
+
+func (x *ProbeBinary) GetBuildDate() string {
+	if x != nil {
+		return x.BuildDate
+	}
+	return ""
 }
 
 // Finding represents a security finding discovered by a task
@@ -242,13 +266,17 @@ var File_proto_report_v1_report_proto protoreflect.FileDescriptor
 
 const file_proto_report_v1_report_proto_rawDesc = "" +
 	"\n" +
-	"\x1cproto/report/v1/report.proto\x12\treport.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\"h\n" +
+	"\x1cproto/report/v1/report.proto\x12\treport.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xc6\x01\n" +
 	"\vProbeBinary\x12\x1d\n" +
 	"\n" +
 	"go_version\x18\x01 \x01(\tR\tgoVersion\x12\x0e\n" +
 	"\x02os\x18\x02 \x01(\tR\x02os\x12\x12\n" +
 	"\x04arch\x18\x03 \x01(\tR\x04arch\x12\x16\n" +
-	"\x06static\x18\x04 \x01(\bR\x06static\"\x90\x01\n" +
+	"\x06static\x18\x04 \x01(\bR\x06static\x12%\n" +
+	"\x0ebinary_version\x18\x05 \x01(\tR\rbinaryVersion\x12\x16\n" +
+	"\x06commit\x18\x06 \x01(\tR\x06commit\x12\x1d\n" +
+	"\n" +
+	"build_date\x18\a \x01(\tR\tbuildDate\"\x90\x01\n" +
 	"\aFinding\x12!\n" +
 	"\ffinding_type\x18\x01 \x01(\tR\vfindingType\x12\x12\n" +
 	"\x04task\x18\x02 \x01(\tR\x04task\x12 \n" +

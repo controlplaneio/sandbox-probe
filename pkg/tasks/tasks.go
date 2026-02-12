@@ -44,6 +44,28 @@ var expectedTypes = map[string]reflect.Type{
 	SANDBOXDETECTION:          reflect.TypeOf(""),
 }
 
+// Registry with wrapper functions
+var taskRegistry = map[string]func() Task{
+	"baseline_path_task":         func() Task { return NewPathTask() },
+	"baseline_network_task":      func() Task { return NewNetworkTask() },
+	"baseline_proxy_task":        func() Task { return NewProxyTask() },
+	"baseline_socket_task":       func() Task { return NewSocketTask() },
+	"baseline_process_task":      func() Task { return NewProcessTask() },
+	"baseline_user_context_task": func() Task { return NewUserContextTask() },
+	"baseline_hostname_task":     func() Task { return NewHostnameTask() },
+	"baseline_sandbox_task":      func() Task { return NewSandboxTask() },
+	"baseline_mount_task":        func() Task { return NewMountTask() },
+	"ps_all_task":                func() Task { return NewPSAllTask() },
+	"ps_parent_task":             func() Task { return NewPSParentTask() },
+	"ps_single_task":             func() Task { return NewPSSingleTask() },
+}
+
+// Registry with wrapper functions
+var taskSetRegistry = map[string]func() []Task{
+	"baseline": func() []Task { return GetBaselineTasks() },
+	"ps":       func() []Task { return GetPSTasks() },
+}
+
 type Task interface {
 	// GetName returns the name of the task
 	GetName() string
@@ -67,4 +89,77 @@ func Validate(f *reportv1.Finding) error {
 	}
 
 	return nil
+}
+
+// GetTasksByName returns the given task
+func GetTasksByName(names []string) ([]Task, error) {
+	var tasksByNames []Task
+	for _, name := range names {
+		task, err := getTaskByName(name)
+		if err != nil {
+			return nil, err
+		}
+		tasksByNames = append(tasksByNames, task)
+	}
+	return tasksByNames, nil
+}
+
+// getTaskByName returns the given task
+func getTaskByName(name string) (Task, error) {
+	task, ok := taskRegistry[name]
+	if !ok {
+		return nil, fmt.Errorf("Task with name '%s' doesn't exist. Valid tasks are %v", name, getAllTasksNames())
+	}
+	return task(), nil
+}
+
+// getAllTasksNames returns all the tasks names
+func getAllTasksNames() []string {
+	var names []string
+	for name, _ := range taskRegistry {
+		names = append(names, name)
+	}
+	return names
+}
+
+// getAllTaskSetsNames returns all the tasksets names
+func getAllTaskSetsNames() []string {
+	var names []string
+	for name, _ := range taskSetRegistry {
+		names = append(names, name)
+	}
+	// all and none are a special keywords
+	names = append(names, "all", "none")
+	return names
+}
+
+func GetTaskSetsTasks(taskSets []string) ([]Task, error) {
+	var taskSetsTasks []Task
+	for _, taskset := range taskSets {
+		taskSetTasks, err := getTaskSetTasks(taskset)
+		if err != nil {
+			return nil, err
+		}
+		taskSetsTasks = append(taskSetsTasks, taskSetTasks...)
+	}
+	return taskSetsTasks, nil
+}
+
+// GetTaskSetTasks gets all tasks for a given taskset
+func getTaskSetTasks(taskset string) ([]Task, error) {
+	if taskSetTasks, ok := taskSetRegistry[taskset]; ok {
+		return taskSetTasks(), nil
+		// special keyword all to return all tasks
+	} else if taskset == "all" {
+		var allTasks []Task
+		for _, getTasksFn := range taskSetRegistry {
+			allTasks = append(allTasks, getTasksFn()...)
+		}
+		return allTasks, nil
+		// special keyword none to return no tasks
+	} else if taskset == "none" {
+		return []Task{}, nil
+	}
+
+	return nil, fmt.Errorf("Taskset with name '%s' doesn't exists. Valid names are %v", taskset, getAllTaskSetsNames())
 }

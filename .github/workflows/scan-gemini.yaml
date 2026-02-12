@@ -102,7 +102,7 @@ jobs:
           echo "Running binary for gemini-cli/sandbox:${{ needs.build-and-resolve.outputs.tag }} (hash: ${{ needs.build-and-resolve.outputs.hash }})"
           ls -larth ./artifacts
           chmod +x ./artifacts/sandbox-probe
-          ./artifacts/sandbox-probe
+          ./artifacts/sandbox-probe scan --tasksets baseline
 
       - name: Save results to outputs
         id: save-results

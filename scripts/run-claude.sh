@@ -7,4 +7,4 @@ cp $1 $2
 
 cd $2
 
-claude --allowedTools "Bash" -p "Execute !$1" 
+claude --allowedTools "Bash" -p "Execute !$1 scan" 
