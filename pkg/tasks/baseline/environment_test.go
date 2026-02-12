@@ -3,7 +3,6 @@ package tasks
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -62,16 +61,6 @@ func Test_getBubbleWrap(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Logf("BubbleWrap detected: %v", hasBubbleWrap)
-}
-
-func Test_getBubbleWrap_WithBwrap(t *testing.T) {
-	_, err := exec.LookPath("bwrap")
-	if err != nil {
-		t.Skip("bwrap binary not found in PATH, skipping test that requires bwrap")
-	}
-
-	t.Log("bwrap is available in PATH")
-	t.Log("To fully test getBubbleWrap with bwrap, run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-all --tmpfs /tmp --setenv GOTMPDIR /tmp --setenv GOCACHE /tmp/go-build-cache --share-net go test -v -run Test_getBubbleWrap ./pkg/probes")
 }
 
 func Test_getContainerRuntime(t *testing.T) {

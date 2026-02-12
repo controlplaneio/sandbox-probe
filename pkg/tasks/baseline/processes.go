@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/controlplaneio/sandbox-probe/pkg/models"
 	"github.com/prometheus/procfs"
 	"github.com/rs/zerolog/log"
 )
@@ -14,23 +15,17 @@ var fileExistsFunc = func(path string) bool {
 	return err == nil
 }
 
-func GetRunningProcess(pid int) ([]string, error) {
+func GetRunningProcess(pid int) (*models.Process, error) {
 	return getRunningProcessCommandLinux(pid)
 }
 
-func GetRunningParentProcess(pid int) ([]string, error) {
-	ppLinux, _, err := getRunningParentProcessLinux(pid)
-	if err != nil {
-		return []string{}, err
-	}
-	return ppLinux, nil
+func GetRunningParentProcess(pid int) (*models.Process, error) {
+	return getRunningParentProcessLinux(pid)
 }
 
-func GetRunningProcesses() ([][]string, error) {
+func GetRunningProcesses() ([]*models.Process, error) {
 	// ignore error
-	cmdLinux, _ := getRunningProcessesCommandsLinux()
-
-	return cmdLinux, nil
+	return getRunningProcessesCommandsLinux()
 }
 
 func getRunningProcessLinux(pid int) (procfs.Proc, error) {
@@ -42,45 +37,90 @@ func getRunningProcessLinux(pid int) (procfs.Proc, error) {
 	return fs.Proc(pid)
 }
 
-func getRunningProcessCommandLinux(pid int) ([]string, error) {
+func getRunningProcessCommandLinux(pid int) (*models.Process, error) {
 	proc, err := getRunningProcessLinux(pid)
 	if err != nil {
-		return []string{}, nil
+		return nil, err
 	}
-	return proc.CmdLine()
+	cmd, err := proc.Comm()
+	if err != nil {
+		return nil, err
+	}
+
+	namespaces, ppid, err := getNamespacesAndParentProcess(proc)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.Process{
+		Command:    cmd,
+		PID:        pid,
+		PPID:       ppid,
+		Namespaces: namespaces,
+	}, nil
 }
 
-// -1 stands for not found
-func getRunningParentProcessLinux(pid int) ([]string, int, error) {
+func getNamespacesAndParentProcess(proc procfs.Proc) ([]*models.Namespace, int, error) {
+	var namespaces []*models.Namespace
+	procfsNamespaces, err := proc.Namespaces()
+	if err != nil {
+		log.Info().Err(err).Msgf("Couldn't get namespaces for process %d", proc.PID)
+	} else {
+		for _, ns := range procfsNamespaces {
+			namespaces = append(namespaces, &models.Namespace{
+				Type:  ns.Type,
+				Inode: ns.Inode,
+			})
+		}
+	}
+	// don't return error if cannot find parent id
+	status, err := proc.Stat()
+	if err != nil {
+		return namespaces, -1, nil
+	}
+	return namespaces, status.PPID, nil
+}
+
+func getRunningParentProcessLinux(pid int) (*models.Process, error) {
 	proc, err := getRunningProcessLinux(pid)
 	if err != nil {
-		return []string{}, -1, nil
+		return nil, err
 	}
 	status, err := proc.Stat()
 	if err != nil {
-		return []string{}, -1, err
+		return nil, err
 	}
 
-	cmd, err := getRunningProcessCommandLinux(status.PPID)
-	return cmd, status.PPID, err
+	return getRunningProcessCommandLinux(status.PPID)
 }
 
-func getRunningProcessesCommandsLinux() ([][]string, error) {
+func getRunningProcessesCommandsLinux() ([]*models.Process, error) {
 	procs, err := getRunningProcessesLinux()
 	if err != nil {
-		return [][]string{}, nil
+		log.Info().Err(err).Msg("Couldn't get running processes in linux")
+		return nil, err
 	}
-	var commands [][]string
+	var processes []*models.Process
 
 	for _, proc := range procs {
-		cmd, err := proc.CmdLine()
+		cmd, err := proc.Comm()
 		if err != nil {
-			return [][]string{}, err
+			log.Warn().Err(err).Msg("error getting process command line")
+			continue
 		}
-		commands = append(commands, cmd)
+		namespaces, ppid, err := getNamespacesAndParentProcess(proc)
+		if err != nil {
+			log.Warn().Err(err).Msg("error getting process namespaces")
+		}
+		processes = append(processes, &models.Process{
+			Command:    cmd,
+			PID:        proc.PID,
+			PPID:       ppid,
+			Namespaces: namespaces,
+		})
 	}
 
-	return commands, nil
+	return processes, nil
 }
 
 func getRunningProcessesLinux() ([]procfs.Proc, error) {

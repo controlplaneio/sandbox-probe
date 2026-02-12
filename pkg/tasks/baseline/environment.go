@@ -128,9 +128,9 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 	}
 
 	// PID cmdline
-	initCmdline, err := getRunningProcessCommandLinux(pid)
+	proc, err := getRunningProcessCommandLinux(pid)
 	if err == nil {
-		runtime := stringToContainerRuntime(strings.Join(initCmdline, "\x00"))
+		runtime := stringToContainerRuntime(proc.Command)
 		if runtime != RuntimeNotFound {
 			return runtime
 		}
@@ -139,17 +139,17 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 	// Parent commands, maximum 10 iterations
 	iter := 0
 	for pid > 1 && iter < 10 {
-		cmdLine, ppid, err := getRunningParentProcessLinux(pid)
-		log.Info().Msgf("found parent process with pid: %d and command %v", pid, cmdLine)
+		proc, err := getRunningParentProcessLinux(pid)
 		if err != nil {
 			break
 		}
-		runtime := stringToContainerRuntime(strings.Join(cmdLine, "\x00"))
+		log.Info().Msgf("found parent process with pid: %d and command %v", proc.PID, proc.Command)
+		runtime := stringToContainerRuntime(proc.Command)
 		if runtime != RuntimeNotFound {
 			return runtime
 		}
 
-		pid = ppid
+		pid = proc.PPID
 		iter++
 	}
 
@@ -198,20 +198,18 @@ func stringToContainerRuntime(s string) ContainerRuntime {
 
 // GetBubbleWrap tries to detect if the system is running in bwrap
 func GetBubbleWrap(pid int) (bool, error) {
-	cmd, ppid, err := getRunningParentProcessLinux(pid)
-	if err != nil || ppid < 0 {
-		return false, err
+	proc, err := getRunningParentProcessLinux(pid)
+	if err != nil || proc.PID < 0 {
+		return false, nil
 	}
-	log.Info().Msgf("found this parent command %v", cmd)
-	for _, arg := range cmd {
-		if strings.Contains(arg, "bwrap") {
-			return true, nil
-		}
+	log.Info().Msgf("found this parent command %s", proc.Command)
+	if strings.Contains(proc.Command, "bwrap") {
+		return true, nil
 	}
 
-	is_bwrap, err := GetBubbleWrap(ppid)
+	is_bwrap, err := GetBubbleWrap(proc.PID)
 	if err != nil {
-		return false, err
+		return false, nil
 	}
 
 	return is_bwrap, nil

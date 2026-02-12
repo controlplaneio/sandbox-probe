@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	reportv1 "github.com/controlplaneio/sandbox-probe/api/gen/proto/report/v1"
+	"github.com/controlplaneio/sandbox-probe/pkg/models"
 	baselineTasks "github.com/controlplaneio/sandbox-probe/pkg/tasks/baseline"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -17,6 +17,32 @@ import (
 // SENSITIVEREADABLEPATHS:    reflect.TypeOf([]string{}),
 
 const TaskPrefix = "baseline"
+
+// Helper function to convert *models.Process to structpb.Value
+func processToInterface(p *models.Process) (*structpb.Value, error) {
+	// Convert namespaces to a format that structpb can handle
+	if p == nil {
+		log.Fatal().Msg("Received nil process")
+	}
+	var namespacesInterface []interface{}
+	for _, ns := range p.Namespaces {
+		nsMap := map[string]interface{}{
+			"type":  ns.Type,
+			"inode": ns.Inode,
+		}
+		namespacesInterface = append(namespacesInterface, nsMap)
+	}
+
+	// Convert Process struct to map for protobuf
+	processMap := map[string]interface{}{
+		"command":    p.Command,
+		"pid":        p.PID,
+		"ppid":       p.PPID,
+		"namespaces": namespacesInterface,
+	}
+
+	return structpb.NewValue(processMap)
+}
 
 // Helper function to convert []string to []interface{} for structpb
 func stringSliceToInterface(slice []string) []interface{} {
@@ -332,53 +358,42 @@ func (t *ProcessTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
 
 	log.Info().Int("process_count", len(processes)).Msg("Process scan completed")
 
-	var processStrings []string
-	for _, cmd := range processes {
-		if len(cmd) < 1 {
+	for _, process := range processes {
+		// skip error if it happens
+		processValue, err := processToInterface(process)
+		if err != nil {
+			log.Warn().Err(err).Msg("Error converting process to interface")
 			continue
 		}
-		processStrings = append(processStrings, strings.Join(cmd, " "))
+		findings = append(findings, &reportv1.Finding{
+			FindingType: PROCESSDETECTION,
+			Task:        t.GetName(),
+			Description: "Running processes",
+			Value:       processValue,
+		})
 	}
-
-	if len(processStrings) < 1 {
-		return []*reportv1.Finding{}, nil
-	}
-
-	processValue, err := structpb.NewValue(stringSliceToInterface(processStrings))
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to convert processes to protobuf value")
-		return nil, err
-	}
-
-	findings = append(findings, &reportv1.Finding{
-		FindingType: PROCESSDETECTION,
-		Task:        t.GetName(),
-		Description: "Running processes",
-		Value:       processValue,
-	})
 
 	// PARENTPROCESSDETECTION - Parent process
 	log.Info().Int("pid", os.Getpid()).Msg("Detecting parent process")
 	parentProc, err := baselineTasks.GetRunningParentProcess(os.Getpid())
-	var parentProcStr []string
-	if err == nil {
-		parentProcStr = []string{strings.Join(parentProc, " ")}
-		log.Info().Str("parent", parentProcStr[0]).Msg("Parent process detected")
-	} else {
-		log.Warn().Err(err).Msg("Failed to get parent process")
+	// skip error if it happens
+	if err != nil {
+		log.Info().Err(err).Msgf("Couldn't get parent process of %d", os.Getpid())
+		return findings, nil
 	}
 
-	parentValue, err := structpb.NewValue(stringSliceToInterface(parentProcStr))
+	// skip error if it happens
+	parentProcValue, err := processToInterface(parentProc)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to convert parent process to protobuf value")
-		return nil, err
+		log.Warn().Err(err).Msg("Error converting parent process to interface")
+		return findings, nil
 	}
 
 	findings = append(findings, &reportv1.Finding{
 		FindingType: PARENTPROCESSDETECTION,
 		Task:        t.GetName(),
 		Description: "Parent process",
-		Value:       parentValue,
+		Value:       parentProcValue,
 	})
 
 	log.Info().Str("task", t.GetName()).Msg("Process scanning task completed successfully")
