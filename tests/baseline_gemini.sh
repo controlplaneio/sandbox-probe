@@ -22,4 +22,4 @@ else
     exit 1
 fi
 
-cp $TMPDIR/report.json baseline-gemini-macos.json
+cp $TMPDIR/report.json baseline-gemini.json

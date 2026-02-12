@@ -8,4 +8,4 @@ cd $2
 
 # TODO: narrow down to just be able to run the executable
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-claude --settings ${SCRIPT_DIR}/config/claude-settings.json --allowedTools "Bash" -p "Execute !$1" 
+claude --settings ${SCRIPT_DIR}/config/claude-settings.json --allowedTools "Bash" -p "Execute !$1 scan" 

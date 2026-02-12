@@ -3,6 +3,7 @@ package tasks
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/controlplaneio/sandbox-probe/pkg/models"
 	"github.com/prometheus/procfs"
@@ -13,6 +14,14 @@ import (
 var fileExistsFunc = func(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+func getCommand(proc procfs.Proc) (string, error) {
+	cmdline, err := proc.CmdLine()
+	if len(cmdline) < 1 || err != nil {
+		return proc.Comm()
+	}
+	return strings.Join(cmdline, " "), nil
 }
 
 func GetRunningProcess(pid int) (*models.Process, error) {
@@ -42,7 +51,7 @@ func getRunningProcessCommandLinux(pid int) (*models.Process, error) {
 	if err != nil {
 		return nil, err
 	}
-	cmd, err := proc.Comm()
+	cmd, err := getCommand(proc)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +112,7 @@ func getRunningProcessesCommandsLinux() ([]*models.Process, error) {
 	var processes []*models.Process
 
 	for _, proc := range procs {
-		cmd, err := proc.Comm()
+		cmd, err := getCommand(proc)
 		if err != nil {
 			log.Warn().Err(err).Msg("error getting process command line")
 			continue

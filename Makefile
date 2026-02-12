@@ -1,3 +1,27 @@
+NAME := sandbox-probe
+GITHUB_ORG = controlplaneio
+PKG := github.com/$(GITHUB_ORG)/$(NAME)
+
+SHELL := /bin/bash
+BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+GIT_COMMIT := $(shell git -c log.showSignature=false rev-parse HEAD)
+GIT_SHA := $(GIT_COMMIT)
+GIT_UNTRACKED_CHANGES := $(shell git -c log.showSignature=false status --porcelain)
+GIT_TAG := $(shell bash -c 'TAG=$$(git -c log.showSignature=false describe --tags --exact-match --abbrev=0 $(GIT_SHA) 2>/dev/null); echo "$${TAG:-dev}"')
+
+# Mark as dirty if repo has uncommitted changes
+ifneq ($(GIT_UNTRACKED_CHANGES),)
+  GIT_COMMIT := $(GIT_COMMIT)-dirty
+  ifneq ($(GIT_TAG),dev)
+    GIT_TAG := $(GIT_TAG)-dirty
+  endif
+endif
+
+# Build-time variables for -ldflags
+CTIMEVAR=-X $(PKG)/cmd.commit=$(GIT_COMMIT) -X $(PKG)/cmd.version=$(GIT_TAG) -X $(PKG)/cmd.date=$(BUILD_DATE)
+GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
+GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
+
 .PHONY: help
 help: ## Show this help message
 	@echo "Available targets:"
@@ -7,7 +31,7 @@ help: ## Show this help message
 .PHONY: build
 build: ## Build the sandbox-probe binary
 	@mkdir -p bin
-	@go build -o bin/sandbox-probe .
+	@go build $(GO_LDFLAGS) -a -o bin/sandbox-probe .
 
 # Code generation targets
 .PHONY: gen
