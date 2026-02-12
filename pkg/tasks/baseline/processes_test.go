@@ -11,23 +11,25 @@ import (
 func Test_getRunningProcess(t *testing.T) {
 	// Test with current process
 	pid := os.Getpid()
-	cmdLine, err := GetRunningProcess(pid)
+	proc, err := GetRunningProcess(pid)
 
 	require.NoError(t, err, "getRunningProcess should not return error for current process")
-	assert.NotEmpty(t, cmdLine, "Command line should not be empty for current process")
+	require.NotNil(t, proc, "Process should not be nil")
+	assert.NotEmpty(t, proc.Command, "Command line should not be empty for current process")
 
-	t.Logf("Current process (PID %d) command: %v", pid, cmdLine)
+	t.Logf("Current process (PID %d) command: %v", pid, proc.Command)
 }
 
 func Test_getRunningParentProcess(t *testing.T) {
 	// Test with current process to get its parent
 	pid := os.Getpid()
-	parentCmd, err := GetRunningParentProcess(pid)
+	parentProc, err := GetRunningParentProcess(pid)
 
 	require.NoError(t, err, "getRunningParentProcess should not return error")
-	assert.NotEmpty(t, parentCmd, "Parent process command should not be empty")
+	require.NotNil(t, parentProc, "Parent process should not be nil")
+	assert.NotEmpty(t, parentProc.Command, "Parent process command should not be empty")
 
-	t.Logf("Parent process of PID %d: %v", pid, parentCmd)
+	t.Logf("Parent process of PID %d: %v", pid, parentProc.Command)
 }
 
 func Test_getRunningProcesses(t *testing.T) {
@@ -45,20 +47,19 @@ func Test_getRunningProcesses(t *testing.T) {
 		maxLog = len(processes)
 	}
 	for i := 0; i < maxLog; i++ {
-		if len(processes[i]) > 0 {
-			t.Logf("Process %d: %v", i, processes[i])
-		}
+		t.Logf("Process %d (PID %d): %v", i, processes[i].PID, processes[i].Command)
 	}
 }
 func Test_getRunningParentProcessLinux(t *testing.T) {
-	// Test getting parent process using ps command
+	// Test getting parent process
 	pid := os.Getpid()
-	parentCmd, _, err := getRunningParentProcessLinux(pid)
+	parentProc, err := getRunningParentProcessLinux(pid)
 
 	require.NoError(t, err, "getRunningParentProcessLinux should not return error")
-	assert.NotEmpty(t, parentCmd, "Parent process command should not be empty")
+	require.NotNil(t, parentProc, "Parent process should not be nil")
+	assert.NotEmpty(t, parentProc.Command, "Parent process command should not be empty")
 
-	t.Logf("Parent of PID %d using ps: %v", pid, parentCmd)
+	t.Logf("Parent of PID %d: %v", pid, parentProc.Command)
 }
 
 func TestStringToContainerRuntime(t *testing.T) {

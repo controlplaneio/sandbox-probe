@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/controlplaneio/sandbox-probe/pkg/models"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -231,6 +232,108 @@ func TestProxyConfigToProtobuf(t *testing.T) {
 					actualVal := field.GetStringValue()
 					if actualVal != expectedVal {
 						t.Errorf("Field %s = %v, want %v", key, actualVal, expectedVal)
+					}
+				}
+			}
+		})
+	}
+}
+
+// Test_processToInterface tests the processToInterface function
+func Test_processToInterface(t *testing.T) {
+	tests := []struct {
+		name      string
+		process   *models.Process
+		wantError bool
+	}{
+		{
+			name: "full process with namespaces",
+			process: &models.Process{
+				Command: "/usr/bin/test --flag value",
+				PID:     1234,
+				PPID:    1,
+				Namespaces: []*models.Namespace{
+					{Type: "mnt", Inode: 4026531840},
+					{Type: "net", Inode: 4026531956},
+				},
+			},
+			wantError: false,
+		},
+		{
+			name: "process with empty command",
+			process: &models.Process{
+				Command:    "",
+				PID:        5678,
+				PPID:       1,
+				Namespaces: []*models.Namespace{},
+			},
+			wantError: false,
+		},
+		{
+			name: "process with nil namespaces",
+			process: &models.Process{
+				Command:    "/bin/sh",
+				PID:        9999,
+				PPID:       1000,
+				Namespaces: nil,
+			},
+			wantError: false,
+		},
+		{
+			name: "process with single command element",
+			process: &models.Process{
+				Command: "init",
+				PID:     1,
+				PPID:    0,
+				Namespaces: []*models.Namespace{
+					{Type: "pid", Inode: 4026531836},
+				},
+			},
+			wantError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Call processToInterface
+			value, err := processToInterface(tt.process)
+
+			// Check error expectation
+			if (err != nil) != tt.wantError {
+				t.Errorf("processToInterface() error = %v, wantError %v", err, tt.wantError)
+				return
+			}
+
+			if err == nil {
+				// Verify the value is a struct
+				structValue := value.GetStructValue()
+				if structValue == nil {
+					t.Fatal("Expected struct value, got nil")
+				}
+
+				// Verify expected fields exist
+				expectedFields := []string{"command", "pid", "ppid", "namespaces"}
+				for _, field := range expectedFields {
+					if _, ok := structValue.Fields[field]; !ok {
+						t.Errorf("Missing expected field: %s", field)
+					}
+				}
+
+				// Verify PID value
+				pidField := structValue.Fields["pid"]
+				if pidField != nil {
+					pidValue := int(pidField.GetNumberValue())
+					if pidValue != tt.process.PID {
+						t.Errorf("PID = %d, want %d", pidValue, tt.process.PID)
+					}
+				}
+
+				// Verify PPID value
+				ppidField := structValue.Fields["ppid"]
+				if ppidField != nil {
+					ppidValue := int(ppidField.GetNumberValue())
+					if ppidValue != tt.process.PPID {
+						t.Errorf("PPID = %d, want %d", ppidValue, tt.process.PPID)
 					}
 				}
 			}
