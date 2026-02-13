@@ -58,6 +58,6 @@ func initConfig() error {
 		return nil
 	}
 
-	log.Info().Msgf("Using config:", viper.ConfigFileUsed())
+	log.Info().Msgf("Using config: %s", viper.ConfigFileUsed())
 	return nil
 }

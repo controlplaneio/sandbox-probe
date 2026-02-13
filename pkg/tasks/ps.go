@@ -30,19 +30,16 @@ func cmdToFinding(cmd cmdBasedTasks.Command, Type, desc, task string) (*reportv1
 }
 
 type PSAllTask struct {
-	Task
-
-	name string
+	baseTask
 }
 
 func NewPSAllTask() *PSAllTask {
 	return &PSAllTask{
-		name: "ps_all",
+		baseTask: baseTask{
+			name:        "ps_all",
+			description: "Lists all running processes using ps command",
+		},
 	}
-}
-
-func (t *PSAllTask) GetName() string {
-	return t.name
 }
 
 func (t *PSAllTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
@@ -63,21 +60,18 @@ func (t *PSAllTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
 }
 
 type PSSingleTask struct {
-	Task
-
-	name string
-	pid  int
+	baseTask
+	pid int
 }
 
 func NewPSSingleTask() *PSSingleTask {
 	return &PSSingleTask{
-		name: "ps_single",
-		pid:  os.Getpid(),
+		baseTask: baseTask{
+			name:        "ps_single",
+			description: "Gets information about the running process using ps command",
+		},
+		pid: os.Getpid(),
 	}
-}
-
-func (t *PSSingleTask) GetName() string {
-	return t.name
 }
 
 func (t *PSSingleTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
@@ -94,21 +88,18 @@ func (t *PSSingleTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
 }
 
 type PSParentTask struct {
-	Task
-
-	name string
-	pid  int
+	baseTask
+	pid int
 }
 
 func NewPSParentTask() *PSParentTask {
 	return &PSParentTask{
-		name: "ps_parent",
-		pid:  os.Getpid(),
+		baseTask: baseTask{
+			name:        "ps_parent",
+			description: "Gets parent process information using ps command",
+		},
+		pid: os.Getpid(),
 	}
-}
-
-func (t *PSParentTask) GetName() string {
-	return t.name
 }
 
 func (t *PSParentTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
