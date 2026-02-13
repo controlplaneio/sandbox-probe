@@ -7,19 +7,10 @@
 - [ ] Symlink resolution across mount boundaries
 - [ ] `/proc/self/root` traversal
 - [ ] Current capabilities (`/proc/self/status` `CapEff/CapPrm`)
-- [ ]Seccomp status (`/proc/self/status` Seccomp field)
+- [ ] Seccomp status (`/proc/self/status` Seccomp field)
 - [ ] Available syscalls (probe specific syscalls and record success/failure) 
 - [ ] Kernel version and security modules (`AppArmor`, `SELinux` status)
 - [ ] `cgroup` membership (`/proc/self/cgroup`)
-
-### CLI Library
-- [ ] Add a proper CLI framework (e.g., cobra, cli)
-- [ ] Add command-line flags for configuration
-  - [ ] Output format selection (JSON, YAML, text)
-  - [ ] Log level control
-  - [ ] Select specific tasks to run
-  - [ ] Custom output file path
-- [ ] Add version and help commands
 
 ### macOS UDP port detection
 
@@ -27,9 +18,6 @@
 
 ### macOS Seatbelt Detection
 - [ ] Research macOS Seatbelt sandbox detection methods
-- [ ] Implement Seatbelt detection in `pkg/tasks/baseline/environment.go`
-- [ ] Add Seatbelt to the `ContainerRuntime` enum
-- [ ] Add test case for Seatbelt detection
 
 ### macOS PS test
 - [ ] Test ps commands in macOS
@@ -40,22 +28,14 @@
   - [ ] LXC/LXD detection test
   - [ ] gVisor detection test
   - [ ] OpenVZ detection test
-  - [ ] WSL detection test
 - [ ] Add CI/CD integration for automated testing
 - [ ] Document test setup for each environment
 
 ### Tool Integration
 - [ ] Integrate with [`SwiftBelt`](https://github.com/cedowens/SwiftBelt/tree/master)
-- [ ] Integrate with Falco
-- [ ] Add support for other security tools
-  - [ ] AppArmor profile generation
-  - [ ] SELinux policy analysis
-  - [ ] Seccomp profile recommendations
 
 ### Documentation
 - [ ] Add architecture diagram
-- [ ] Create developer guide
-- [ ] Create troubleshooting guide
 
 ### Completed
 - [x] Basic sandbox detection (Docker, Podman, Bubblewrap)
@@ -72,3 +52,4 @@
 - [x] Document Gemini-specific requirements
 - [x] Network namespace detection (/proc/self/ns/net comparison)
 - [x] PID namespace detection
+- [x] Add a proper CLI framework (e.g., cobra, cli)
