@@ -30,6 +30,11 @@ message Finding {
   google.protobuf.Value value = 4;
 }
 
+// Metadata
+message Metadata {
+  repeated string tags = 1;
+}
+
 // Report contains the complete probe execution results
 message Report {
   // Version of the report format
@@ -38,6 +43,8 @@ message Report {
   google.protobuf.Timestamp timestamp = 2;
   // Information about the probe binary
   ProbeBinary probe_binary = 3;
+  // Metadata
+  Metadata metadata = 4;
   // List of findings discovered during execution
-  repeated Finding findings = 4;
+  repeated Finding findings = 5;
 }

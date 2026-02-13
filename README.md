@@ -44,6 +44,80 @@ make build
 
 ## Usage
 
+### CLI Commands
+
+#### scan
+
+Run security enumeration probes on the current environment.
+
+```bash
+./bin/sandbox-probe scan [flags]
+```
+
+**Flags:**
+- `--tasks` - Additional individual tasks to run (comma-separated)
+- `--tasksets` - Group of tasks to select: `baseline`, `ps`, `all` (default: `baseline`)
+- `--output_path` - Path to write the JSON report (default: `report.json`)
+- `--tags` - Metadata tags to append to the report (comma-separated)
+- `--log_level` - Set log level (default: `info`)
+
+**Examples:**
+
+Run all baseline probes:
+```bash
+./bin/sandbox-probe scan
+```
+
+Run specific tasksets:
+```bash
+./bin/sandbox-probe scan --tasksets baseline,ps
+```
+
+Run with custom output path and tags:
+```bash
+./bin/sandbox-probe scan --output_path results.json --tags "test,docker"
+```
+
+Run specific tasks:
+```bash
+./bin/sandbox-probe scan --tasks baseline_network_task,baseline_process_task
+```
+
+#### tasks list
+
+List all available tasks and tasksets with their descriptions.
+
+```bash
+./bin/sandbox-probe tasks list
+```
+
+This command displays a formatted table of all available tasks, including:
+- Task names (color-coded in blue)
+- Task descriptions
+
+**Example output:**
+```
+baseline_path_task          : Scans filesystem for writable and sensitive readable paths
+baseline_network_task       : Scans network for DNS resolution, connectivity, and open TCP/UDP ports
+baseline_proxy_task         : Detects proxy configuration from environment variables
+...
+```
+
+#### version
+
+Display version information for the sandbox-probe binary.
+
+```bash
+./bin/sandbox-probe version
+```
+
+**Example output:**
+```
+version v1.0.0
+git commit abc1234
+build date 2026-02-13T10:30:00Z
+```
+
 ### Basic Execution
 
 Run all baseline probes (outside of the context of an AI assistant). It is useful just for testing the go code
