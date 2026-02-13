@@ -39,7 +39,7 @@ git clone https://github.com/controlplaneio/sandbox-probe.git
 cd sandbox-probe
 
 # Build the binary
-go build -o bin/sandbox-probe .
+make build
 ```
 
 ## Usage
@@ -49,7 +49,7 @@ go build -o bin/sandbox-probe .
 Run all baseline probes (outside of the context of an AI assistant). It is useful just for testing the go code
 
 ```bash
-./bin/sandbox-probe
+./bin/sandbox-probe scan
 ```
 
 ### Test an Agent
@@ -101,17 +101,21 @@ The tool generates multiple outputs:
 
 The baseline probe includes the following tasks:
 
-| Task | Finding Types | Description |
-|------|--------------|-------------|
-| **PathTask** | `writeable_paths`, `sensitive_readable_paths` | Enumerates writable system directories and readable sensitive files from a list of predefined file paths |
-| **NetworkTask** | `external_host_dns_resolution`, `external_host_connectivity`, `tcp_ports_open`, `udp_ports_open` | Tests network capabilities and scans for open ports |
-| **ProxyTask** | `proxy_detection` | Detects proxy configuration from environment variables |
-| **SocketTask** | `unix_socket_detection` | Scans for Unix domain sockets |
-| **ProcessTask** | `process_detection`, `parent_process_detection` | Lists running processes and identifies parent process |
-| **UserContextTask** | `user_context_detection` | Reports UID, GID, EUID, EGID, and group memberships |
-| **HostnameTask** | `hostname_detection` | Retrieves system hostname |
-| **SandboxTask** | `sandbox_detection` | Detects container/sandbox runtime environment |
-| **MountTask** | `mounted_volumes_detections` | Identifies mounted volumes |
+| Task Name                  | Description                                                                                 |
+|----------------------------|---------------------------------------------------------------------------------------------|
+| baseline_path_task          | Scans filesystem for writable and sensitive readable paths                                  |
+| baseline_network_task       | Scans network for DNS resolution, connectivity, and open TCP/UDP ports                      |
+| baseline_proxy_task         | Detects proxy configuration from environment variables                                     |
+| baseline_socket_task        | Scans filesystem for Unix domain sockets                                                    |
+| baseline_process_task       | Detects running processes and parent process information                                   |
+| baseline_user_context_task  | Detects user and group context information (UID, GID, EUID, EGID)                           |
+| ps_all_task                 | Lists all running processes using ps command                                               |
+| baseline_hostname_task      | Detects the system hostname                                                                |
+| baseline_sandbox_task       | Detects container runtime and sandbox environments (Docker, Podman, LXC, etc.)            |
+| baseline_mount_task         | Detects host-mounted volumes and filesystem mounts                                         |
+| ps_parent_task              | Gets parent process information using ps command                                           |
+| ps_single_task              | Gets information about the running process using ps command                                 |
+
 
 ### Running Tests
 
