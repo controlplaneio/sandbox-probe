@@ -189,6 +189,51 @@ func (x *Finding) GetValue() *structpb.Value {
 	return nil
 }
 
+// Metadata
+type Metadata struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tags          []string               `protobuf:"bytes,1,rep,name=tags,proto3" json:"tags,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Metadata) Reset() {
+	*x = Metadata{}
+	mi := &file_proto_report_v1_report_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Metadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Metadata) ProtoMessage() {}
+
+func (x *Metadata) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_report_v1_report_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Metadata.ProtoReflect.Descriptor instead.
+func (*Metadata) Descriptor() ([]byte, []int) {
+	return file_proto_report_v1_report_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Metadata) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
 // Report contains the complete probe execution results
 type Report struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -198,15 +243,17 @@ type Report struct {
 	Timestamp *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// Information about the probe binary
 	ProbeBinary *ProbeBinary `protobuf:"bytes,3,opt,name=probe_binary,json=probeBinary,proto3" json:"probe_binary,omitempty"`
+	// Metadata
+	Metadata *Metadata `protobuf:"bytes,4,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	// List of findings discovered during execution
-	Findings      []*Finding `protobuf:"bytes,4,rep,name=findings,proto3" json:"findings,omitempty"`
+	Findings      []*Finding `protobuf:"bytes,5,rep,name=findings,proto3" json:"findings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Report) Reset() {
 	*x = Report{}
-	mi := &file_proto_report_v1_report_proto_msgTypes[2]
+	mi := &file_proto_report_v1_report_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -218,7 +265,7 @@ func (x *Report) String() string {
 func (*Report) ProtoMessage() {}
 
 func (x *Report) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_report_v1_report_proto_msgTypes[2]
+	mi := &file_proto_report_v1_report_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -231,7 +278,7 @@ func (x *Report) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Report.ProtoReflect.Descriptor instead.
 func (*Report) Descriptor() ([]byte, []int) {
-	return file_proto_report_v1_report_proto_rawDescGZIP(), []int{2}
+	return file_proto_report_v1_report_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Report) GetVersion() string {
@@ -251,6 +298,13 @@ func (x *Report) GetTimestamp() *timestamppb.Timestamp {
 func (x *Report) GetProbeBinary() *ProbeBinary {
 	if x != nil {
 		return x.ProbeBinary
+	}
+	return nil
+}
+
+func (x *Report) GetMetadata() *Metadata {
+	if x != nil {
+		return x.Metadata
 	}
 	return nil
 }
@@ -281,12 +335,15 @@ const file_proto_report_v1_report_proto_rawDesc = "" +
 	"\ffinding_type\x18\x01 \x01(\tR\vfindingType\x12\x12\n" +
 	"\x04task\x18\x02 \x01(\tR\x04task\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12,\n" +
-	"\x05value\x18\x04 \x01(\v2\x16.google.protobuf.ValueR\x05value\"\xc7\x01\n" +
+	"\x05value\x18\x04 \x01(\v2\x16.google.protobuf.ValueR\x05value\"\x1e\n" +
+	"\bMetadata\x12\x12\n" +
+	"\x04tags\x18\x01 \x03(\tR\x04tags\"\xf8\x01\n" +
 	"\x06Report\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x128\n" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x129\n" +
-	"\fprobe_binary\x18\x03 \x01(\v2\x16.report.v1.ProbeBinaryR\vprobeBinary\x12.\n" +
-	"\bfindings\x18\x04 \x03(\v2\x12.report.v1.FindingR\bfindingsB\xab\x01\n" +
+	"\fprobe_binary\x18\x03 \x01(\v2\x16.report.v1.ProbeBinaryR\vprobeBinary\x12/\n" +
+	"\bmetadata\x18\x04 \x01(\v2\x13.report.v1.MetadataR\bmetadata\x12.\n" +
+	"\bfindings\x18\x05 \x03(\v2\x12.report.v1.FindingR\bfindingsB\xab\x01\n" +
 	"\rcom.report.v1B\vReportProtoP\x01ZHgithub.com/controlplaneio/sandbox-probe/api/gen/proto/report/v1;reportv1\xa2\x02\x03RXX\xaa\x02\tReport.V1\xca\x02\tReport\\V1\xe2\x02\x15Report\\V1\\GPBMetadata\xea\x02\n" +
 	"Report::V1b\x06proto3"
 
@@ -302,24 +359,26 @@ func file_proto_report_v1_report_proto_rawDescGZIP() []byte {
 	return file_proto_report_v1_report_proto_rawDescData
 }
 
-var file_proto_report_v1_report_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_proto_report_v1_report_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_proto_report_v1_report_proto_goTypes = []any{
 	(*ProbeBinary)(nil),           // 0: report.v1.ProbeBinary
 	(*Finding)(nil),               // 1: report.v1.Finding
-	(*Report)(nil),                // 2: report.v1.Report
-	(*structpb.Value)(nil),        // 3: google.protobuf.Value
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*Metadata)(nil),              // 2: report.v1.Metadata
+	(*Report)(nil),                // 3: report.v1.Report
+	(*structpb.Value)(nil),        // 4: google.protobuf.Value
+	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
 }
 var file_proto_report_v1_report_proto_depIdxs = []int32{
-	3, // 0: report.v1.Finding.value:type_name -> google.protobuf.Value
-	4, // 1: report.v1.Report.timestamp:type_name -> google.protobuf.Timestamp
+	4, // 0: report.v1.Finding.value:type_name -> google.protobuf.Value
+	5, // 1: report.v1.Report.timestamp:type_name -> google.protobuf.Timestamp
 	0, // 2: report.v1.Report.probe_binary:type_name -> report.v1.ProbeBinary
-	1, // 3: report.v1.Report.findings:type_name -> report.v1.Finding
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	2, // 3: report.v1.Report.metadata:type_name -> report.v1.Metadata
+	1, // 4: report.v1.Report.findings:type_name -> report.v1.Finding
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_proto_report_v1_report_proto_init() }
@@ -333,7 +392,7 @@ func file_proto_report_v1_report_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_report_v1_report_proto_rawDesc), len(file_proto_report_v1_report_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

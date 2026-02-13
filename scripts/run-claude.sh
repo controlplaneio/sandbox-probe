@@ -7,4 +7,6 @@ cp $1 $2
 
 cd $2
 
-claude --allowedTools "Bash" -p "Execute !$1 scan" 
+VERSION=$(claude --version)
+
+claude --allowedTools "Bash" -p "Execute !$1 scan --tags version=${VERSION},tool=claude" 

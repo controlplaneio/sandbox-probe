@@ -32,6 +32,7 @@ func init() {
 	scanCmd.Flags().StringSlice("tasks", []string{}, "Additional tasks to run.")
 	scanCmd.Flags().StringSlice("tasksets", []string{"baseline"}, "Group of tasks to select: baseline, ps, all")
 	scanCmd.Flags().String("output_path", "report.json", "path to report the output")
+	scanCmd.Flags().StringSlice("tags", []string{""}, "Metadata tags tp be appended to the report")
 
 	viper.BindPFlags(scanCmd.Flags())
 }
@@ -98,6 +99,9 @@ func scan() error {
 	report := &reportv1.Report{
 		Version:   "1.0.0",
 		Timestamp: timestamppb.New(time.Now()),
+		Metadata: &reportv1.Metadata{
+			Tags: viper.GetStringSlice("tags"),
+		},
 		ProbeBinary: &reportv1.ProbeBinary{
 			GoVersion:     runtime.Version(),
 			Os:            runtime.GOOS,
