@@ -8,4 +8,4 @@ cp $1 $2
 cd $2
 
 
-docker run  -w /data/ --rm -it -v $(pwd):/data ubuntu:latest /data/$(echo $1 | awk -F '/' '{print $NF}') scan --tasks baseline_sandbox_task
+docker run  -w /data/ --rm -it -v $(pwd):/data ubuntu:latest /data/$(echo $1 | awk -F '/' '{print $NF}') scan --tasks baseline_sandbox_task --tasksets none
