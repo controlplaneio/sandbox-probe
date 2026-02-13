@@ -22,7 +22,7 @@ const TaskPrefix = "baseline"
 func processToInterface(p *models.Process) (*structpb.Value, error) {
 	// Convert namespaces to a format that structpb can handle
 	if p == nil {
-		log.Fatal().Msg("Received nil process")
+		return nil, fmt.Errorf("received nil process")
 	}
 	var namespacesInterface []interface{}
 	for _, ns := range p.Namespaces {
@@ -63,19 +63,16 @@ func intSliceToInterface(slice []int) []interface{} {
 }
 
 type PathTask struct {
-	Task
-
-	name string
+	baseTask
 }
 
 func NewPathTask() *PathTask {
 	return &PathTask{
-		name: fmt.Sprintf("%s_filesystem_enumerator", TaskPrefix),
+		baseTask: baseTask{
+			name:        fmt.Sprintf("%s_filesystem_enumerator", TaskPrefix),
+			description: "Scans filesystem for writable and sensitive readable paths",
+		},
 	}
-}
-
-func (t *PathTask) GetName() string {
-	return t.name
 }
 
 func (t *PathTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
@@ -119,22 +116,20 @@ func (t *PathTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
 
 // NetworkTask produces: EXTERNALHOSTDNSRESOLUTION, EXTERNALHOSTCONNECTIVITY, TCPPORTSOPEN, UDPPORTSOPEN
 type NetworkTask struct {
-	Task
-	name         string
+	baseTask
 	testHost     string
 	testHostname string
 }
 
 func NewNetworkTask() *NetworkTask {
 	return &NetworkTask{
-		name:         fmt.Sprintf("%s_network_scanner", TaskPrefix),
+		baseTask: baseTask{
+			name:        fmt.Sprintf("%s_network_scanner", TaskPrefix),
+			description: "Scans network for DNS resolution, connectivity, and open TCP/UDP ports",
+		},
 		testHost:     "localhost",
 		testHostname: "google.com",
 	}
-}
-
-func (t *NetworkTask) GetName() string {
-	return t.name
 }
 
 func (t *NetworkTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
@@ -227,18 +222,16 @@ func (t *NetworkTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
 
 // ProxyTask produces: PROXYDETECTION
 type ProxyTask struct {
-	Task
-	name string
+	baseTask
 }
 
 func NewProxyTask() *ProxyTask {
 	return &ProxyTask{
-		name: fmt.Sprintf("%s_proxy_detector", TaskPrefix),
+		baseTask: baseTask{
+			name:        fmt.Sprintf("%s_proxy_detector", TaskPrefix),
+			description: "Detects proxy configuration from environment variables",
+		},
 	}
-}
-
-func (t *ProxyTask) GetName() string {
-	return t.name
 }
 
 func (t *ProxyTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
@@ -284,20 +277,18 @@ func (t *ProxyTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
 
 // SocketTask produces: UNIXSOCKETDETECTION
 type SocketTask struct {
-	Task
-	name      string
+	baseTask
 	startPath string
 }
 
 func NewSocketTask() *SocketTask {
 	return &SocketTask{
-		name:      fmt.Sprintf("%s_socket_scanner", TaskPrefix),
+		baseTask: baseTask{
+			name:        fmt.Sprintf("%s_socket_scanner", TaskPrefix),
+			description: "Scans filesystem for Unix domain sockets",
+		},
 		startPath: "/",
 	}
-}
-
-func (t *SocketTask) GetName() string {
-	return t.name
 }
 
 func (t *SocketTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
@@ -330,18 +321,16 @@ func (t *SocketTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
 
 // ProcessTask produces: PROCESSDETECTION, PARENTPROCESSDETECTION
 type ProcessTask struct {
-	Task
-	name string
+	baseTask
 }
 
 func NewProcessTask() *ProcessTask {
 	return &ProcessTask{
-		name: fmt.Sprintf("%s_process_scanner", TaskPrefix),
+		baseTask: baseTask{
+			name:        fmt.Sprintf("%s_process_scanner", TaskPrefix),
+			description: "Detects running processes and parent process information",
+		},
 	}
-}
-
-func (t *ProcessTask) GetName() string {
-	return t.name
 }
 
 func (t *ProcessTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
@@ -402,18 +391,16 @@ func (t *ProcessTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
 
 // UserContextTask produces: USERCONTEXTDETECTION
 type UserContextTask struct {
-	Task
-	name string
+	baseTask
 }
 
 func NewUserContextTask() *UserContextTask {
 	return &UserContextTask{
-		name: fmt.Sprintf("%s_user_context", TaskPrefix),
+		baseTask: baseTask{
+			name:        fmt.Sprintf("%s_user_context", TaskPrefix),
+			description: "Detects user and group context information (UID, GID, EUID, EGID)",
+		},
 	}
-}
-
-func (t *UserContextTask) GetName() string {
-	return t.name
 }
 
 func (t *UserContextTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
@@ -451,18 +438,16 @@ func (t *UserContextTask) Run(ctx context.Context) ([]*reportv1.Finding, error) 
 
 // HostnameTask produces: HOSTNAMEDETECTION
 type HostnameTask struct {
-	Task
-	name string
+	baseTask
 }
 
 func NewHostnameTask() *HostnameTask {
 	return &HostnameTask{
-		name: fmt.Sprintf("%s_hostname", TaskPrefix),
+		baseTask: baseTask{
+			name:        fmt.Sprintf("%s_hostname", TaskPrefix),
+			description: "Detects the system hostname",
+		},
 	}
-}
-
-func (t *HostnameTask) GetName() string {
-	return t.name
 }
 
 func (t *HostnameTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
@@ -495,18 +480,16 @@ func (t *HostnameTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
 
 // SandboxTask produces: SANDBOXDETECTION
 type SandboxTask struct {
-	Task
-	name string
+	baseTask
 }
 
 func NewSandboxTask() *SandboxTask {
 	return &SandboxTask{
-		name: fmt.Sprintf("%s_sandbox_detector", TaskPrefix),
+		baseTask: baseTask{
+			name:        fmt.Sprintf("%s_sandbox_detector", TaskPrefix),
+			description: "Detects container runtime and sandbox environments (Docker, Podman, LXC, etc.)",
+		},
 	}
-}
-
-func (t *SandboxTask) GetName() string {
-	return t.name
 }
 
 func (t *SandboxTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
@@ -568,18 +551,16 @@ func (t *SandboxTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
 
 // MountTask produces: MOUNTEDVOLUMESDETECTION
 type MountTask struct {
-	Task
-	name string
+	baseTask
 }
 
 func NewMountTask() *MountTask {
 	return &MountTask{
-		name: fmt.Sprintf("%s_mount_scanner", TaskPrefix),
+		baseTask: baseTask{
+			name:        fmt.Sprintf("%s_mount_scanner", TaskPrefix),
+			description: "Detects host-mounted volumes and filesystem mounts",
+		},
 	}
-}
-
-func (t *MountTask) GetName() string {
-	return t.name
 }
 
 func (t *MountTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {

@@ -10,6 +10,20 @@ import (
 	"github.com/controlplaneio/sandbox-probe/pkg/models"
 )
 
+type baseTask struct {
+	Task
+	name        string
+	description string
+}
+
+func (t *baseTask) GetName() string {
+	return t.name
+}
+
+func (t *baseTask) GetDescription() string {
+	return t.description
+}
+
 const (
 	WRITEABLEPATHS            = "writeable_paths"
 	SENSITIVEREADABLEPATHS    = "sensitive_readable_paths"
@@ -69,6 +83,8 @@ var taskSetRegistry = map[string]func() []Task{
 type Task interface {
 	// GetName returns the name of the task
 	GetName() string
+	// GetDescription returns the description of the task
+	GetDescription() string
 	// Run executes the task producing Findings
 	Run(ctx context.Context) ([]*reportv1.Finding, error)
 }
@@ -108,13 +124,13 @@ func GetTasksByName(names []string) ([]Task, error) {
 func getTaskByName(name string) (Task, error) {
 	task, ok := taskRegistry[name]
 	if !ok {
-		return nil, fmt.Errorf("Task with name '%s' doesn't exist. Valid tasks are %v", name, getAllTasksNames())
+		return nil, fmt.Errorf("Task with name '%s' doesn't exist. Valid tasks are %v", name, GetAllTasksNames())
 	}
 	return task(), nil
 }
 
-// getAllTasksNames returns all the tasks names
-func getAllTasksNames() []string {
+// GetAllTasksNames returns all the tasks names
+func GetAllTasksNames() []string {
 	var names []string
 	for name, _ := range taskRegistry {
 		names = append(names, name)
@@ -122,8 +138,8 @@ func getAllTasksNames() []string {
 	return names
 }
 
-// getAllTaskSetsNames returns all the tasksets names
-func getAllTaskSetsNames() []string {
+// GetAllTaskSetsNames returns all the tasksets names
+func GetAllTaskSetsNames() []string {
 	var names []string
 	for name, _ := range taskSetRegistry {
 		names = append(names, name)
@@ -161,5 +177,5 @@ func getTaskSetTasks(taskset string) ([]Task, error) {
 		return []Task{}, nil
 	}
 
-	return nil, fmt.Errorf("Taskset with name '%s' doesn't exists. Valid names are %v", taskset, getAllTaskSetsNames())
+	return nil, fmt.Errorf("Taskset with name '%s' doesn't exists. Valid names are %v", taskset, GetAllTaskSetsNames())
 }
