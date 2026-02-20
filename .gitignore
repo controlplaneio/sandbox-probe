@@ -129,3 +129,5 @@ Pipfile*
 .idea
 report.json
 results/
+
+.direnv/
