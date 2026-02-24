@@ -29,6 +29,7 @@ const (
 	RuntimeGVisor
 	RuntimeWSL
 	RuntimeFirejail
+	RuntimeSeatbelt
 	// add other runtimes as needed
 )
 
@@ -97,6 +98,12 @@ func GetHostName() (string, error) {
 // GetContainerRuntime detects the container runtime for a given process
 // note it will only work for Linux based systems
 func GetContainerRuntime(tgid, pid int) ContainerRuntime {
+	// most detections are for linux so check for seatbelt for
+	// an early exit on darwin
+	if isSeatbelt() {
+		return RuntimeSeatbelt
+	}
+
 	var cgroupFile string
 	if pid > 0 {
 		if tgid > 0 {
@@ -192,6 +199,8 @@ func stringToContainerRuntime(s string) ContainerRuntime {
 		return RuntimeLXC
 	case strings.Contains(s, "firejail"):
 		return RuntimeFirejail
+	case strings.Contains(s, "seatbelt"):
+		return RuntimeSeatbelt
 	}
 	return RuntimeNotFound
 }
