@@ -50,6 +50,7 @@ func Test_getRunningProcesses(t *testing.T) {
 		t.Logf("Process %d (PID %d): %v", i, processes[i].PID, processes[i].Command)
 	}
 }
+
 func Test_getRunningParentProcessLinux(t *testing.T) {
 	// Test getting parent process
 	pid := os.Getpid()
@@ -91,7 +92,7 @@ func TestStringToContainerRuntime(t *testing.T) {
 		{
 			name:     "no container",
 			input:    "1:name=systemd:/user.slice/user-1000.slice",
-			expected: RuntimeNotFound,
+			expected: RuntimeUnknown,
 		},
 		{
 			name:     "empty string",

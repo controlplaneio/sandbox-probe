@@ -117,7 +117,7 @@ func Test_getContainerRuntime(t *testing.T) {
 				runtimeStr: "unknown",
 			},
 			want: want{
-				runtime: RuntimeNotFound,
+				runtime: RuntimeUnknown,
 			},
 		},
 	} {

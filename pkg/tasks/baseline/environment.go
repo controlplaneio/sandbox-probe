@@ -31,6 +31,7 @@ const (
 	RuntimeFirejail
 	RuntimeSeatbelt
 	// add other runtimes as needed
+	RuntimeUnknown
 )
 
 var readFile = os.ReadFile
@@ -115,13 +116,24 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		cgroupFile = "/proc/self/cgroup"
 	}
 
+	// hold details on the runtime we think we've identified
+	// start with NotFound, can progress to Unknown in the case where there
+	// is some sandboxing but we still don't know which containerization type
+	identifiedRuntime := RuntimeNotFound
+
 	// Try reading cgroup file
 	cgroups, err := readFile(cgroupFile)
 	if err == nil {
 		runtime := stringToContainerRuntime(string(cgroups))
-		if runtime != RuntimeNotFound {
+		// found runtime, return early
+		if runtime != RuntimeUnknown {
 			return runtime
 		}
+		identifiedRuntime = runtime
+	}
+
+	if fileExistsFunc("/.dockerenv") {
+		return RuntimeDocker
 	}
 
 	// OpenVZ detection
@@ -168,29 +180,38 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		}
 	}
 
-	// container env variable
-	if containerEnv := os.Getenv("container"); containerEnv != "" {
-		runtime := stringToContainerRuntime(containerEnv)
-		if runtime != RuntimeNotFound {
-			return runtime
-		}
-	}
-
 	// /run/systemd/container
 	systemdContainerFile := "/run/systemd/container"
 	if data, err := readFile(systemdContainerFile); err == nil {
 		runtime := stringToContainerRuntime(string(data))
-		if runtime != RuntimeNotFound {
-			return runtime
-		}
+		return runtime
 	}
 
-	return RuntimeNotFound
+	// container env variable
+	if containerEnv := os.Getenv("container"); containerEnv != "" {
+		runtime := stringToContainerRuntime(containerEnv)
+		return runtime
+	}
+
+	// could be landlock
+	if isProcSelfSetNoNewPrivs() {
+		// TODO: replace/augment with more concrete landlock detection
+		// really could be landlock
+		versionSignatureFile := "/proc/self/attr/current"
+		if _, err := readFile(versionSignatureFile); err != nil {
+			fmt.Println("error")
+		}
+		return RuntimeUnknown
+	}
+
+	return identifiedRuntime
 }
 
 // stringToContainerRuntime parses a string for known runtime keywords
 func stringToContainerRuntime(s string) ContainerRuntime {
 	switch {
+	case strings.TrimSpace(s) == "":
+		return RuntimeNotFound
 	case strings.Contains(s, "docker"):
 		return RuntimeDocker
 	case strings.Contains(s, "podman"):
@@ -202,7 +223,7 @@ func stringToContainerRuntime(s string) ContainerRuntime {
 	case strings.Contains(s, "seatbelt"):
 		return RuntimeSeatbelt
 	}
-	return RuntimeNotFound
+	return RuntimeUnknown
 }
 
 // GetBubbleWrap tries to detect if the system is running in bwrap
