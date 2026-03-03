@@ -12,8 +12,6 @@ var cfgFile string
 
 func init() {
 	rootCmd.Flags().String("log_level", "info", "log level")
-
-	viper.BindPFlags(scanCmd.Flags())
 }
 
 var (

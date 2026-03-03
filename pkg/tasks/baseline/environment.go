@@ -30,6 +30,7 @@ const (
 	RuntimeWSL
 	RuntimeFirejail
 	RuntimeSeatbelt
+	RuntimeLandlock
 	// add other runtimes as needed
 	RuntimeUnknown
 )
@@ -193,14 +194,23 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return runtime
 	}
 
+	landlock, err := ProbeForLandlock()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to check for landlock")
+	}
+	if landlock {
+		return RuntimeLandlock
+	}
+
 	// could be landlock
 	if isProcSelfSetNoNewPrivs() {
-		// TODO: replace/augment with more concrete landlock detection
-		// really could be landlock
-		versionSignatureFile := "/proc/self/attr/current"
-		if _, err := readFile(versionSignatureFile); err != nil {
-			fmt.Println("error")
-		}
+		// // TODO: replace/augment with more concrete landlock detection
+		// // really could be landlock
+		// versionSignatureFile := "/proc/self/attr/current"
+		// if _, err := readFile(versionSignatureFile); err != nil {
+		// 	fmt.Println("error")
+		// }
+
 		return RuntimeUnknown
 	}
 
@@ -222,6 +232,8 @@ func stringToContainerRuntime(s string) ContainerRuntime {
 		return RuntimeFirejail
 	case strings.Contains(s, "seatbelt"):
 		return RuntimeSeatbelt
+	case strings.Contains(s, "landlock"):
+		return RuntimeLandlock
 	}
 	return RuntimeUnknown
 }

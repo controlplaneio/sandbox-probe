@@ -516,6 +516,8 @@ func (t *SandboxTask) Run(ctx context.Context) ([]*reportv1.Finding, error) {
 		runtimeStr = "firejail"
 	case baselineTasks.RuntimeSeatbelt:
 		runtimeStr = "seatbelt"
+	case baselineTasks.RuntimeLandlock:
+		runtimeStr = "landlock"
 	}
 
 	// Detect bwrap

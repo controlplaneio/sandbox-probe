@@ -1,6 +1,7 @@
 name: scan-gemini
 
 on:
+  workflow_dispatch: # Allows manual triggering
   schedule:
     - cron: "0 8 * * *"
     
@@ -122,8 +123,8 @@ jobs:
     runs-on: ubuntu-latest
     if: needs.build-and-resolve.outputs.should_scan == 'true'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # - name: Checkout repository
+      #   uses: actions/checkout@v4
       - name: Write report.json with tag and hash
         run: |
           TAG="${{ needs.build-and-resolve.outputs.tag }}"
@@ -138,26 +139,31 @@ jobs:
             echo "No report.json found"
           fi
 
-      - name: Push results to repository
-        run: |
-          TAG="${{ needs.build-and-resolve.outputs.tag }}"
-          HASH="${{ needs.build-and-resolve.outputs.hash }}"
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-${{ needs.build-and-resolve.outputs.tag }}-${{ needs.build-and-resolve.outputs.hash }}.json
+          path: report-*-*.json
+      # - name: Push results to repository
+      #   run: |
+      #     TAG="${{ needs.build-and-resolve.outputs.tag }}"
+      #     HASH="${{ needs.build-and-resolve.outputs.hash }}"
 
-          # Create gemini-scans folder
-          mkdir -p gemini-scans
+      #     # Create gemini-scans folder
+      #     mkdir -p gemini-scans
 
-          # Move files to gemini-scans folder
-          if [ -f "report-${TAG}-${HASH}.json" ]; then
-            mv "report-${TAG}-${HASH}.json" "gemini-scans/"
-          fi
+      #     # Move files to gemini-scans folder
+      #     if [ -f "report-${TAG}-${HASH}.json" ]; then
+      #       mv "report-${TAG}-${HASH}.json" "gemini-scans/"
+      #     fi
 
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@control-plane.io"
+      #     # Configure git
+      #     git config user.name "github-actions[bot]"
+      #     git config user.email "github-actions[bot]@control-plane.io"
 
-          # Add and commit files
-          git add gemini-scans/
-          git commit -m "Add Gemini scan results for ${TAG} (${HASH})" || echo "No changes to commit"
+      #     # Add and commit files
+      #     git add gemini-scans/
+      #     git commit -m "Add Gemini scan results for ${TAG} (${HASH})" || echo "No changes to commit"
 
-          # Push to repository
-          git push
+      #     # Push to repository
+      #     git push

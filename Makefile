@@ -31,7 +31,7 @@ help: ## Show this help message
 .PHONY: build
 build: ## Build the sandbox-probe binary
 	@mkdir -p bin
-	@go build $(GO_LDFLAGS) -a -o bin/sandbox-probe .
+	@go build $(GO_LDFLAGS) -o bin/sandbox-probe .
 
 # Code generation targets
 .PHONY: gen
