@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
@@ -174,25 +173,25 @@ func netErrTimeout(err error) bool {
 }
 
 func GetSockets(startPath string) ([]string, error) {
-	var res []string
-	err := filepath.Walk(startPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			log.Warn().Msgf("Error finding sockets: %s", err)
+	fast := true
+
+	var mu sync.Mutex
+	results := []string{}
+	err := Walk(startPath, fast, func(path string, typ os.FileMode) error {
+		if typ.IsDir() {
 			return nil
 		}
 
-		switch mode := info.Mode(); {
-		case mode&os.ModeSocket != 0:
+		if typ&os.ModeSocket != 0 {
 			log.Info().Msgf("Socket %s found", path)
-			res = append(res, path)
-		default:
-			// TODO: add logs
+			mu.Lock()
+			results = append(results, path)
+			mu.Unlock()
 		}
 		return nil
 	})
 	if err != nil {
 		return []string{}, err
 	}
-
-	return res, nil
+	return results, nil
 }
