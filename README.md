@@ -1,12 +1,32 @@
 # Sandbox Probe
 
+- [Overview](#Overview)
+- [Supported Code Assistants](#SupportedCodeAssistants)
+- [Installation](#Installation)
+  - [Prerequisites](#Prerequisites)
+    - [Building](#Building)
+    - [E2E Testing](#E2ETesting)
+  - [Build from Source](#BuildfromSource)
+- [Usage](#Usage)
+  - [CLI Commands](#CLICommands)
+    - [scan](#scan)
+    - [tasks list](#taskslist)
+    - [version](#version)
+  - [Basic Execution](#BasicExecution)
+  - [Test an Agent](#TestanAgent)
+  - [Try with a sandbox](#Trywithasandbox)
+  - [Output](#Output)
+  - [Example Report](#ExampleReport)
+- [Development](#Development)
+  - [Available Tasks](#AvailableTasks)
+
 A security enumeration tool designed to detect and analyze sandbox environments in AI code assistants, identifying execution capabilities, system access, and potential security boundaries.
 
 ## Overview
 
 Sandbox Probe is specifically designed to fingerprint the execution environment of AI code assistants (such as Claude Code, Gemini CLI, and similar tools) and identify:
 
-- **Sandbox/Container Detection**: Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, WSL, OpenVZ
+- **Sandbox/Container Detection**: Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, WSL, OpenVZ, Seatbelt, Landlock
 - **File System Permissions**: Writable system paths and readable sensitive files
 - **Network Capabilities**: DNS resolution, external connectivity, open TCP/UDP ports
 - **Process Information**: Running processes and parent process detection
@@ -22,14 +42,25 @@ Sandbox Probe is specifically designed to fingerprint the execution environment 
 
 ### Prerequisites
 
-**Required:**
+#### Building
+
 - Go 1.25 or later
 - Protocol Buffer compiler (`buf`) - install via `make install-buf`
+  - required if changing the protobuf definitions
+
+#### E2E Testing
+
 - `jq` - JSON processor for parsing outputs
+  - provides pretty printing for JSON reports
+
+Depending on which sandboxing you want to test a combination of these may be
+required:
+
 - `docker` - For containerized testing
 - `podman` - For containerized testing
 - `claude-code` - Claude Code CLI for Claude testing
 - `gemini-cli` - Gemini Code Assist CLI for Gemini testing
+- `nono` - A sandboxing tool for wrapping AI agents and other programs
 
 ### Build from Source
 
@@ -41,6 +72,12 @@ cd sandbox-probe
 # Build the binary
 make build
 ```
+
+If running `sandbox-probe` inside a container make sure that it was built statically,
+with standard library paths, or find a method to mount additional paths.
+
+This isn't typically an issue but can be for non-glibc or non-fhs systems like
+alpine or nixos (and via nix).
 
 ## Usage
 
@@ -55,6 +92,7 @@ Run security enumeration probes on the current environment.
 ```
 
 **Flags:**
+
 - `--tasks` - Additional individual tasks to run (comma-separated)
 - `--tasksets` - Group of tasks to select: `baseline`, `ps`, `all` (default: `baseline`)
 - `--output_path` - Path to write the JSON report (default: `report.json`)
@@ -64,21 +102,25 @@ Run security enumeration probes on the current environment.
 **Examples:**
 
 Run all baseline probes:
+
 ```bash
 ./bin/sandbox-probe scan
 ```
 
 Run specific tasksets:
+
 ```bash
 ./bin/sandbox-probe scan --tasksets baseline,ps
 ```
 
 Run with custom output path and tags:
+
 ```bash
 ./bin/sandbox-probe scan --output_path results.json --tags "test,docker"
 ```
 
 Run specific tasks:
+
 ```bash
 ./bin/sandbox-probe scan --tasks baseline_network_task,baseline_process_task
 ```
@@ -92,10 +134,12 @@ List all available tasks and tasksets with their descriptions.
 ```
 
 This command displays a formatted table of all available tasks, including:
+
 - Task names (color-coded in blue)
 - Task descriptions
 
 **Example output:**
+
 ```
 baseline_path_task          : Scans filesystem for writable and sensitive readable paths
 baseline_network_task       : Scans network for DNS resolution, connectivity, and open TCP/UDP ports
@@ -112,6 +156,7 @@ Display version information for the sandbox-probe binary.
 ```
 
 **Example output:**
+
 ```
 version v1.0.0
 git commit abc1234
@@ -120,7 +165,9 @@ build date 2026-02-13T10:30:00Z
 
 ### Basic Execution
 
-Run all baseline probes (outside of the context of an AI assistant). It is useful just for testing the go code
+Run all baseline probes (outside of the context of an AI assistant). It is useful just for testing the go code. If running on a desktop device you actually use the report can be very large.
+For dedicated servers or containerized environments (such as the environments used by some AI tooling)
+there will be less access and as such less output.
 
 ```bash
 ./bin/sandbox-probe scan
@@ -128,15 +175,26 @@ Run all baseline probes (outside of the context of an AI assistant). It is usefu
 
 ### Test an Agent
 
-For testing agents, please find the following scripts under the `tests` folder:
+### Try with a sandbox
+
+If you have the pre-requisite dependencies consider running a script in `./tests` such as `./tests/sandbox_nono.sh`.
+AI Agent tooling such as Gemini and Claude will need login details.
 
 ```
 tests/
+├── baseline_nono.sh
+├── baseline_gemini.sh
 ├── baseline_claude.sh
 ├── baseline_gemini.sh
+├── sandbox_nono.sh
 ├── sandbox_claude.sh
 └── sandbox_gemini.sh
+└── ...
 ```
+
+These scripts will output to the `./reports` subdirectory.
+
+For more details please see [here](./docs/CONTRIBUTING.md#trialing-against-agent-sandboxes).
 
 ### Output
 
@@ -165,6 +223,9 @@ The tool generates multiple outputs:
       "description": "Sandbox/container runtime",
       "value": "docker"
     }
+    {
+      "//" "..."
+    },
   ]
 }
 ```
@@ -175,130 +236,17 @@ The tool generates multiple outputs:
 
 The baseline probe includes the following tasks:
 
-| Task Name                  | Description                                                                                 |
-|----------------------------|---------------------------------------------------------------------------------------------|
-| baseline_path_task          | Scans filesystem for writable and sensitive readable paths                                  |
-| baseline_network_task       | Scans network for DNS resolution, connectivity, and open TCP/UDP ports                      |
-| baseline_proxy_task         | Detects proxy configuration from environment variables                                     |
-| baseline_socket_task        | Scans filesystem for Unix domain sockets                                                    |
-| baseline_process_task       | Detects running processes and parent process information                                   |
-| baseline_user_context_task  | Detects user and group context information (UID, GID, EUID, EGID)                           |
-| ps_all_task                 | Lists all running processes using ps command                                               |
-| baseline_hostname_task      | Detects the system hostname                                                                |
-| baseline_sandbox_task       | Detects container runtime and sandbox environments (Docker, Podman, LXC, etc.)            |
-| baseline_mount_task         | Detects host-mounted volumes and filesystem mounts                                         |
-| ps_parent_task              | Gets parent process information using ps command                                           |
-| ps_single_task              | Gets information about the running process using ps command                                 |
-
-
-### Running Tests
-
-```bash
-# Run all e2e tests
-make e2etest
-
-# Format code
-make fmt
-
-# Install buf (Protocol Buffer tool)
-make install-buf
-
-# Generate Protocol Buffer code
-cd api && buf generate
-```
-
-### Adding New Tasks
-
-1. Create a new task struct in `pkg/tasks/baseline/`
-2. Implement the `Task` interface:
-   ```go
-   type Task interface {
-       GetName() string
-       Run(ctx context.Context) ([]*reportv1.Finding, error)
-   }
-   ```
-3. Add the task to `GetBaselineTasks()` in `pkg/tasks/baseline.go`
-4. Define expected types in `pkg/tasks/tasks.go`
-
-### Creating Command-Based Probes
-
-For tasks that execute system commands, use the generic command-based probe pattern in `pkg/tasks/cmd-based/`:
-
-1. **Define your probe struct** with the data it will collect:
-   ```go
-   type myCustomProbe struct {
-       result []string
-   }
-   ```
-
-2. **Implement the `CmdTask[T]` interface**:
-   ```go
-   // getCommand returns the command and arguments to execute
-   func (p *myCustomProbe) getCommand() ([]string, error) {
-       return []string{"mycommand", "--arg1", "--arg2"}, nil
-   }
-
-   // parseCommandOuput parses the command output into your struct
-   func (p *myCustomProbe) parseCommandOuput(out []byte) (*myCustomProbe, error) {
-       // Parse the output and populate your struct
-       lines := strings.Split(string(out), "\n")
-       // ... parsing logic ...
-       return &myCustomProbe{result: parsed}, nil
-   }
-   ```
-
-3. **Execute the probe** using the generic runner:
-   ```go
-   probe := &myCustomProbe{}
-   result, err := runCmdTask(probe)
-   ```
-
-4. **Write tests** using the mock pattern:
-   ```go
-   func TestMyProbe(t *testing.T) {
-       mockExec := func(_ string, _ ...string) ([]byte, error) {
-           return []byte("mock output"), nil
-       }
-       testProbe(t, "myCustomProbe", &myCustomProbe{}, mockExec, expectedResult)
-   }
-   ```
-
-See `pkg/tasks/cmd-based/processes.go` for complete examples
-
-### Known Limitations
-
-#### macOS UDP Port Scanning
-
-UDP port scanning is **disabled on macOS** (Darwin) due to reliability issues:
-
-- **Issue**: The current UDP scanning method relies on timeout behavior to determine port status. On macOS, all ports timeout regardless of their actual state, leading to false positives.
-- **Workaround**: The `ScanUDP()` function in `pkg/tasks/baseline/network.go` returns an empty slice on macOS systems.
-- **Future Enhancement**: OS-specific UDP scanning methods (e.g., using `netstat`, `lsof`, or native syscalls) are planned for more accurate detection across all platforms.
-
-```go
-// From pkg/tasks/baseline/network.go
-func ScanUDP(host string) []int {
-    // TODO: fix usage in darwin
-    // it reports all the ports because they all timeout
-    if runtime.GOOS == "darwin" {
-        return []int{}
-    }
-    // ... scanning logic ...
-}
-```
-
-## Testing in AI Code Assistants
-
-For reference check the scripts in the `tests` folder
-
-### Claude Code
-
-```bash
-./scripts/run-claude.sh "Execute !bin/sandbox-probe"
-```
-
-### Gemini Code Assist (Podman)
-
-```bash
-./scripts/run-gemini-podman.sh "bin/sandbox-probe"
-```
+| Task Name                  | Description                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| baseline_path_task         | Scans filesystem for writable and sensitive readable paths                     |
+| baseline_network_task      | Scans network for DNS resolution, connectivity, and open TCP/UDP ports         |
+| baseline_proxy_task        | Detects proxy configuration from environment variables                         |
+| baseline_socket_task       | Scans filesystem for Unix domain sockets                                       |
+| baseline_process_task      | Detects running processes and parent process information                       |
+| baseline_user_context_task | Detects user and group context information (UID, GID, EUID, EGID)              |
+| ps_all_task                | Lists all running processes using ps command                                   |
+| baseline_hostname_task     | Detects the system hostname                                                    |
+| baseline_sandbox_task      | Detects container runtime and sandbox environments (Docker, Podman, LXC, etc.) |
+| baseline_mount_task        | Detects host-mounted volumes and filesystem mounts                             |
+| ps_parent_task             | Gets parent process information using ps command                               |
+| ps_single_task             | Gets information about the running process using ps command                    |
