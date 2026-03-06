@@ -131,3 +131,5 @@ report.json
 results/
 
 .direnv/
+
+/reports

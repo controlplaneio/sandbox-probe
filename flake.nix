@@ -11,6 +11,9 @@
         pkgs = import nixpkgs {
           inherit system;
           overlays = [ inputs.devshell.overlays.default ];
+          config.allowUnfreePredicate = pkg: builtins.elem (nixpkgs.lib.getName pkg) [
+            "claude-code"
+          ];
         };
         selfPkgs = self.packages.${system};
 
@@ -26,6 +29,10 @@
               go
               gcc
               buf
+
+              nono
+              gemini-cli
+              claude-code
             ];
           };
         };

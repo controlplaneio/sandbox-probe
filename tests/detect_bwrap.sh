@@ -33,3 +33,6 @@ else
     echo "ERROR: report.json not found"
     exit 1
 fi
+
+mkdir -p ./reports
+cp $TMPDIR/report.json ./reports/sandbox-bwrap.json

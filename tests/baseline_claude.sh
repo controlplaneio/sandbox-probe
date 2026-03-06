@@ -23,4 +23,5 @@ else
     exit 1
 fi
 
-cp $TMPDIR/report.json baseline-claude.json
+mkdir -p ./reports
+cp $TMPDIR/report.json ./reports/baseline-claude.json

@@ -22,4 +22,5 @@ else
     exit 1
 fi
 
-cp $TMPDIR/report.json baseline-gemini.json
+mkdir -p ./reports
+cp $TMPDIR/report.json ./reports/baseline-gemini.json
