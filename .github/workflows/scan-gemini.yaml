@@ -12,7 +12,7 @@ jobs:
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
       hash: ${{ steps.resolve.outputs.hash }}
-      should_scan: ${{ steps.check-existing.outputs.should_scan }}
+      # should_scan: ${{ steps.check-existing.outputs.should_scan }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,32 +38,33 @@ jobs:
           echo "hash=$HASH" >> "$GITHUB_OUTPUT"
           echo -e "Outputs\nTAG: $TAG\nHASH: $HASH"
 
-      - name: Check if report already exists
-        id: check-existing
-        run: |
-          echo "Listing previous scans"
-          ls -larth gemini-scans || echo "no previous scans found"
-          TAG="${{ steps.resolve.outputs.tag }}"
-          HASH="${{ steps.resolve.outputs.hash }}"
+      #  not storing reports in GH right now
+      # - name: Check if report already exists
+      #   id: check-existing
+      #   run: |
+      #     echo "Listing previous scans"
+      #     ls -larth gemini-scans || echo "no previous scans found"
+      #     TAG="${{ steps.resolve.outputs.tag }}"
+      #     HASH="${{ steps.resolve.outputs.hash }}"
 
-          REPORT_FILE="gemini-scans/report-${TAG}-${HASH}.json"
+      #     REPORT_FILE="gemini-scans/report-${TAG}-${HASH}.json"
 
-          if [ -f "$REPORT_FILE" ]; then
-            echo "Report already exists: $REPORT_FILE"
-            echo "should_scan=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "Report not found, will proceed with scan"
-            echo "should_scan=true" >> "$GITHUB_OUTPUT"
-          fi
+      #     if [ -f "$REPORT_FILE" ]; then
+      #       echo "Report already exists: $REPORT_FILE"
+      #       echo "should_scan=false" >> "$GITHUB_OUTPUT"
+      #     else
+      #       echo "Report not found, will proceed with scan"
+      #       echo "should_scan=true" >> "$GITHUB_OUTPUT"
+      #     fi
 
       - name: Build binary
-        if: steps.check-existing.outputs.should_scan == 'true'
+        # if: steps.check-existing.outputs.should_scan == 'true'
         run: |
           mkdir -p build
           go build -o sandbox-probe .
 
       - name: Publish binary
-        if: steps.check-existing.outputs.should_scan == 'true'
+        # if: steps.check-existing.outputs.should_scan == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: sandbox-probe-binary
@@ -72,7 +73,7 @@ jobs:
   # Job B: run binary in Gemini sandbox container
   container-test-job:
     needs: build-and-resolve
-    if: needs.build-and-resolve.outputs.should_scan == 'true'
+    # if: needs.build-and-resolve.outputs.should_scan == 'true'
     runs-on: ubuntu-latest
     outputs:
       report: ${{ steps.save-results.outputs.report }}
@@ -121,7 +122,7 @@ jobs:
   write-results:
     needs: [build-and-resolve, container-test-job]
     runs-on: ubuntu-latest
-    if: needs.build-and-resolve.outputs.should_scan == 'true'
+    # if: needs.build-and-resolve.outputs.should_scan == 'true'
     steps:
       # - name: Checkout repository
       #   uses: actions/checkout@v4
