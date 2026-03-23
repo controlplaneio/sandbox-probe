@@ -16,7 +16,7 @@ jobs:
       # should_scan: ${{ steps.check-existing.outputs.should_scan }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Resolve latest Gemini sandbox tag
         id: resolve
@@ -69,7 +69,7 @@ jobs:
 
       - name: Publish binary
         # if: steps.check-existing.outputs.should_scan == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sandbox-probe-binary
           path: sandbox-probe
@@ -129,7 +129,7 @@ jobs:
     # if: needs.build-and-resolve.outputs.should_scan == 'true'
     steps:
       # - name: Checkout repository
-      #   uses: actions/checkout@v4
+      #   uses: actions/checkout@v6
       - name: Write report.json with tag and hash
         run: |
           TAG="${{ needs.build-and-resolve.outputs.tag }}"
@@ -145,7 +145,7 @@ jobs:
           fi
 
       - name: Upload report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           # artifacts have to be zip files currently
           name: report-${{ needs.build-and-resolve.outputs.tag }}-${{ needs.build-and-resolve.outputs.hash_clean }}.json.zip
