@@ -11,7 +11,7 @@ import (
 
 type ProbeType int
 
-var noTasksErr = errors.New("No tasks in probe")
+var noTasksErr = errors.New("no tasks in probe")
 
 type Probe struct {
 	Name     string

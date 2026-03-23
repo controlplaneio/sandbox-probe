@@ -128,7 +128,7 @@ func GetTasksByName(names []string) ([]Task, error) {
 func getTaskByName(name string) (Task, error) {
 	task, ok := taskRegistry[name]
 	if !ok {
-		return nil, fmt.Errorf("Task with name '%s' doesn't exist. Valid tasks are %v", name, GetAllTasksNames())
+		return nil, fmt.Errorf("task with name '%s' doesn't exist. Valid tasks are %v", name, GetAllTasksNames())
 	}
 	return task(), nil
 }

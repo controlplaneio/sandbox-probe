@@ -346,8 +346,7 @@ func TestProxyTaskRun(t *testing.T) {
 	task := NewProxyTask()
 
 	// Run the task
-	findings, err := task.Run(context.Background())
-
+	findings, err := task.Run(context.Background(), Inputs{})
 	// The task should not error (even if no proxy is configured)
 	if err != nil {
 		t.Fatalf("ProxyTask.Run() unexpected error: %v", err)

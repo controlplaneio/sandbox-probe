@@ -52,7 +52,7 @@ func loadtasks() ([]tasks.Task, error) {
 	allTasks = append(allTasks, individualTasks...)
 	loadedTasks := delete_duplicate_tasks(allTasks)
 	if len(loadedTasks) == 0 {
-		return nil, fmt.Errorf("There should be at least one task to run")
+		return nil, fmt.Errorf("there should be at least one task to run")
 	}
 	return loadedTasks, nil
 }

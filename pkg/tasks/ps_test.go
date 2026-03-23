@@ -85,7 +85,7 @@ func TestPSAllTask_Run(t *testing.T) {
 	task := NewPSAllTask()
 	ctx := context.Background()
 
-	findings, err := task.Run(ctx)
+	findings, err := task.Run(ctx, Inputs{})
 	require.NoError(t, err)
 
 	// Verify findings structure (should have at least one process)
@@ -123,7 +123,7 @@ func TestPSSingleTask_Run(t *testing.T) {
 	task := NewPSSingleTask()
 	ctx := context.Background()
 
-	findings, err := task.Run(ctx)
+	findings, err := task.Run(ctx, Inputs{})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}

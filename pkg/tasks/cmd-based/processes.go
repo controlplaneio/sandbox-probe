@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	unexpectedLineErr  = errors.New("Unexpected format in command output line")
-	commandNotFoundErr = errors.New("Command not found")
+	errUnexpectedLine  = errors.New("unexpected format in command output line")
+	errCommandNotFound = errors.New("command not found")
 )
 
 type Command struct {
@@ -78,11 +78,11 @@ func (p *PSParentRunningProcessCmd) getCommand() ([]string, error) {
 func parsePSCommandLine(line string) (Command, error) {
 	line = strings.TrimSpace(line)
 	if line == "" {
-		return Command{}, unexpectedLineErr
+		return Command{}, errUnexpectedLine
 	}
 	lineArr := strings.Fields(line)
 	if len(lineArr) < 3 {
-		return Command{}, unexpectedLineErr
+		return Command{}, errUnexpectedLine
 	}
 	pid, err := strconv.Atoi(lineArr[0])
 	if err != nil {
@@ -107,7 +107,7 @@ func (p *PSAllRunningProcessesCmd) parseCommandOuput(out []byte) (*PSAllRunningP
 	for _, line := range lines {
 		command, err := parsePSCommandLine(line)
 		if err != nil {
-			if errors.Is(err, unexpectedLineErr) {
+			if errors.Is(err, errUnexpectedLine) {
 				log.Warn().Msgf("Error parsing the line: %s", err)
 				continue
 			} else {
@@ -127,7 +127,7 @@ func (p *PSSingleRunningProcessCmd) parseCommandOuput(out []byte) (*PSSingleRunn
 	for _, line := range lines {
 		command, err := parsePSCommandLine(line)
 		if err != nil {
-			if errors.Is(err, unexpectedLineErr) {
+			if errors.Is(err, errUnexpectedLine) {
 				log.Warn().Msgf("Error parsing the line: %s", err)
 				continue
 			} else {
@@ -139,7 +139,7 @@ func (p *PSSingleRunningProcessCmd) parseCommandOuput(out []byte) (*PSSingleRunn
 			return p, nil
 		}
 	}
-	return nil, commandNotFoundErr
+	return nil, errCommandNotFound
 }
 
 // parseCommandOuput implements CmdTask.parseCommandOuput
@@ -150,7 +150,7 @@ func (p *PSParentRunningProcessCmd) parseCommandOuput(out []byte) (*PSParentRunn
 	for _, line := range lines {
 		command, err := parsePSCommandLine(line)
 		if err != nil {
-			if errors.Is(err, unexpectedLineErr) {
+			if errors.Is(err, errUnexpectedLine) {
 				log.Warn().Msgf("Error parsing the line: %s", err)
 				continue
 			} else {
@@ -163,13 +163,13 @@ func (p *PSParentRunningProcessCmd) parseCommandOuput(out []byte) (*PSParentRunn
 		}
 	}
 	if ppid < 0 {
-		return nil, commandNotFoundErr
+		return nil, errCommandNotFound
 	}
 	// iterate to find matching parent command
 	for _, line := range lines {
 		command, err := parsePSCommandLine(line)
 		if err != nil {
-			if errors.Is(err, unexpectedLineErr) {
+			if errors.Is(err, errUnexpectedLine) {
 				log.Warn().Msgf("Error parsing the line: %s", err)
 				continue
 			} else {
@@ -181,5 +181,5 @@ func (p *PSParentRunningProcessCmd) parseCommandOuput(out []byte) (*PSParentRunn
 			return p, nil
 		}
 	}
-	return nil, commandNotFoundErr
+	return nil, errCommandNotFound
 }

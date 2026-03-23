@@ -18,12 +18,12 @@ func Test_detectSensitiveEnvVars(t *testing.T) {
 	UNSAFEVARKEY := "test_detect_sensitive_env_vars_sensitive"
 	SAFEVARKEY := "test_detect_sensitive_env_vars_safe"
 
-	os.Setenv(UNSAFEVARKEY, fmt.Sprintf("%s%sAA", FAKE_API_KEY_PREFIX, strings.Repeat("X", 93)))
-	os.Setenv(SAFEVARKEY, "unharmful_string")
+	require.NoError(t, os.Setenv(UNSAFEVARKEY, fmt.Sprintf("%s%sAA", FAKE_API_KEY_PREFIX, strings.Repeat("X", 93))))
+	require.NoError(t, os.Setenv(SAFEVARKEY, "unharmful_string"))
 
 	defer func() {
-		os.Unsetenv(UNSAFEVARKEY)
-		os.Unsetenv(SAFEVARKEY)
+		require.NoError(t, os.Unsetenv(UNSAFEVARKEY))
+		require.NoError(t, os.Unsetenv(SAFEVARKEY))
 	}()
 
 	findings, err := detectSensitiveEnvVars()
