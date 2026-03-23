@@ -1,0 +1,36 @@
+---
+version: 2
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: "."
+    binary: sandbox-probe
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "6"
+      - "7"
+    ignore:
+      - goos: darwin
+        goarch: arm
+    ldflags:
+      - -s -w
+      - -X github.com/controlplaneio/sandbox-probe/cmd.version={{.Version}}
+      - -X github.com/controlplaneio/sandbox-probe/cmd.commit={{.FullCommit}}
+      - -X github.com/controlplaneio/sandbox-probe/cmd.date={{.CommitDate}}
+
+checksum:
+  name_template: "{{ .ProjectName }}_checksums.txt"
+
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
