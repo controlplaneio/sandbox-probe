@@ -156,7 +156,7 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 
 	// PID cmdline
 	proc, err := getRunningProcessCommandLinux(pid)
-	if err == nil {
+	if err == nil && proc != nil {
 		runtime := stringToContainerRuntime(proc.Command)
 		if runtime != RuntimeNotFound {
 			return runtime
@@ -167,7 +167,7 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 	iter := 0
 	for pid > 1 && iter < 10 {
 		proc, err := getRunningParentProcessLinux(pid)
-		if err != nil {
+		if err != nil || proc == nil {
 			break
 		}
 		log.Info().Msgf("found parent process with pid: %d and command %v", proc.PID, proc.Command)
@@ -250,7 +250,7 @@ func stringToContainerRuntime(s string) ContainerRuntime {
 // GetBubbleWrap tries to detect if the system is running in bwrap
 func GetBubbleWrap(pid int) (bool, error) {
 	proc, err := getRunningParentProcessLinux(pid)
-	if err != nil || proc.PID < 0 {
+	if err != nil || proc == nil || proc.PID < 0 {
 		return false, nil
 	}
 	log.Info().Msgf("found this parent command %s", proc.Command)
