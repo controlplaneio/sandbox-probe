@@ -22,6 +22,9 @@
       in
       {
         devShell = pkgs.devshell.mkShell {
+          env = [
+            { name = "GOPROXY"; value = "https://proxy.golang.org,direct"; }
+          ];
           devshell = {
             name = "sandbox-probe";
             motd = "";
