@@ -167,16 +167,36 @@ func ScanTargetedPaths() *PathPermissions {
 // 	return result, nil
 // }
 
-// isReadable checks if the current process can read the given path
+// isReadable checks if the current process can read the given path.
+// First we check POSIX access, if no access is reported, we return false
+// If access through POSIX is reported, we verify it trying opening the file
 func isReadable(path string) bool {
 	err := unix.Access(path, unix.R_OK)
-	return err == nil
+	if err != nil {
+		return false
+	}
+	f, err := os.OpenFile(path, os.O_RDONLY, 0)
+	if err != nil {
+		return false
+	}
+	f.Close()
+	return true
 }
 
-// isWritable checks if the current process can write to the given path
+// isWritable checks if the current process can write to the given path.
+// First we check POSIX access, if no access is reported, we return false
+// If access through POSIX is reported, we verify it trying opening the file
 func isWritable(path string) bool {
 	err := unix.Access(path, unix.W_OK)
-	return err == nil
+	if err != nil {
+		return false
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY, 0)
+	if err != nil {
+		return false
+	}
+	f.Close()
+	return true
 }
 
 // isPseudoFilesystem returns true if the path is in a pseudo-filesystem
