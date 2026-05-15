@@ -7,42 +7,123 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Sensitive paths to check for readability (information disclosure)
-var SensitiveReadPaths = []string{
-	// User and group information
-	"/etc/passwd",
-	"/etc/shadow",
-	"/etc/group",
-	"/etc/gshadow",
+// SensitivePath describes a path to check for readability, with an optional
+// content predicate. If contains is non-empty the file is only reported when
+// its content includes that substring (case-insensitive).
+type SensitivePath struct {
+	path     string
+	contains string // if set, file must contain this string to be reported
+}
 
-	// System configuration
-	"/etc/hostname",
-	"/etc/hosts",
-	"/etc/resolv.conf",
-	"/etc/ssh/sshd_config",
-	"/etc/sudoers",
+func sp(path string) SensitivePath                  { return SensitivePath{path: path} }
+func spContains(path, substr string) SensitivePath  { return SensitivePath{path: path, contains: substr} }
 
-	// Process and container information
-	"/proc/self/cgroup",
-	"/proc/self/mountinfo",
-	"/proc/self/status",
-	"/proc/1/cgroup",
-	"/proc/1/environ",
+// sensitivePaths is populated at runtime (requires home dir expansion).
+// See buildSensitivePaths().
+var sensitivePaths []SensitivePath
 
-	// Container runtime indicators
-	"/.dockerenv",
-	"/run/.containerenv",
-	"/var/run/docker.sock",
+// buildSensitivePaths returns the full list of paths to check, expanding
+// user-home entries against the real home directory.
+func buildSensitivePaths() []SensitivePath {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = "/root"
+	}
+	return buildSensitivePathsForHome(home)
+}
 
-	// Root directory
-	"/root",
-	"/root/.ssh",
-	"/root/.bash_history",
+// buildSensitivePathsForHome is the testable core: it builds the path list
+// using the provided home directory instead of calling os.UserHomeDir().
+func buildSensitivePathsForHome(home string) []SensitivePath {
+	h := func(p string) string { return home + p }
 
-	// System credentials and keys
-	"/etc/ssl/private",
-	"/etc/pki/private",
-	"/var/lib/docker",
+	return []SensitivePath{
+		// ── User and group information ────────────────────────────────────
+		sp("/etc/passwd"),
+		sp("/etc/shadow"),
+		sp("/etc/group"),
+		sp("/etc/gshadow"),
+
+		// ── System configuration ──────────────────────────────────────────
+		sp("/etc/hostname"),
+		sp("/etc/hosts"),
+		sp("/etc/resolv.conf"),
+		sp("/etc/ssh/sshd_config"),
+		sp("/etc/sudoers"),
+
+		// ── Process and container information ─────────────────────────────
+		sp("/proc/self/cgroup"),
+		sp("/proc/self/mountinfo"),
+		sp("/proc/self/status"),
+		sp("/proc/1/cgroup"),
+		sp("/proc/1/environ"),
+
+		// ── Container runtime indicators ──────────────────────────────────
+		sp("/.dockerenv"),
+		sp("/run/.containerenv"),
+		sp("/var/run/docker.sock"),
+
+		// ── Root account credentials ──────────────────────────────────────
+		sp("/root"),
+		sp("/root/.ssh"),
+		sp("/root/.bash_history"),
+
+		// ── System credentials and keys ───────────────────────────────────
+		sp("/etc/ssl/private"),
+		sp("/etc/pki/private"),
+		sp("/var/lib/docker"),
+
+		// ── Runtime secrets (Docker / Kubernetes) ─────────────────────────
+		sp("/run/secrets"),
+		sp("/var/run/secrets/kubernetes.io/serviceaccount/token"),
+		sp("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"),
+
+		// ── SSH keys (current user) ───────────────────────────────────────
+		sp(h("/.ssh/id_rsa")),
+		sp(h("/.ssh/id_ed25519")),
+		sp(h("/.ssh/id_ecdsa")),
+		sp(h("/.ssh/config")),
+		sp(h("/.ssh/authorized_keys")),
+
+		// ── Cloud credentials ─────────────────────────────────────────────
+		sp(h("/.aws/credentials")),
+		sp(h("/.aws/config")),
+		sp(h("/.gcloud/credentials.db")),
+		sp(h("/.gcloud/access_tokens.db")),
+		sp(h("/.config/gcloud")),
+		sp(h("/.azure/credentials")),
+		sp(h("/.azure/msal_token_cache.json")),
+
+		// ── Container / Kubernetes credentials ───────────────────────────
+		sp(h("/.kube/config")),
+		sp(h("/.docker/config.json")),
+
+		// ── Crypto / signing ──────────────────────────────────────────────
+		sp(h("/.gnupg")),
+
+		// ── VCS credentials ───────────────────────────────────────────────
+		sp(h("/.git-credentials")),
+		sp(h("/.netrc")),
+		// Only flag .gitconfig when it contains a [credential] section
+		spContains(h("/.gitconfig"), "[credential]"),
+
+		// ── Infrastructure / secrets management ───────────────────────────
+		sp(h("/.vault-token")),
+		sp(h("/.terraform.d/credentials.tfrc.json")),
+		sp(h("/.config/gh/hosts.yml")),
+		sp(h("/.config/op")),
+		sp(h("/.config/doctl/config.yaml")),
+		sp(h("/.fly/config.yml")),
+		sp(h("/.cloudflared")),
+
+		// ── Package manager tokens ────────────────────────────────────────
+		sp(h("/.npmrc")),
+		sp(h("/.pypirc")),
+		sp(h("/.gem/credentials")),
+		sp(h("/.cargo/credentials.toml")),
+		sp(h("/.m2/settings.xml")),
+		sp(h("/.gradle/gradle.properties")),
+	}
 }
 
 // System directories to check for write permissions (should typically be read-only)
@@ -81,18 +162,36 @@ type PathPermissions struct {
 // specific sensitive paths instead of walking the entire filesystem.
 // Returns separate lists for readable sensitive paths and writable system paths.
 func ScanTargetedPaths() *PathPermissions {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = "/root"
+	}
+	return scanTargetedPathsForHome(home)
+}
+
+// scanTargetedPathsForHome is the testable core: it runs the full scan using
+// the provided home directory instead of calling os.UserHomeDir().
+func scanTargetedPathsForHome(home string) *PathPermissions {
 	result := &PathPermissions{
 		WritablePaths: make([]string, 0),
 		ReadablePaths: make([]string, 0),
 	}
 
 	// Check sensitive paths for read access
-	for _, path := range SensitiveReadPaths {
-		if _, err := os.Stat(path); err == nil {
-			if isReadable(path) {
-				result.ReadablePaths = append(result.ReadablePaths, path)
+	for _, sp := range buildSensitivePathsForHome(home) {
+		if _, err := os.Stat(sp.path); err != nil {
+			continue
+		}
+		if !isReadable(sp.path) {
+			continue
+		}
+		if sp.contains != "" {
+			data, err := os.ReadFile(sp.path)
+			if err != nil || !strings.Contains(strings.ToLower(string(data)), strings.ToLower(sp.contains)) {
+				continue
 			}
 		}
+		result.ReadablePaths = append(result.ReadablePaths, sp.path)
 	}
 
 	// Check system paths for write access
