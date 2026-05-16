@@ -1,0 +1,131 @@
+name: scan-gemini-matrix
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["matrix/**"]
+  schedule:
+    - cron: "0 8 * * 1" # weekly
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scan-gemini-matrix-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GEMINI_MODEL: gemini-2.5-flash-lite
+  RUN_VIA_GEMINI: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
+
+jobs:
+  build:
+    name: build (${{ matrix.goos }}/${{ matrix.goarch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest,  goos: linux,   goarch: amd64, ext: "" }
+          - { runner: macos-latest,   goos: darwin,  goarch: arm64, ext: "" }
+          - { runner: windows-latest, goos: windows, goarch: amd64, ext: ".exe" }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with: { go-version-file: go.mod }
+      - shell: bash
+        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o sandbox-probe${{ matrix.ext }} .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sandbox-probe-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: sandbox-probe${{ matrix.ext }}
+
+  scan:
+    name: ${{ matrix.label }}
+    needs: build
+    environment: gemini
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: linux-none,         runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     backend: "" }
+          - { label: linux-docker,       runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     backend: docker }
+          - { label: linux-podman,       runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     backend: podman }
+          - { label: macos-none,         runner: macos-latest,   arch: darwin-arm64,  ext: "",     backend: "" }
+          - { label: macos-sandbox-exec, runner: macos-latest,   arch: darwin-arm64,  ext: "",     backend: sandbox-exec }
+          # windows-docker omitted: gemini sandbox image is Linux-only, no native Windows sandbox in gemini-cli.
+          - { label: windows-none,       runner: windows-latest, arch: windows-amd64, ext: ".exe", backend: "" }
+    runs-on: ${{ matrix.runner }}
+    env:
+      RUN_GEMINI: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && secrets.GEMINI_API_KEY != '' }}
+      PROBE: ./sandbox-probe${{ matrix.ext }}
+      DIRECT_REPORT: reports/${{ matrix.label }}-direct.json
+      GEMINI_REPORT: reports/${{ matrix.label }}-via-gemini.json
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: sandbox-probe-${{ matrix.arch }}
+
+      - if: runner.os != 'Windows'
+        run: chmod +x $PROBE
+
+      - if: matrix.backend == 'podman' && runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y podman
+
+      - if: matrix.backend == 'docker' && runner.os == 'Linux'
+        run: docker info
+
+      - if: env.RUN_GEMINI == 'true'
+        uses: actions/setup-node@v6
+        with: { node-version: "22" }
+
+      - if: env.RUN_GEMINI == 'true'
+        run: npm install -g @google/gemini-cli && gemini --version
+        shell: bash
+
+      - name: probe (direct)
+        id: direct
+        shell: bash
+        run: |
+          mkdir -p reports
+          $PROBE scan --tasksets baseline \
+            --tags "runner=${{ matrix.runner }},backend=${{ matrix.backend || 'none' }},mode=direct" \
+            --output_path "$DIRECT_REPORT"
+
+      - name: probe (via gemini)
+        id: via_gemini
+        if: env.RUN_GEMINI == 'true'
+        shell: bash
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_SANDBOX: ${{ matrix.backend }}
+          GEMINI_CLI_TRUST_WORKSPACE: "true"
+          SANDBOX_FLAGS: '--entrypoint ""' # gemini-cli#26964 workaround
+          LABEL: ${{ matrix.label }}
+          RUNNER: ${{ matrix.runner }}
+          BACKEND: ${{ matrix.backend || 'none' }}
+          OUT: ${{ env.GEMINI_REPORT }}
+          MODEL: ${{ env.GEMINI_MODEL }}
+        run: ./scripts/run-probe-via-gemini.sh
+
+      - name: summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## ${{ matrix.label }}"
+            echo "| | |"
+            echo "|---|---|"
+            echo "| backend | \`${{ matrix.backend || 'none' }}\` |"
+            echo "| direct | \`${{ steps.direct.outcome }}\` |"
+            echo "| via gemini | \`${{ steps.via_gemini.outcome || 'skipped' }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: report-${{ matrix.label }}
+          path: reports/
+          if-no-files-found: ignore

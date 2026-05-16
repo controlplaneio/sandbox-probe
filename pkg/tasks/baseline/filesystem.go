@@ -3,8 +3,6 @@ package tasks
 import (
 	"os"
 	"strings"
-
-	"golang.org/x/sys/unix"
 )
 
 // SensitivePath describes a path to check for readability, with an optional
