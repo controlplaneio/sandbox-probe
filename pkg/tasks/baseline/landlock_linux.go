@@ -14,7 +14,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+var probeForLandlock = probeForLandlockImpl
+
 func ProbeForLandlock() (bool, error) {
+	return probeForLandlock()
+}
+
+func probeForLandlockImpl() (bool, error) {
 	self, err := os.Executable()
 	if err != nil {
 		return false, fmt.Errorf("failed to get self executable location: %w", err)

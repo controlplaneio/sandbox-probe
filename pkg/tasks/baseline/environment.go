@@ -195,7 +195,7 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return runtime
 	}
 
-	landlock, err := ProbeForLandlock()
+	landlock, err := probeForLandlock()
 	if err != nil {
 		log.Error().Err(err).Msg("failed to check for landlock")
 	}

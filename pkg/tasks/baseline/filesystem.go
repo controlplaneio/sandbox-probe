@@ -283,12 +283,19 @@ func isReadable(path string) bool {
 }
 
 // isWritable checks if the current process can write to the given path.
-// First we check POSIX access, if no access is reported, we return false
-// If access through POSIX is reported, we verify it trying opening the file
+// First we check POSIX access, if no access is reported, we return false.
+// For regular files we verify by opening O_WRONLY; directories cannot be
+// opened with O_WRONLY on Linux so we trust the Access result directly.
 func isWritable(path string) bool {
-	err := unix.Access(path, unix.W_OK)
+	if err := unix.Access(path, unix.W_OK); err != nil {
+		return false
+	}
+	info, err := os.Stat(path)
 	if err != nil {
 		return false
+	}
+	if info.IsDir() {
+		return true
 	}
 	f, err := os.OpenFile(path, os.O_WRONLY, 0)
 	if err != nil {
