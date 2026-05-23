@@ -12,6 +12,7 @@ var cfgFile string
 
 func init() {
 	rootCmd.Flags().String("log_level", "info", "log level")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "path to custom-paths config file (YAML)")
 }
 
 var (

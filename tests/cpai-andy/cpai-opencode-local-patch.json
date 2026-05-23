@@ -1,0 +1,19 @@
+{
+  "$schema": "https://nono.sh/schema/profile.json",
+  "extends": "opencode",
+
+  "meta": {
+    "name": "cpai-opencode-local",
+    "description": "CPAI OpenCode local profile for andy's machine. Extends opencode with $TMPDIR r+w so cpai-andy can read tool output by known path. readdir on /tmp stays blocked — no enumeration. Matches the built-in opencode profile's own $TMPDIR grant."
+  },
+
+  "filesystem": {
+    "allow": [
+      "$TMPDIR"
+    ]
+  },
+
+  "workdir": {
+    "access": "readwrite"
+  }
+}
