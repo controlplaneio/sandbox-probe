@@ -43,13 +43,12 @@ func Execute() {
 }
 
 func initConfig() error {
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	} else {
-		viper.SetConfigName("config")
-		viper.SetConfigType("yaml")
-		viper.AddConfigPath(".")
-	}
+	// cfgFile is our custom-paths config (domain YAML) — do not feed it to
+	// viper, which expects its own config format. Viper looks for a
+	// conventional "config.yaml" in the working directory instead.
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
 
 	viper.AutomaticEnv()
 
@@ -57,6 +56,6 @@ func initConfig() error {
 		return nil
 	}
 
-	log.Info().Msgf("Using config: %s", viper.ConfigFileUsed())
+	log.Info().Msgf("Using viper config: %s", viper.ConfigFileUsed())
 	return nil
 }
