@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"os"
+	"runtime"
 	"strings"
 )
 
@@ -173,6 +174,11 @@ func scanTargetedPathsForHome(home string) *PathPermissions {
 	result := &PathPermissions{
 		WritablePaths: make([]string, 0),
 		ReadablePaths: make([]string, 0),
+	}
+
+	// Unix-specific paths are not applicable on Windows
+	if runtime.GOOS == "windows" {
+		return result
 	}
 
 	// Check sensitive paths for read access

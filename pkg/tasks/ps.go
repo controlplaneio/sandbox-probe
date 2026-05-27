@@ -2,7 +2,9 @@ package tasks
 
 import (
 	"context"
+	"errors"
 	"os"
+	"runtime"
 
 	reportv1 "github.com/controlplaneio/sandbox-probe/api/gen/proto/report/v1"
 	cmdBasedTasks "github.com/controlplaneio/sandbox-probe/pkg/tasks/cmd-based"
@@ -43,6 +45,10 @@ func NewPSAllTask() *PSAllTask {
 }
 
 func (t *PSAllTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, error) {
+	if runtime.GOOS == "windows" {
+		return nil, errors.New("ps tasks are not supported on Windows")
+	}
+
 	var findings []*reportv1.Finding
 	result, err := cmdBasedTasks.RunPSAllRunningProcessesCmd()
 	if err != nil {
@@ -75,6 +81,10 @@ func NewPSSingleTask() *PSSingleTask {
 }
 
 func (t *PSSingleTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, error) {
+	if runtime.GOOS == "windows" {
+		return nil, errors.New("ps tasks are not supported on Windows")
+	}
+
 	result, err := cmdBasedTasks.RunPSSingleRunningProcessCmd(t.pid)
 	if err != nil {
 		return []*reportv1.Finding{}, err
