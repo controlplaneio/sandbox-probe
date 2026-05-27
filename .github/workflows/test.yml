@@ -1,5 +1,5 @@
 ---
-name: Tests
+name: Unit Tests
 
 on:
   push:
@@ -26,12 +26,5 @@ jobs:
           go-version-file: go.mod
 
       - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out ./...
+        run: go test -v -race ./...
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v5
-        if: matrix.os == 'ubuntu-latest'
-        with:
-          files: ./coverage.out
-          fail_ci_if_error: false
-        continue-on-error: true
