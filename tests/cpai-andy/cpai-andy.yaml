@@ -1,0 +1,184 @@
+# sandbox-probe custom_paths config — cpai-andy identity
+# Option 3: Extend sandbox-probe scan with declarative path expectations.
+#
+# How to use:
+#   sandbox-probe scan \
+#     --config /home/cpai-andy/src/cpai-workspace/sandbox-probe/cpai-andy.yaml \
+#     --output_path /tmp/sandbox-probe-report.json
+#
+# Schema:
+#   identity       — who this config is for (informational + used for path inference)
+#   custom_paths   — the boundary declarations
+#     must_block   — paths that MUST be denied (readdir + open). FAIL if readable.
+#     must_read    — paths that MUST be readable (readdir OK). FAIL if denied.
+#     must_readwrite — paths that MUST be fully accessible. FAIL if denied.
+#     audit        — paths to probe and report on with no pass/fail expectation.
+#
+# Checks performed per path (unless overridden by check_ops):
+#   stat      — can we stat() the path? (VFS metadata — always leaks path existence)
+#   readdir   — can we list directory contents?
+#   open      — can we open and read a file or the directory?
+#   write     — can we create a file inside this directory?
+#
+# severity levels: critical (abort on failure), error (fail scan), warn (log only)
+
+identity:
+  sandbox_user: cpai-andy       # The AI agent's unix user
+  sandbox_uid: 30033
+  host_user: andy               # The human operator's unix user
+  host_uid: 1000
+  shared_gid: 30037             # GID shared between sandbox and host (traverse-only on /home/andy)
+  nono_profile: cpai-opencode-local
+
+custom_paths:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # MUST BLOCK — content MUST be inaccessible (readdir=DENIED, open=DENIED)
+  # stat() returning true is expected and acceptable (VFS path existence leak,
+  # classified as informational — see audit section for stat-only paths).
+  # ─────────────────────────────────────────────────────────────────────────
+  must_block:
+
+    # ── Cryptographic secrets & credentials ──────────────────────────────
+    - path: /home/andy/.ssh
+      label: ssh_keys
+      severity: critical
+      reason: "Private SSH keys — exposure = full host compromise"
+      check_files:
+        - id_rsa
+        - id_ed25519
+        - authorized_keys
+        - config
+
+    - path: /home/andy/.aws
+      label: aws_credentials
+      severity: critical
+      reason: "AWS credentials — exposure = cloud account compromise"
+      check_files:
+        - credentials
+        - config
+
+    - path: /home/andy/.gnupg
+      label: gpg_keys
+      severity: critical
+      reason: "GPG private keys — exposure = identity + signing key compromise"
+
+    - path: /home/andy/.kube
+      label: kube_config
+      severity: critical
+      reason: "Kubernetes cluster credentials"
+      check_files:
+        - config
+
+    - path: /home/andy/.config
+      label: host_config
+      severity: error
+      reason: "Host user config dir — contains gcloud, 1password, etc."
+
+    - path: /home/andy/Dropbox
+      label: dropbox
+      severity: error
+      reason: "Personal cloud sync — arbitrary sensitive documents"
+
+    - path: /home/andy/.1password
+      label: one_password
+      severity: critical
+      reason: "1Password agent socket / local data"
+      stat_may_fail: true       # May not exist on all machines
+
+    - path: /home/andy/.vault-token
+      label: vault_token
+      severity: critical
+      reason: "HashiCorp Vault token"
+      stat_may_fail: true
+
+    # ── Host source code ─────────────────────────────────────────────────
+    # These are blocked not because they're secret, but because the sandbox
+    # should operate only on what's explicitly shared — not the full host tree.
+    - path: /home/andy/src
+      label: host_src_root
+      severity: error
+      reason: "Host source tree root — sandbox should not enumerate host projects"
+
+    - path: /home/andy/src/cp
+      label: host_src_cp
+      severity: error
+      reason: "ControlPlane source projects — may contain secrets in env files"
+
+    - path: /home/andy/src/2026
+      label: host_src_2026
+      severity: error
+      reason: "Current year's projects — including sandbox-probe source itself"
+
+    - path: /home/andy/src/2026/sandbox-probe
+      label: sandbox_probe_src
+      severity: warn
+      reason: "sandbox-probe source — informational, binary is separately executable"
+
+    # ── System paths that should not be writable ─────────────────────────
+    - path: /usr/local/src
+      label: usr_local_src
+      severity: warn
+      check_ops: [readdir, open, write]   # read OK (world-readable), write must be denied
+      reason: "/usr/local/src is world-readable but must not be writable"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # MUST READ — paths expected to be readable (system tooling)
+  # ─────────────────────────────────────────────────────────────────────────
+  must_read:
+
+    - path: /usr/local/bin
+      label: usr_local_bin
+      reason: "User-installed tools (aichat, nono, etc.) must be executable"
+
+    - path: /usr/bin
+      label: usr_bin
+      reason: "System binaries — required for shell, utilities"
+
+    - path: /usr/lib
+      label: usr_lib
+      reason: "Shared libraries — required for dynamic linking"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # MUST READWRITE — the sandbox's active working area
+  # ─────────────────────────────────────────────────────────────────────────
+  must_readwrite:
+
+    - path: /home/cpai-andy/src/cpai-workspace
+      label: cpai_workspace
+      reason: "Primary working directory — nono --allow-cwd"
+
+    - path: /tmp
+      label: tmp
+      reason: "Temp dir — needed for tool output, compile artifacts"
+      note: "Requires $TMPDIR in filesystem.allow in cpai-opencode-local profile.
+             Currently write-only (system_write_linux). See profile-patch.json."
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # AUDIT — probe and report, no pass/fail verdict
+  # ─────────────────────────────────────────────────────────────────────────
+  audit:
+
+    - path: /home/andy
+      label: host_home_root
+      note: "stat() returns 0710 drwx--x--- gid=30037. Path existence visible, content not."
+
+    - path: /home/andy/Documents
+      label: host_documents
+      note: "World-readable dir (0755) but Landlock blocks content. Stat leaks existence."
+
+    - path: /home/andy/src/2026/sandbox-probe/bin/sandbox-probe
+      label: sandbox_probe_binary
+      note: "Binary is 0755 executable by all. Landlock blocks execute from this sandbox."
+
+    - path: /home/cpai-andy
+      label: cpai_home
+      note: "cpai-andy's home — mostly blocked by Landlock except CWD subtree and explicit allows."
+
+    - path: /home/cpai-andy/.opencode
+      label: opencode_data
+      note: "OpenCode data dir — allowed r+w by opencode profile group."
+
+    - path: /proc/self
+      label: proc_self
+      note: "Own process info — readable, expected."
