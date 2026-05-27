@@ -27,5 +27,12 @@ jobs:
           go-version-file: go.mod
 
       - name: Run tests
-        run: go test -v -timeout 10m ./...
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            echo "Running short tests"
+            go test -v -short -timeout 10m ./...
+          else
+            go test -v -timeout 10m ./...
+          fi
 

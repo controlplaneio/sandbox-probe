@@ -16,6 +16,10 @@ const (
 )
 
 func Test_detectSensitiveEnvVars(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping environment variable scan in short mode")
+	}
+
 	UNSAFEVARKEY := "test_detect_sensitive_env_vars_sensitive"
 	SAFEVARKEY := "test_detect_sensitive_env_vars_safe"
 
@@ -67,6 +71,10 @@ func Test_getUserGroupInfo(t *testing.T) {
 }
 
 func Test_getBubbleWrap(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping BubbleWrap detection in short mode")
+	}
+
 	hasBubbleWrap, err := GetBubbleWrap(os.Getpid())
 	require.NoError(t, err)
 

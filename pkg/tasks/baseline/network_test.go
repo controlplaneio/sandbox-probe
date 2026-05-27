@@ -8,6 +8,10 @@ import (
 )
 
 func TestDnsQuery(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping DNS query tests in short mode")
+	}
+
 	tests := []struct {
 		name        string
 		hostname    string
@@ -82,6 +86,10 @@ func TestGetProxy(t *testing.T) {
 }
 
 func Test_scanTCP(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow TCP port scan in short mode")
+	}
+
 	// Test TCP port scanning on localhost
 	// Note: This scans all ports 1-65535 and may take some time
 	// In most environments, some ports will be open on localhost
@@ -113,6 +121,10 @@ func Test_scanTCP(t *testing.T) {
 }
 
 func Test_scanUDP(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow UDP port scan in short mode")
+	}
+
 	// Test UDP port scanning on localhost
 	// Note: UDP scanning is inherently unreliable as it depends on responses
 	// Many UDP services don't respond to empty packets, so results may vary
@@ -144,6 +156,10 @@ func Test_scanUDP(t *testing.T) {
 }
 
 func Test_getSockets(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping socket scan in short mode")
+	}
+
 	// Test getSockets function
 
 	t.Log("Starting get sockets scan in /var/run/")

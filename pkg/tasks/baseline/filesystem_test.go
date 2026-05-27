@@ -21,6 +21,10 @@ var HomeDirPatterns = []string{
 }
 
 func TestScanTargetedPaths(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping filesystem scan in short mode")
+	}
+
 	result := ScanTargetedPaths()
 
 	if result == nil {

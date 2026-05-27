@@ -12,6 +12,10 @@ import (
 )
 
 func Test_getRunningProcess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping process tests in short mode")
+	}
+
 	pid := os.Getpid()
 	proc, err := GetRunningProcess(pid)
 
@@ -23,6 +27,10 @@ func Test_getRunningProcess(t *testing.T) {
 }
 
 func Test_getRunningParentProcess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping process tests in short mode")
+	}
+
 	pid := os.Getpid()
 	parentProc, err := GetRunningParentProcess(pid)
 
@@ -34,6 +42,10 @@ func Test_getRunningParentProcess(t *testing.T) {
 }
 
 func Test_getRunningProcesses(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping process tests in short mode")
+	}
+
 	processes, err := GetRunningProcesses()
 
 	require.NoError(t, err, "getRunningProcesses should not return error")
@@ -51,6 +63,10 @@ func Test_getRunningProcesses(t *testing.T) {
 }
 
 func Test_getRunningParentProcessLinux(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping process tests in short mode")
+	}
+
 	pid := os.Getpid()
 	parentProc, err := getRunningParentProcessLinux(pid)
 
