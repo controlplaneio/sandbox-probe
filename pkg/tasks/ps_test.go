@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+	"runtime"
 	"testing"
 
 	cmdBasedTasks "github.com/controlplaneio/sandbox-probe/pkg/tasks/cmd-based"
@@ -86,6 +87,14 @@ func TestPSAllTask_Run(t *testing.T) {
 	ctx := context.Background()
 
 	findings, err := task.Run(ctx, Inputs{})
+
+	if runtime.GOOS == "windows" {
+		// On Windows, should return error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not supported on Windows")
+		return
+	}
+
 	require.NoError(t, err)
 
 	// Verify findings structure (should have at least one process)
@@ -124,6 +133,14 @@ func TestPSSingleTask_Run(t *testing.T) {
 	ctx := context.Background()
 
 	findings, err := task.Run(ctx, Inputs{})
+
+	if runtime.GOOS == "windows" {
+		// On Windows, should return error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not supported on Windows")
+		return
+	}
+
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}

@@ -1,8 +1,10 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/controlplaneio/sandbox-probe/pkg/models"
@@ -31,6 +33,7 @@ const (
 	RuntimeFirejail
 	RuntimeSeatbelt
 	RuntimeLandlock
+	RuntimeBubblewrap
 	// add other runtimes as needed
 	RuntimeUnknown
 )
@@ -79,6 +82,10 @@ func splitEnv(env string) (key, value string, ok bool) {
 }
 
 func GetUserGroupInfo() (*models.UserIdentity, error) {
+	if runtime.GOOS == "windows" {
+		return nil, errors.New("GetUserGroupInfo is not supported on Windows")
+	}
+
 	groups, err := os.Getgroups()
 	if err != nil {
 		return nil, err
@@ -194,7 +201,7 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return runtime
 	}
 
-	landlock, err := ProbeForLandlock()
+	landlock, err := probeForLandlock()
 	if err != nil {
 		log.Error().Err(err).Msg("failed to check for landlock")
 	}
@@ -202,15 +209,15 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return RuntimeLandlock
 	}
 
-	// could be landlock
-	if isProcSelfSetNoNewPrivs() {
-		// // TODO: replace/augment with more concrete landlock detection
-		// // really could be landlock
-		// versionSignatureFile := "/proc/self/attr/current"
-		// if _, err := readFile(versionSignatureFile); err != nil {
-		// 	fmt.Println("error")
-		// }
+	// bwrap creates a user namespace mapping uid 0 inside to the real uid outside;
+	// this is detectable even when the ancestor /proc entries are hidden by PID namespace.
+	if isUserNamespaceWithUIDMap() {
+		return RuntimeBubblewrap
+	}
 
+	// no-new-privs is set by bwrap and by some other sandboxes (landlock, firejail);
+	// treat it as a signal that some sandboxing is present even if we can't name it.
+	if isProcSelfSetNoNewPrivs() {
 		return RuntimeUnknown
 	}
 
@@ -234,6 +241,8 @@ func stringToContainerRuntime(s string) ContainerRuntime {
 		return RuntimeSeatbelt
 	case strings.Contains(s, "landlock"):
 		return RuntimeLandlock
+	case strings.Contains(s, "bwrap"):
+		return RuntimeBubblewrap
 	}
 	return RuntimeUnknown
 }
@@ -255,6 +264,70 @@ func GetBubbleWrap(pid int) (bool, error) {
 	}
 
 	return is_bwrap, nil
+}
+
+// ActiveMechanisms returns the set of kernel enforcement mechanisms currently
+// active for this process. This is mechanism-level detection (landlock,
+// seccomp-filter, seccomp-notify, no-new-privs) rather than wrapper-level
+// detection (docker, bwrap, nono). Multiple mechanisms may be active
+// simultaneously — e.g. a nono session may show landlock + seccomp-notify +
+// no-new-privs without any namespace isolation.
+func ActiveMechanisms() []string {
+	var mechanisms []string
+
+	// /proc/self/status fields (all kernels that have the feature export it here)
+	if s, err := readProcSelfStatus(); err == nil {
+		// Seccomp field: 0=none, 1=strict, 2=filter/notify
+		if v, ok := s["Seccomp"]; ok {
+			switch v {
+			case "1":
+				mechanisms = append(mechanisms, "seccomp-strict")
+			case "2":
+				// Mode 2 covers both BPF filter and seccomp-notify supervisor.
+				// Distinguish by filter count: notify-only supervisors attach zero
+				// filters to the child, BPF filter sandboxes attach ≥1.
+				if fc, ok2 := s["Seccomp_filters"]; ok2 && fc != "0" {
+					mechanisms = append(mechanisms, "seccomp-filter")
+				} else {
+					mechanisms = append(mechanisms, "seccomp-notify")
+				}
+			}
+		}
+
+		// Landlock field: present and non-zero on kernel ≥ 6.6 when restricted.
+		// Format: "Landlock:\t<ruleset-count>" — zero means kernel supports it
+		// but no rulesets have been applied to this process.
+		if v, ok := s["Landlock"]; ok && v != "0" && v != "" {
+			mechanisms = append(mechanisms, "landlock")
+		}
+
+		// NoNewPrivs: set by bwrap, nono, firejail, and other sandboxes.
+		// Not a sandbox on its own but a strong signal that some enforcement
+		// is present.
+		if v, ok := s["NoNewPrivs"]; ok && v == "1" {
+			mechanisms = append(mechanisms, "no-new-privs")
+		}
+	}
+
+	return mechanisms
+}
+
+// readProcSelfStatus parses /proc/self/status into a key→value map.
+// Keys are the field names without the trailing colon; values are trimmed.
+func readProcSelfStatus() (map[string]string, error) {
+	data, err := readFile("/proc/self/status")
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]string)
+	for _, line := range strings.Split(string(data), "\n") {
+		if i := strings.Index(line, ":"); i > 0 {
+			key := strings.TrimSpace(line[:i])
+			val := strings.TrimSpace(line[i+1:])
+			result[key] = val
+		}
+	}
+	return result, nil
 }
 
 func GetHostMounts() ([]Mount, error) {

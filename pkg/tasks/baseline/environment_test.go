@@ -3,6 +3,7 @@ package tasks
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -46,6 +47,15 @@ func Test_detectSensitiveEnvVars(t *testing.T) {
 
 func Test_getUserGroupInfo(t *testing.T) {
 	identity, err := GetUserGroupInfo()
+
+	if runtime.GOOS == "windows" {
+		// On Windows, should return error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not supported on Windows")
+		assert.Nil(t, identity)
+		return
+	}
+
 	require.NoError(t, err)
 	require.NotNil(t, identity)
 
@@ -133,6 +143,8 @@ func Test_getContainerRuntime(t *testing.T) {
 				}
 			}
 			fileExistsFunc = func(path string) bool { return false }
+			probeForLandlock = func() (bool, error) { return false, nil }
+			t.Cleanup(func() { probeForLandlock = probeForLandlockImpl })
 
 			runtime := GetContainerRuntime(0, 0)
 			if runtime != tt.want.runtime {

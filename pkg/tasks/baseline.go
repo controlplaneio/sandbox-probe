@@ -495,10 +495,15 @@ func NewSandboxTask() *SandboxTask {
 func (t *SandboxTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, error) {
 	log.Info().Str("task", t.GetName()).Msg("Starting sandbox detection task")
 
-	// Detect container runtime
+	var findings []*reportv1.Finding
+
+	// ── Container / wrapper runtime ───────────────────────────────────────────
+	// Detects high-level wrappers (Docker, Podman, LXC, bwrap, firejail, etc.)
+	// via cgroups, env vars, filesystem markers, and ancestor process names.
+	// Reports the outermost named wrapper when one is found.
 	log.Info().Msg("Detecting container runtime")
 	runtime := baselineTasks.GetContainerRuntime(0, os.Getpid())
-	runtimeStr := "none"
+	runtimeStr := ""
 	switch runtime {
 	case baselineTasks.RuntimeDocker:
 		runtimeStr = "docker"
@@ -518,39 +523,60 @@ func (t *SandboxTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 		runtimeStr = "seatbelt"
 	case baselineTasks.RuntimeLandlock:
 		runtimeStr = "landlock"
+	case baselineTasks.RuntimeUnknown:
+		runtimeStr = "unknown"
 	}
 
-	// Detect bwrap
+	// Detect bwrap explicitly (uid-map / ancestor walk)
 	log.Info().Msg("Checking for bubblewrap")
 	isBwrap, _ := baselineTasks.GetBubbleWrap(os.Getpid())
 	if isBwrap {
 		runtimeStr = "bubblewrap"
 	}
 
+	if runtimeStr != "" {
+		log.Info().Str("runtime", runtimeStr).Msg("Container/wrapper runtime detected")
+		rv, err := structpb.NewValue(runtimeStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert runtime to protobuf value: %w", err)
+		}
+		findings = append(findings, &reportv1.Finding{
+			FindingType: SANDBOXDETECTION,
+			Task:        t.GetName(),
+			Description: "Container/wrapper runtime",
+			Value:       rv,
+		})
+	} else {
+		log.Info().Msg("No container/wrapper runtime detected")
+	}
+
+	// ── Kernel enforcement mechanisms ─────────────────────────────────────────
+	// Reports active kernel-level enforcement independently of the wrapper.
+	// Sandboxes that do NOT create namespaces (e.g. nono: Landlock + seccomp-
+	// notify) are invisible to wrapper detection but appear here.
+	// Multiple mechanisms may be active simultaneously.
+	log.Info().Msg("Detecting active kernel enforcement mechanisms")
+	mechanisms := baselineTasks.ActiveMechanisms()
+	log.Info().Strs("mechanisms", mechanisms).Msg("Kernel enforcement mechanisms detected")
+
+	for _, m := range mechanisms {
+		mv, err := structpb.NewValue(m)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert mechanism to protobuf value: %w", err)
+		}
+		findings = append(findings, &reportv1.Finding{
+			FindingType: SANDBOXDETECTION,
+			Task:        t.GetName(),
+			Description: "Active kernel enforcement mechanism",
+			Value:       mv,
+		})
+	}
+
 	// TODO: Detect Seatbelt
-
-	log.Info().Str("runtime", runtimeStr).Msg("Sandbox detection completed")
-
-	if runtimeStr == "none" {
-		return []*reportv1.Finding{}, nil
-	}
-
-	sandboxValue, err := structpb.NewValue(runtimeStr)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to convert sandbox info to protobuf value")
-		return nil, err
-	}
 
 	log.Info().Str("task", t.GetName()).Msg("Sandbox detection task completed successfully")
 
-	return []*reportv1.Finding{
-		{
-			FindingType: SANDBOXDETECTION,
-			Task:        t.GetName(),
-			Description: "Sandbox/container runtime",
-			Value:       sandboxValue,
-		},
-	}, nil
+	return findings, nil
 }
 
 // MountTask produces: MOUNTEDVOLUMESDETECTION
