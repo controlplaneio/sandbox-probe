@@ -25,6 +25,14 @@ func isWritable(path string) bool {
 	if err := unix.Access(path, unix.W_OK); err != nil {
 		return false
 	}
+	// Directories cannot be opened with O_WRONLY; unix.Access is sufficient.
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	if info.IsDir() {
+		return true
+	}
 	f, err := os.OpenFile(path, os.O_WRONLY, 0)
 	if err != nil {
 		return false
