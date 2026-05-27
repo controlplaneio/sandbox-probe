@@ -1,8 +1,10 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/controlplaneio/sandbox-probe/pkg/models"
@@ -80,6 +82,10 @@ func splitEnv(env string) (key, value string, ok bool) {
 }
 
 func GetUserGroupInfo() (*models.UserIdentity, error) {
+	if runtime.GOOS == "windows" {
+		return nil, errors.New("GetUserGroupInfo is not supported on Windows")
+	}
+
 	groups, err := os.Getgroups()
 	if err != nil {
 		return nil, err
