@@ -2,15 +2,22 @@ package tasks
 
 import (
 	"context"
+	"os"
 	"runtime"
 	"testing"
 
 	cmdBasedTasks "github.com/controlplaneio/sandbox-probe/pkg/tasks/cmd-based"
+	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMain(m *testing.M) {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
+	os.Exit(m.Run())
+}
 
 func TestCmdToFinding(t *testing.T) {
 	tests := []struct {
