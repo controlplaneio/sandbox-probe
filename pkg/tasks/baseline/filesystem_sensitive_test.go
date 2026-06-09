@@ -55,37 +55,37 @@ func TestBuildSensitivePathsForHome_expandsHome(t *testing.T) {
 	}
 
 	homeRelative := []string{
-		home + "/.ssh/id_rsa",
-		home + "/.ssh/id_ed25519",
-		home + "/.ssh/id_ecdsa",
-		home + "/.ssh/config",
-		home + "/.ssh/authorized_keys",
-		home + "/.aws/credentials",
-		home + "/.aws/config",
-		home + "/.gcloud/credentials.db",
-		home + "/.gcloud/access_tokens.db",
-		home + "/.config/gcloud",
-		home + "/.azure/credentials",
-		home + "/.azure/msal_token_cache.json",
-		home + "/.kube/config",
-		home + "/.docker/config.json",
-		home + "/.gnupg",
-		home + "/.git-credentials",
-		home + "/.netrc",
-		home + "/.gitconfig",
-		home + "/.vault-token",
-		home + "/.terraform.d/credentials.tfrc.json",
-		home + "/.config/gh/hosts.yml",
-		home + "/.config/op",
-		home + "/.config/doctl/config.yaml",
-		home + "/.fly/config.yml",
-		home + "/.cloudflared",
-		home + "/.npmrc",
-		home + "/.pypirc",
-		home + "/.gem/credentials",
-		home + "/.cargo/credentials.toml",
-		home + "/.m2/settings.xml",
-		home + "/.gradle/gradle.properties",
+		filepath.Join(home, ".ssh", "id_rsa"),
+		filepath.Join(home, ".ssh", "id_ed25519"),
+		filepath.Join(home, ".ssh", "id_ecdsa"),
+		filepath.Join(home, ".ssh", "config"),
+		filepath.Join(home, ".ssh", "authorized_keys"),
+		filepath.Join(home, ".aws", "credentials"),
+		filepath.Join(home, ".aws", "config"),
+		filepath.Join(home, ".gcloud", "credentials.db"),
+		filepath.Join(home, ".gcloud", "access_tokens.db"),
+		filepath.Join(home, ".config", "gcloud"),
+		filepath.Join(home, ".azure", "credentials"),
+		filepath.Join(home, ".azure", "msal_token_cache.json"),
+		filepath.Join(home, ".kube", "config"),
+		filepath.Join(home, ".docker", "config.json"),
+		filepath.Join(home, ".gnupg"),
+		filepath.Join(home, ".git-credentials"),
+		filepath.Join(home, ".netrc"),
+		filepath.Join(home, ".gitconfig"),
+		filepath.Join(home, ".vault-token"),
+		filepath.Join(home, ".terraform.d", "credentials.tfrc.json"),
+		filepath.Join(home, ".config", "gh", "hosts.yml"),
+		filepath.Join(home, ".config", "op"),
+		filepath.Join(home, ".config", "doctl", "config.yaml"),
+		filepath.Join(home, ".fly", "config.yml"),
+		filepath.Join(home, ".cloudflared"),
+		filepath.Join(home, ".npmrc"),
+		filepath.Join(home, ".pypirc"),
+		filepath.Join(home, ".gem", "credentials"),
+		filepath.Join(home, ".cargo", "credentials.toml"),
+		filepath.Join(home, ".m2", "settings.xml"),
+		filepath.Join(home, ".gradle", "gradle.properties"),
 	}
 
 	for _, want := range homeRelative {
@@ -119,7 +119,7 @@ func TestBuildSensitivePathsForHome_gitconfigHasContentPredicate(t *testing.T) {
 	paths := buildSensitivePathsForHome(home)
 
 	for _, p := range paths {
-		if p.path == home+"/.gitconfig" {
+		if p.path == filepath.Join(home, ".gitconfig") {
 			assert.Equal(t, "[credential]", p.contains,
 				".gitconfig must carry a [credential] content predicate")
 			return
