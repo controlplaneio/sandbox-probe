@@ -1,0 +1,24 @@
+{
+  "$schema": "https://nono.sh/schema/profile.json",
+  "extends": "cpai-opencode",
+
+  "meta": {
+    "name": "cpai-opencode-local",
+    "description": "CPAI OpenCode local profile for andy's machine. Extends cpai-opencode with /tmp r+w and cpai-workspace r+w grants."
+  },
+
+  "filesystem": {
+    "allow": [
+      "/home/cpai-andy/src/cpai-workspace/",
+      "/tmp/"
+    ],
+    "write": [
+      "/home/cpai-andy/src/cpai-workspace/"
+    ]
+  },
+
+  "notes": {
+    "cpai_workspace_write": "Write grant requires the sandbox to run AS cpai-andy (DAC). When run as andy via cpai run --sandbox, Landlock permits but DAC denies — /home/cpai-andy is owned by cpai-andy. Use cpai remote serve / cpai remote run for true cpai-andy isolation.",
+    "tmp": "Fixed — /tmp allow+write grant resolved the $TMPDIR expansion issue in the original patch."
+  }
+}

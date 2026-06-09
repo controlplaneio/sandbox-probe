@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"os"
-	"runtime"
+	"path/filepath"
 	"strings"
 )
 
@@ -34,7 +34,7 @@ func buildSensitivePaths() []SensitivePath {
 // buildSensitivePathsForHome is the testable core: it builds the path list
 // using the provided home directory instead of calling os.UserHomeDir().
 func buildSensitivePathsForHome(home string) []SensitivePath {
-	h := func(p string) string { return home + p }
+	h := func(p string) string { return filepath.Join(home, p) }
 
 	return []SensitivePath{
 		// ── User and group information ────────────────────────────────────
@@ -174,11 +174,6 @@ func scanTargetedPathsForHome(home string) *PathPermissions {
 	result := &PathPermissions{
 		WritablePaths: make([]string, 0),
 		ReadablePaths: make([]string, 0),
-	}
-
-	// Unix-specific paths are not applicable on Windows
-	if runtime.GOOS == "windows" {
-		return result
 	}
 
 	// Check sensitive paths for read access

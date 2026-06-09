@@ -536,15 +536,10 @@ func (t *SandboxTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 		runtimeStr = "seatbelt"
 	case baselineTasks.RuntimeLandlock:
 		runtimeStr = "landlock"
+	case baselineTasks.RuntimeBubblewrap:
+		runtimeStr = "bubblewrap"
 	case baselineTasks.RuntimeUnknown:
 		runtimeStr = "unknown"
-	}
-
-	// Detect bwrap explicitly (uid-map / ancestor walk)
-	log.Info().Msg("Checking for bubblewrap")
-	isBwrap, _ := baselineTasks.GetBubbleWrap(os.Getpid())
-	if isBwrap {
-		runtimeStr = "bubblewrap"
 	}
 
 	if runtimeStr != "" {
