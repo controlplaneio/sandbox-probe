@@ -3,6 +3,7 @@ package tasks
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 
@@ -174,6 +175,9 @@ func TestScanTargetedPathsForHome_readableFileReported(t *testing.T) {
 }
 
 func TestScanTargetedPathsForHome_unreadableFileNotReported(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod 000 has no effect on Windows ACL-based permissions")
+	}
 	if os.Getuid() == 0 {
 		t.Skip("chmod 000 has no effect as root")
 	}
