@@ -1,9 +1,17 @@
 package tasks
 
 import (
+	"os"
 	"reflect"
 	"testing"
+
+	"github.com/rs/zerolog"
 )
+
+func TestMain(m *testing.M) {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
+	os.Exit(m.Run())
+}
 
 // Generic test helper function that maintains type safety for each probe type
 func testProbe[T any](t *testing.T, name string, probe CmdTask[T], mockExecCommand func(string, ...string) ([]byte, error), expected T) {
@@ -27,11 +35,9 @@ func testProbe[T any](t *testing.T, name string, probe CmdTask[T], mockExecComma
 }
 
 func TestProbes(t *testing.T) {
-	psOutput := `
-      1       0 /usr/lib/systemd/systemd --system --deserialize=123 splash
+	psOutput := `      1       0 /usr/lib/systemd/systemd --system --deserialize=123 splash
       2       0 [kthreadd]
-      3       2 [pool_workqueue_release]
-	`
+      3       2 [pool_workqueue_release]`
 
 	// Test PSAllRunningProcessesCmd with proper type
 	testProbe[*PSAllRunningProcessesCmd](

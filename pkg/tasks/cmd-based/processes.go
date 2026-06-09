@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	errEmptyLine       = errors.New("empty line")
 	errUnexpectedLine  = errors.New("unexpected format in command output line")
 	errCommandNotFound = errors.New("command not found")
 )
@@ -78,7 +79,7 @@ func (p *PSParentRunningProcessCmd) getCommand() ([]string, error) {
 func parsePSCommandLine(line string) (Command, error) {
 	line = strings.TrimSpace(line)
 	if line == "" {
-		return Command{}, errUnexpectedLine
+		return Command{}, errEmptyLine
 	}
 	lineArr := strings.Fields(line)
 	if len(lineArr) < 3 {
@@ -107,7 +108,9 @@ func (p *PSAllRunningProcessesCmd) parseCommandOuput(out []byte) (*PSAllRunningP
 	for _, line := range lines {
 		command, err := parsePSCommandLine(line)
 		if err != nil {
-			if errors.Is(err, errUnexpectedLine) {
+			if errors.Is(err, errEmptyLine) {
+				continue
+			} else if errors.Is(err, errUnexpectedLine) {
 				log.Warn().Msgf("Error parsing the line: %s", err)
 				continue
 			} else {
@@ -127,7 +130,9 @@ func (p *PSSingleRunningProcessCmd) parseCommandOuput(out []byte) (*PSSingleRunn
 	for _, line := range lines {
 		command, err := parsePSCommandLine(line)
 		if err != nil {
-			if errors.Is(err, errUnexpectedLine) {
+			if errors.Is(err, errEmptyLine) {
+				continue
+			} else if errors.Is(err, errUnexpectedLine) {
 				log.Warn().Msgf("Error parsing the line: %s", err)
 				continue
 			} else {
@@ -150,7 +155,9 @@ func (p *PSParentRunningProcessCmd) parseCommandOuput(out []byte) (*PSParentRunn
 	for _, line := range lines {
 		command, err := parsePSCommandLine(line)
 		if err != nil {
-			if errors.Is(err, errUnexpectedLine) {
+			if errors.Is(err, errEmptyLine) {
+				continue
+			} else if errors.Is(err, errUnexpectedLine) {
 				log.Warn().Msgf("Error parsing the line: %s", err)
 				continue
 			} else {
@@ -169,7 +176,9 @@ func (p *PSParentRunningProcessCmd) parseCommandOuput(out []byte) (*PSParentRunn
 	for _, line := range lines {
 		command, err := parsePSCommandLine(line)
 		if err != nil {
-			if errors.Is(err, errUnexpectedLine) {
+			if errors.Is(err, errEmptyLine) {
+				continue
+			} else if errors.Is(err, errUnexpectedLine) {
 				log.Warn().Msgf("Error parsing the line: %s", err)
 				continue
 			} else {
