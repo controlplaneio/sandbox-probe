@@ -3,8 +3,6 @@ package tasks
 import (
 	"os"
 	"strings"
-
-	"golang.org/x/sys/unix"
 )
 
 // SensitivePath describes a path to check for readability, with an optional
@@ -265,45 +263,6 @@ func scanTargetedPathsForHome(home string) *PathPermissions {
 
 // 	return result, nil
 // }
-
-// isReadable checks if the current process can read the given path.
-// First we check POSIX access, if no access is reported, we return false
-// If access through POSIX is reported, we verify it trying opening the file
-func isReadable(path string) bool {
-	err := unix.Access(path, unix.R_OK)
-	if err != nil {
-		return false
-	}
-	f, err := os.OpenFile(path, os.O_RDONLY, 0)
-	if err != nil {
-		return false
-	}
-	f.Close()
-	return true
-}
-
-// isWritable checks if the current process can write to the given path.
-// First we check POSIX access, if no access is reported, we return false.
-// For regular files we verify by opening O_WRONLY; directories cannot be
-// opened with O_WRONLY on Linux so we trust the Access result directly.
-func isWritable(path string) bool {
-	if err := unix.Access(path, unix.W_OK); err != nil {
-		return false
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	if info.IsDir() {
-		return true
-	}
-	f, err := os.OpenFile(path, os.O_WRONLY, 0)
-	if err != nil {
-		return false
-	}
-	f.Close()
-	return true
-}
 
 // isPseudoFilesystem returns true if the path is in a pseudo-filesystem
 // that should be skipped during security enumeration

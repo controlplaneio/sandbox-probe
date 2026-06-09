@@ -419,7 +419,20 @@ func (t *UserContextTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Findi
 		Int("egid", userInfo.EGID).
 		Msg("User context information retrieved")
 
-	userValue, err := structpb.NewValue(userInfo)
+	// Convert UserIdentity struct to map for protobuf (structpb.NewValue only
+	// accepts primitives, maps, and slices — not arbitrary structs).
+	groupsIface := make([]interface{}, len(userInfo.Groups))
+	for i, g := range userInfo.Groups {
+		groupsIface[i] = g
+	}
+	userMap := map[string]interface{}{
+		"uid":    userInfo.UID,
+		"gid":    userInfo.GID,
+		"euid":   userInfo.EUID,
+		"egid":   userInfo.EGID,
+		"groups": groupsIface,
+	}
+	userValue, err := structpb.NewValue(userMap)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to convert user info to protobuf value")
 		return nil, err

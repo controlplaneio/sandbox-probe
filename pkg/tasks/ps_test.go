@@ -2,14 +2,22 @@ package tasks
 
 import (
 	"context"
+	"os"
+	"runtime"
 	"testing"
 
 	cmdBasedTasks "github.com/controlplaneio/sandbox-probe/pkg/tasks/cmd-based"
+	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMain(m *testing.M) {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
+	os.Exit(m.Run())
+}
 
 func TestCmdToFinding(t *testing.T) {
 	tests := []struct {
@@ -86,6 +94,14 @@ func TestPSAllTask_Run(t *testing.T) {
 	ctx := context.Background()
 
 	findings, err := task.Run(ctx, Inputs{})
+
+	if runtime.GOOS == "windows" {
+		// On Windows, should return error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not supported on Windows")
+		return
+	}
+
 	require.NoError(t, err)
 
 	// Verify findings structure (should have at least one process)
@@ -124,6 +140,14 @@ func TestPSSingleTask_Run(t *testing.T) {
 	ctx := context.Background()
 
 	findings, err := task.Run(ctx, Inputs{})
+
+	if runtime.GOOS == "windows" {
+		// On Windows, should return error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not supported on Windows")
+		return
+	}
+
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
