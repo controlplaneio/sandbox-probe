@@ -56,37 +56,37 @@ func TestBuildSensitivePathsForHome_expandsHome(t *testing.T) {
 	}
 
 	homeRelative := []string{
-		home + "/.ssh/id_rsa",
-		home + "/.ssh/id_ed25519",
-		home + "/.ssh/id_ecdsa",
-		home + "/.ssh/config",
-		home + "/.ssh/authorized_keys",
-		home + "/.aws/credentials",
-		home + "/.aws/config",
-		home + "/.gcloud/credentials.db",
-		home + "/.gcloud/access_tokens.db",
-		home + "/.config/gcloud",
-		home + "/.azure/credentials",
-		home + "/.azure/msal_token_cache.json",
-		home + "/.kube/config",
-		home + "/.docker/config.json",
-		home + "/.gnupg",
-		home + "/.git-credentials",
-		home + "/.netrc",
-		home + "/.gitconfig",
-		home + "/.vault-token",
-		home + "/.terraform.d/credentials.tfrc.json",
-		home + "/.config/gh/hosts.yml",
-		home + "/.config/op",
-		home + "/.config/doctl/config.yaml",
-		home + "/.fly/config.yml",
-		home + "/.cloudflared",
-		home + "/.npmrc",
-		home + "/.pypirc",
-		home + "/.gem/credentials",
-		home + "/.cargo/credentials.toml",
-		home + "/.m2/settings.xml",
-		home + "/.gradle/gradle.properties",
+		filepath.Join(home, ".ssh", "id_rsa"),
+		filepath.Join(home, ".ssh", "id_ed25519"),
+		filepath.Join(home, ".ssh", "id_ecdsa"),
+		filepath.Join(home, ".ssh", "config"),
+		filepath.Join(home, ".ssh", "authorized_keys"),
+		filepath.Join(home, ".aws", "credentials"),
+		filepath.Join(home, ".aws", "config"),
+		filepath.Join(home, ".gcloud", "credentials.db"),
+		filepath.Join(home, ".gcloud", "access_tokens.db"),
+		filepath.Join(home, ".config", "gcloud"),
+		filepath.Join(home, ".azure", "credentials"),
+		filepath.Join(home, ".azure", "msal_token_cache.json"),
+		filepath.Join(home, ".kube", "config"),
+		filepath.Join(home, ".docker", "config.json"),
+		filepath.Join(home, ".gnupg"),
+		filepath.Join(home, ".git-credentials"),
+		filepath.Join(home, ".netrc"),
+		filepath.Join(home, ".gitconfig"),
+		filepath.Join(home, ".vault-token"),
+		filepath.Join(home, ".terraform.d", "credentials.tfrc.json"),
+		filepath.Join(home, ".config", "gh", "hosts.yml"),
+		filepath.Join(home, ".config", "op"),
+		filepath.Join(home, ".config", "doctl", "config.yaml"),
+		filepath.Join(home, ".fly", "config.yml"),
+		filepath.Join(home, ".cloudflared"),
+		filepath.Join(home, ".npmrc"),
+		filepath.Join(home, ".pypirc"),
+		filepath.Join(home, ".gem", "credentials"),
+		filepath.Join(home, ".cargo", "credentials.toml"),
+		filepath.Join(home, ".m2", "settings.xml"),
+		filepath.Join(home, ".gradle", "gradle.properties"),
 	}
 
 	for _, want := range homeRelative {
@@ -120,7 +120,7 @@ func TestBuildSensitivePathsForHome_gitconfigHasContentPredicate(t *testing.T) {
 	paths := buildSensitivePathsForHome(home)
 
 	for _, p := range paths {
-		if p.path == home+"/.gitconfig" {
+		if p.path == filepath.Join(home, ".gitconfig") {
 			assert.Equal(t, "[credential]", p.contains,
 				".gitconfig must carry a [credential] content predicate")
 			return
@@ -171,17 +171,13 @@ func TestScanTargetedPathsForHome_readableFileReported(t *testing.T) {
 
 	result := scanTargetedPathsForHome(home)
 
-	if runtime.GOOS == "windows" {
-		// On Windows, should return empty results
-		assert.Empty(t, result.ReadablePaths)
-		assert.Empty(t, result.WritablePaths)
-		return
-	}
-
 	assert.True(t, inReadable(result, target), ".aws/credentials should be reported")
 }
 
 func TestScanTargetedPathsForHome_unreadableFileNotReported(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod 000 has no effect on Windows ACL-based permissions")
+	}
 	if os.Getuid() == 0 {
 		t.Skip("chmod 000 has no effect as root")
 	}
@@ -214,13 +210,6 @@ func TestScanTargetedPathsForHome_gitconfigWithCredentialSection(t *testing.T) {
 
 	result := scanTargetedPathsForHome(home)
 
-	if runtime.GOOS == "windows" {
-		// On Windows, should return empty results
-		assert.Empty(t, result.ReadablePaths)
-		assert.Empty(t, result.WritablePaths)
-		return
-	}
-
 	assert.True(t, inReadable(result, gitconfig),
 		".gitconfig with [credential] should be reported")
 }
@@ -241,13 +230,6 @@ func TestScanTargetedPathsForHome_gitconfigContentCheckCaseInsensitive(t *testin
 	writeTestFile(t, gitconfig, "[CREDENTIAL]\n\thelper = store\n")
 
 	result := scanTargetedPathsForHome(home)
-
-	if runtime.GOOS == "windows" {
-		// On Windows, should return empty results
-		assert.Empty(t, result.ReadablePaths)
-		assert.Empty(t, result.WritablePaths)
-		return
-	}
 
 	assert.True(t, inReadable(result, gitconfig),
 		"content predicate must be case-insensitive")
@@ -279,13 +261,6 @@ func TestScanTargetedPathsForHome_sshKeys(t *testing.T) {
 
 	result := scanTargetedPathsForHome(home)
 
-	if runtime.GOOS == "windows" {
-		// On Windows, should return empty results
-		assert.Empty(t, result.ReadablePaths)
-		assert.Empty(t, result.WritablePaths)
-		return
-	}
-
 	for _, rel := range files {
 		assert.True(t, inReadable(result, filepath.Join(home, rel)), "%s should be reported", rel)
 	}
@@ -307,13 +282,6 @@ func TestScanTargetedPathsForHome_cloudCredentials(t *testing.T) {
 
 	result := scanTargetedPathsForHome(home)
 
-	if runtime.GOOS == "windows" {
-		// On Windows, should return empty results
-		assert.Empty(t, result.ReadablePaths)
-		assert.Empty(t, result.WritablePaths)
-		return
-	}
-
 	for _, rel := range files {
 		assert.True(t, inReadable(result, filepath.Join(home, rel)), "%s should be reported", rel)
 	}
@@ -325,13 +293,6 @@ func TestScanTargetedPathsForHome_containerCredentials(t *testing.T) {
 	writeTestFile(t, filepath.Join(home, ".docker", "config.json"), "{}\n")
 
 	result := scanTargetedPathsForHome(home)
-
-	if runtime.GOOS == "windows" {
-		// On Windows, should return empty results
-		assert.Empty(t, result.ReadablePaths)
-		assert.Empty(t, result.WritablePaths)
-		return
-	}
 
 	assert.True(t, inReadable(result, filepath.Join(home, ".kube", "config")))
 	assert.True(t, inReadable(result, filepath.Join(home, ".docker", "config.json")))
@@ -351,13 +312,6 @@ func TestScanTargetedPathsForHome_infraSecrets(t *testing.T) {
 	}
 
 	result := scanTargetedPathsForHome(home)
-
-	if runtime.GOOS == "windows" {
-		// On Windows, should return empty results
-		assert.Empty(t, result.ReadablePaths)
-		assert.Empty(t, result.WritablePaths)
-		return
-	}
 
 	for _, rel := range files {
 		assert.True(t, inReadable(result, filepath.Join(home, rel)), "%s should be reported", rel)
@@ -380,13 +334,6 @@ func TestScanTargetedPathsForHome_packageManagerTokens(t *testing.T) {
 
 	result := scanTargetedPathsForHome(home)
 
-	if runtime.GOOS == "windows" {
-		// On Windows, should return empty results
-		assert.Empty(t, result.ReadablePaths)
-		assert.Empty(t, result.WritablePaths)
-		return
-	}
-
 	for _, rel := range files {
 		assert.True(t, inReadable(result, filepath.Join(home, rel)), "%s should be reported", rel)
 	}
@@ -398,13 +345,6 @@ func TestScanTargetedPathsForHome_vcsCredentials(t *testing.T) {
 	writeTestFile(t, filepath.Join(home, ".netrc"), "placeholder\n")
 
 	result := scanTargetedPathsForHome(home)
-
-	if runtime.GOOS == "windows" {
-		// On Windows, should return empty results
-		assert.Empty(t, result.ReadablePaths)
-		assert.Empty(t, result.WritablePaths)
-		return
-	}
 
 	assert.True(t, inReadable(result, filepath.Join(home, ".git-credentials")))
 	assert.True(t, inReadable(result, filepath.Join(home, ".netrc")))
@@ -418,13 +358,6 @@ func TestScanTargetedPathsForHome_directoryPaths(t *testing.T) {
 	}
 
 	result := scanTargetedPathsForHome(home)
-
-	if runtime.GOOS == "windows" {
-		// On Windows, should return empty results
-		assert.Empty(t, result.ReadablePaths)
-		assert.Empty(t, result.WritablePaths)
-		return
-	}
 
 	for _, d := range dirs {
 		assert.True(t, inReadable(result, filepath.Join(home, d)),
