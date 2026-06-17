@@ -133,6 +133,10 @@ results/
 .direnv/
 
 /reports
-
 # trae-agent writes run trajectories here when driving the probe (scripts/run-probe-via-trae-stub.sh)
 trajectories/
+
+MEMORY/
+
+# Personal test directories (machine-specific configs — keep in private repos)
+tests/cpai-*/

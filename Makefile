@@ -65,6 +65,18 @@ e2etests: ## Run end-to-end tests
 	@echo "All e2e tests completed successfully!"
 
 # Installation targets
+PREFIX ?= $(HOME)/.local/bin
+
+.PHONY: install
+install: build ## Install sandbox-probe to PREFIX (default: ~/.local/bin)
+	@mkdir -p $(PREFIX)
+	@install -m 755 bin/$(NAME) $(PREFIX)/$(NAME)
+	@echo "Installed $(NAME) to $(PREFIX)/$(NAME)"
+
+.PHONY: docker-test
+docker-test: build ## Build Docker example and run alice/bob boundary demo (requires Docker)
+	@bash tests/example/run.sh
+
 .PHONY: install-buf
 install-buf: ## Install buf tool
 	BIN="/usr/local/bin" && \

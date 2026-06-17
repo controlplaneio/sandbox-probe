@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/controlplaneio/sandbox-probe/pkg/config"
 	"github.com/controlplaneio/sandbox-probe/pkg/probes"
 	"github.com/controlplaneio/sandbox-probe/pkg/tasks"
 	"github.com/rs/zerolog/log"
@@ -77,6 +78,18 @@ func scan() error {
 	loadedTasks, err := loadtasks()
 	if err != nil {
 		return err
+	}
+
+	// Load custom-paths config and append the custom task if a config was given.
+	if cfgFile != "" {
+		cfg, err := config.LoadConfig(cfgFile)
+		if err != nil {
+			return fmt.Errorf("loading config: %w", err)
+		}
+		if cfg != nil {
+			log.Info().Str("config", cfgFile).Msg("Custom-paths config loaded")
+			loadedTasks = append(loadedTasks, tasks.NewCustomPathsTask(cfg))
+		}
 	}
 
 	p, err := probes.NewProbe(
