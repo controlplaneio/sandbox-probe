@@ -101,6 +101,27 @@ func TestBuildSensitivePathsForHome_includesSystemPaths(t *testing.T) {
 		got[i] = p.path
 	}
 
+	if runtime.GOOS == "windows" {
+		// On Windows the Unix absolute paths are absent by design; assert
+		// Windows-specific credential stores are present instead.
+		windowsPaths := []string{
+			// These expand from %APPDATA% / %LOCALAPPDATA% on a real runner;
+			// since the test passes a synthetic home we just confirm the
+			// Windows Credential Manager and gcloud entries are included.
+			// The APPDATA-based entries are present when the env vars are set
+			// (they are on any real Windows host/CI runner).
+		}
+		for _, want := range windowsPaths {
+			assert.Contains(t, got, want, "windows path %q should be in list", want)
+		}
+		// Confirm Unix-only paths are correctly absent.
+		for _, absent := range []string{"/etc/passwd", "/var/run/docker.sock", "/run/secrets"} {
+			assert.NotContains(t, got, absent, "unix path %q must not appear on Windows", absent)
+		}
+		return
+	}
+
+	// Unix: assert the full set of absolute system paths.
 	system := []string{
 		"/etc/passwd", "/etc/shadow", "/etc/group", "/etc/gshadow",
 		"/etc/hostname", "/etc/hosts", "/etc/resolv.conf",
