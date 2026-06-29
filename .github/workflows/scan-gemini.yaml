@@ -16,7 +16,7 @@ jobs:
       # should_scan: ${{ steps.check-existing.outputs.should_scan }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Resolve latest Gemini sandbox tag
         id: resolve
@@ -129,7 +129,7 @@ jobs:
     # if: needs.build-and-resolve.outputs.should_scan == 'true'
     steps:
       # - name: Checkout repository
-      #   uses: actions/checkout@v6
+      #   uses: actions/checkout@v7
       - name: Write report.json with tag and hash
         run: |
           TAG="${{ needs.build-and-resolve.outputs.tag }}"
