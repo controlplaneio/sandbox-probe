@@ -127,8 +127,14 @@ function chatCompletions(res, body) {
   const id = rid('chatcmpl_');
   const chunk = (choice) => data(res, { id, object: 'chat.completion.chunk', created: 0, model, choices: [choice] });
   if (shell && !done && PROBE_CMD) {
+    // Raise the tool's own timeout if it advertises one (opencode's bash defaults to 120s, which a
+    // full macOS scan overruns); harmless for tools without the param (e.g. goose's shell).
+    const props = (shell.function.parameters && shell.function.parameters.properties) || {};
+    const args = { command: PROBE_CMD };
+    if (props.timeout) args.timeout = 600000;
+    if (props.timeout_ms) args.timeout_ms = 600000;
     log(`chat ${shell.function.name} -> ${PROBE_CMD}`);
-    chunk({ index: 0, delta: { role: 'assistant', content: null, tool_calls: [{ index: 0, id: rid('call_'), type: 'function', function: { name: shell.function.name, arguments: JSON.stringify({ command: PROBE_CMD }) } }] }, finish_reason: null });
+    chunk({ index: 0, delta: { role: 'assistant', content: null, tool_calls: [{ index: 0, id: rid('call_'), type: 'function', function: { name: shell.function.name, arguments: JSON.stringify(args) } }] }, finish_reason: null });
     chunk({ index: 0, delta: {}, finish_reason: 'tool_calls' });
   } else {
     log(`chat final (shell=${!!shell} done=${done})`);

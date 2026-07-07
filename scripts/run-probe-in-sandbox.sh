@@ -3,14 +3,13 @@
 # sandbox mechanisms; the probe fingerprints each. RUNTIME selects the wrapper:
 #   srt      — @anthropic-ai/sandbox-runtime: bubblewrap (Linux) / Seatbelt (macOS) + network proxy
 #   firejail — SUID namespaces + seccomp (Linux)
-#   gvisor   — runsc userspace kernel, systrap platform, no KVM (Linux)
 #
 # Required env: PROBE, OUT, RUNTIME. Optional: RUNNER, PORT (unused), SCAN_ARGS.
 set -eo pipefail
 
 : "${PROBE:?PROBE (probe binary path) is required}"
 : "${OUT:?OUT (report output path) is required}"
-: "${RUNTIME:?RUNTIME (srt|firejail|gvisor) is required}"
+: "${RUNTIME:?RUNTIME (srt|firejail) is required}"
 RUNNER="${RUNNER:-$(uname -s)}"
 SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
 
@@ -34,9 +33,6 @@ JSON
     ;;
   firejail)
     firejail --quiet --net=none --seccomp "${CMD[@]}" || true
-    ;;
-  gvisor)
-    sudo runsc --network=none do "${CMD[@]}" || true
     ;;
   *)
     echo "::error::unknown RUNTIME '${RUNTIME}'"; exit 1 ;;

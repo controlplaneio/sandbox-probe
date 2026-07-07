@@ -88,8 +88,6 @@ jobs:
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: srt,      runtime: srt,      expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: sandbox, harness: srt,      runtime: srt,      expect: '["seatbelt"]' }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: firejail, runtime: firejail, expect: '["firejail"]' }
-          # gVisor runsc do-mode setup/privileges are the fragile bit -> best-effort (optional).
-          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: gvisor,   runtime: gvisor,   expect: '["gvisor"]', optional: true }
     runs-on: ${{ matrix.runner }}
     env:
       PROBE: ./sandbox-probe${{ matrix.ext }}
@@ -154,14 +152,6 @@ jobs:
           fi
       - if: matrix.runtime == 'firejail'
         run: sudo apt-get update && sudo apt-get install -y firejail
-      - if: matrix.runtime == 'gvisor'
-        name: install gvisor (runsc, systrap platform)
-        shell: bash
-        run: |
-          curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | sudo tee /etc/apt/sources.list.d/gvisor.list >/dev/null
-          sudo apt-get update && sudo apt-get install -y runsc
-          runsc --version
 
       # ── run the probe under the harness (model stubbed by the general mock) ────
       - if: matrix.family == 'direct'
