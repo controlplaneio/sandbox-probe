@@ -79,7 +79,7 @@ jobs:
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini-docker,       backend: docker,       expect: '["docker"]' }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini-sandbox-exec, backend: sandbox-exec, expect: '["seatbelt"]' }
-          # opencode / goose / pi / gptme — real agents (chat/completions), model stubbed; NO native sandbox (unconfined "as-is").
+          # opencode / goose / pi / gptme / cline — real agents (chat/completions), model stubbed; NO native sandbox (unconfined "as-is").
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: opencode, harness: opencode }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: opencode, harness: opencode }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: goose,    harness: goose }
@@ -87,6 +87,8 @@ jobs:
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: pi,       harness: pi }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: pi,       harness: pi }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gptme,    harness: gptme }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: cline,    harness: cline }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: cline,    harness: cline }
           # sandbox runtimes — no agent, no model; each a distinct keyless OS sandbox the probe fingerprints.
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: srt,      runtime: srt,      expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: sandbox, harness: srt,      runtime: srt,      expect: '["seatbelt"]' }
@@ -150,6 +152,9 @@ jobs:
         run: |
           pipx install gptme
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - if: matrix.family == 'cline'
+        run: npm install -g cline && cline --version
+        shell: bash
       - if: matrix.backend == 'docker'
         run: docker info
 
@@ -268,6 +273,15 @@ jobs:
           OUT: ${{ env.REPORT }}
           RUNNER: ${{ matrix.runner }}
         run: ./scripts/run-probe-via-gptme-stub.sh
+
+      - if: matrix.family == 'cline'
+        name: probe (cline)
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+        run: ./scripts/run-probe-via-cline-stub.sh
 
       - if: matrix.family == 'sandbox'
         name: probe (${{ matrix.harness }})

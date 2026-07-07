@@ -115,20 +115,21 @@ function openaiResponses(res, body) {
   res.end();
 }
 
-// ── OpenAI /v1/chat/completions (OpenCode, Goose, Pi, gptme, most stubbable agents) ──
+// ── OpenAI /v1/chat/completions (OpenCode, Goose, Pi, gptme, Cline, most stubbable agents) ──
 function chatCompletions(res, body) {
   const model = body.model || 'mock-model';
-  const shell = (Array.isArray(body.tools) ? body.tools : []).find((t) => t && t.function && /bash|shell|exec/i.test(t.function.name || ''));
+  const shell = (Array.isArray(body.tools) ? body.tools : []).find((t) => t && t.function && /bash|shell|exec|command/i.test(t.function.name || ''));
   const messages = Array.isArray(body.messages) ? body.messages : [];
   const done = messages.some((m) => m && m.role === 'tool');
   for (const m of messages.filter((m) => m && m.role === 'tool')) log(`tool result: ${clip(typeof m.content === 'string' ? m.content : JSON.stringify(m.content || ''))}`);
 
   let message, finish;
   if (shell && !done && PROBE_CMD) {
-    // Raise the tool's own timeout if it advertises one (opencode's bash defaults to 120s, which a
-    // full macOS scan overruns); harmless for tools without the param (e.g. goose's shell).
+    // Shape the arg from the tool's own schema — Cline's run_commands takes a `commands` array,
+    // most others take a `command` string — and raise the tool's timeout if it advertises one
+    // (opencode's bash defaults to 120s, which a full macOS scan overruns; harmless otherwise).
     const props = (shell.function.parameters && shell.function.parameters.properties) || {};
-    const args = { command: PROBE_CMD };
+    const args = props.commands ? { commands: [PROBE_CMD] } : { command: PROBE_CMD };
     if (props.timeout) args.timeout = 600000;
     if (props.timeout_ms) args.timeout_ms = 600000;
     log(`chat ${shell.function.name} -> ${PROBE_CMD}`);
