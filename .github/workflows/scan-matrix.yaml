@@ -61,9 +61,11 @@ jobs:
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: claude, harness: claude-sandbox, sandbox: "on", expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: claude, harness: claude,         sandbox: "off" }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: claude, harness: claude-sandbox, sandbox: "on", expect: '["seatbelt"]' }
-          # gemini — real agent in its own sandbox; gated on GEMINI_API_KEY + dispatch/schedule.
+          # gemini — real agent, as-is vs its sandbox backends; gated on GEMINI_API_KEY + dispatch/schedule.
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini-docker,       backend: docker }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini-podman,       backend: podman }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini-sandbox-exec, backend: sandbox-exec }
     runs-on: ${{ matrix.runner }}
     env:
@@ -117,6 +119,7 @@ jobs:
 
       - if: matrix.family == 'claude'
         name: probe (${{ matrix.harness }})
+        timeout-minutes: 12
         shell: bash
         env:
           OUT: ${{ env.REPORT }}
@@ -129,12 +132,12 @@ jobs:
         shell: bash
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_SANDBOX: ${{ matrix.backend }}
+          GEMINI_SANDBOX: ${{ matrix.backend }} # empty on the as-is row -> no --sandbox
           GEMINI_CLI_TRUST_WORKSPACE: "true"
           SANDBOX_FLAGS: '--entrypoint ""' # gemini-cli#26964 workaround
           LABEL: ${{ matrix.harness }}
           RUNNER: ${{ matrix.runner }}
-          BACKEND: ${{ matrix.backend }}
+          BACKEND: ${{ matrix.backend || 'none' }}
           OUT: ${{ env.REPORT }}
           MODEL: ${{ env.GEMINI_MODEL }}
         run: ./scripts/run-probe-via-gemini.sh
