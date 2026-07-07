@@ -153,16 +153,21 @@ jobs:
           RUNNER: ${{ matrix.runner }}
         run: ./scripts/run-probe-via-claude-stub.sh
 
-      - name: assert claude sandbox detected
+      - name: assert claude sandbox engaged
         if: matrix.agent == 'claude'
         shell: bash
         run: |
-          want=bubblewrap; [ "$RUNNER_OS" = "macOS" ] && want=seatbelt
-          echo "expecting sandbox_detection=$want in $CLAUDE_REPORT"
-          jq -e --arg w "$want" 'any(.findings[];
+          # macOS reports "seatbelt". On Linux the probe can't always fingerprint Claude Code's
+          # bubblewrap wrapper (no detectable user namespace), but the sandbox's kernel
+          # enforcement — no-new-privs / seccomp-filter — is unambiguous and absent from the
+          # unconfined baseline. ("unknown" appears in the baseline too, so it does not count.)
+          if [ "$RUNNER_OS" = "macOS" ]; then ok='["seatbelt"]'; else ok='["bubblewrap","no-new-privs","seccomp-filter","landlock"]'; fi
+          dns() { jq '[.findings[]|select(.findingType=="external_host_dns_resolution")|.value]|flatten|length' "$1"; }
+          echo "sandbox_detection accepted in $ok | dns egress: direct=$(dns "$DIRECT_REPORT") claude=$(dns "$CLAUDE_REPORT")"
+          jq --argjson ok "$ok" -e 'any(.findings[];
             .findingType == "sandbox_detection"
             and .task == "baseline_sandbox_detector"
-            and .value == $w)' "$CLAUDE_REPORT"
+            and (.value as $v | $ok | index($v)))' "$CLAUDE_REPORT"
 
       - name: summary
         if: always()
