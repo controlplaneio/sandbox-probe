@@ -157,8 +157,9 @@ jobs:
           pipx install gptme
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - if: matrix.family == 'cline'
-        run: npm install -g cline && cline --version
+        name: install cline
         shell: bash
+        run: npm install -g cline || { sleep 10; npm install -g cline; } && cline --version
       - if: matrix.backend == 'docker'
         run: docker info
 
@@ -222,18 +223,23 @@ jobs:
           PROFILE
           sudo apparmor_parser -r /etc/apparmor.d/sandbox-probe
           sudo aa-status | grep sandbox-probe || true
-      - if: matrix.runtime == 'nspawn'
-        name: install systemd-nspawn + build a rootfs
+      - if: matrix.runtime == 'nspawn' || matrix.runtime == 'gvisor'
+        name: build a container rootfs (ubuntu)
         shell: bash
         run: |
-          sudo apt-get update || true; sudo apt-get install -y systemd-container
-          ROOTFS="$RUNNER_TEMP/nspawn-rootfs"
+          ROOTFS="$RUNNER_TEMP/rootfs"
           mkdir -p "$ROOTFS"
-          # Populate a minimal rootfs from the ubuntu image (faster/more reliable than debootstrap).
+          # Populate from the ubuntu image (faster/more reliable than debootstrap).
           cid=$(docker create ubuntu:latest)
           docker export "$cid" | sudo tar -C "$ROOTFS" -xf -
           docker rm "$cid"
+          # docker export ships /.dockerenv; left in place the probe would misreport "docker".
+          sudo rm -f "$ROOTFS/.dockerenv" "$ROOTFS/run/.containerenv"
           echo "ROOTFS=$ROOTFS" >> "$GITHUB_ENV"
+      - if: matrix.runtime == 'nspawn'
+        name: install systemd-nspawn
+        shell: bash
+        run: sudo apt-get update || true; sudo apt-get install -y systemd-container
       - if: matrix.runtime == 'gvisor'
         name: install gvisor (runsc, systrap platform)
         shell: bash

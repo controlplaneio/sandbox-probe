@@ -80,15 +80,17 @@ JSON
     ;;
   gvisor)
     # Full runsc container (systrap platform — no KVM needed) so /__runsc_containers__ exists ->
-    # "gvisor". Build a minimal rootless OCI bundle: just the static probe + a bind-mounted report dir.
-    BUNDLE="$(mktemp -d)"; mkdir -p "$BUNDLE/rootfs"
-    sudo cp "$PROBE_ABS" "$BUNDLE/rootfs/probe"
+    # "gvisor". ROOTFS (built by the workflow from an ubuntu image, /.dockerenv removed) provides libc
+    # for the dynamically-linked probe; bind the report dir back to the host.
+    : "${ROOTFS:?ROOTFS (prepared rootfs dir) is required for gvisor}"
+    sudo cp "$PROBE_ABS" "$ROOTFS/probe"
     OUTDIR="$(dirname "$OUT_ABS")"
+    BUNDLE="$(mktemp -d)"
     ( cd "$BUNDLE" && runsc spec )
     ARGS_JSON="$(printf '%s\n' /probe $SCAN_ARGS --tags "$TAGS" --output_path "$OUT_ABS" | jq -R . | jq -s .)"
     TMPCFG="$(mktemp)"
-    jq --arg out "$OUTDIR" --argjson args "$ARGS_JSON" \
-      '.process.args=$args | .process.terminal=false
+    jq --arg root "$ROOTFS" --arg out "$OUTDIR" --argjson args "$ARGS_JSON" \
+      '.root.path=$root | .process.args=$args | .process.terminal=false
        | .mounts += [{"destination":$out,"source":$out,"type":"bind","options":["bind","rw"]}]' \
       "$BUNDLE/config.json" > "$TMPCFG" && mv "$TMPCFG" "$BUNDLE/config.json"
     sudo runsc --network=none run -bundle "$BUNDLE" gvisor-probe </dev/null || true

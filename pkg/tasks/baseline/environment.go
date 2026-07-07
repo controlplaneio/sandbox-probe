@@ -203,11 +203,13 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return runtime
 	}
 
-	// AppArmor: /proc/self/attr/current names the confining profile, or "unconfined" when none
-	// applies. A named profile (e.g. "sandbox-probe (enforce)") means the process is AppArmor-confined.
-	if data, err := readFile("/proc/self/attr/current"); err == nil {
-		if v := strings.TrimSpace(string(data)); v != "" && !strings.HasPrefix(v, "unconfined") {
-			return RuntimeAppArmor
+	// AppArmor: the current profile ("unconfined" when none applies; a named profile means confined).
+	// Newer kernels (6.x) expose it at the LSM-specific path; older ones at the legacy attr path.
+	for _, p := range []string{"/proc/self/attr/apparmor/current", "/proc/self/attr/current"} {
+		if data, err := readFile(p); err == nil {
+			if v := strings.TrimSpace(string(data)); v != "" && !strings.HasPrefix(v, "unconfined") {
+				return RuntimeAppArmor
+			}
 		}
 	}
 
