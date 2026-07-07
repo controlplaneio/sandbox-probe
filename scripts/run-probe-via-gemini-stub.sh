@@ -47,7 +47,9 @@ case "$GEMINI_SANDBOX" in
   docker|podman)
     MOCK_HOST=0.0.0.0; BASE_HOST=host.docker.internal; SANDBOX_FLAG=(--sandbox)
     export GEMINI_SANDBOX
-    export SANDBOX_FLAGS='--add-host host.docker.internal:host-gateway --entrypoint ""'
+    # The whole CLI re-execs inside the container: route the mock via host.docker.internal, and pass
+    # through the key/base-URL + workspace trust so the mounted .gemini/settings.json auth is honoured.
+    export SANDBOX_FLAGS="--add-host host.docker.internal:host-gateway --entrypoint \"\" -e GEMINI_CLI_TRUST_WORKSPACE=true -e GEMINI_API_KEY=dummy -e GOOGLE_GEMINI_BASE_URL=http://host.docker.internal:${PORT}"
     ;;
   sandbox-exec)
     SANDBOX_FLAG=(--sandbox); export GEMINI_SANDBOX ;;
