@@ -3,13 +3,15 @@
 # sandbox mechanisms; the probe fingerprints each. RUNTIME selects the wrapper:
 #   srt      — @anthropic-ai/sandbox-runtime: bubblewrap (Linux) / Seatbelt (macOS) + network proxy
 #   firejail — SUID namespaces + seccomp (Linux)
+#   nono     — capability sandbox: Landlock + seccomp-notify (Linux) / Seatbelt (macOS)
+#   podman   — rootless OCI container (Linux)
 #
 # Required env: PROBE, OUT, RUNTIME. Optional: RUNNER, PORT (unused), SCAN_ARGS.
 set -eo pipefail
 
 : "${PROBE:?PROBE (probe binary path) is required}"
 : "${OUT:?OUT (report output path) is required}"
-: "${RUNTIME:?RUNTIME (srt|firejail) is required}"
+: "${RUNTIME:?RUNTIME (srt|firejail|nono|podman) is required}"
 RUNNER="${RUNNER:-$(uname -s)}"
 SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
 
@@ -33,6 +35,17 @@ JSON
     ;;
   firejail)
     firejail --quiet --net=none --seccomp "${CMD[@]}" || true
+    ;;
+  nono)
+    # Read-only cwd, write only to the report dir, no network. stdin from /dev/null so a denial
+    # never blocks on an interactive prompt.
+    nono run --silent --allow-cwd --allow "$(dirname "$OUT_ABS")" --block-net "${CMD[@]}" </dev/null || true
+    ;;
+  podman)
+    # Run the probe inside a rootless container so it fingerprints podman; mount the workspace so
+    # the report lands back on the host. PROBE/OUT are under $PWD in CI.
+    podman run --rm --network=none -v "$PWD:/work" -w /work docker.io/library/ubuntu:latest \
+      "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" </dev/null || true
     ;;
   *)
     echo "::error::unknown RUNTIME '${RUNTIME}'"; exit 1 ;;

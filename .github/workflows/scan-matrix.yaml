@@ -74,20 +74,25 @@ jobs:
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: codex, harness: codex-sandbox, sandbox: "on", expect: '["seatbelt"]' }
           # gemini — real agent, model stubbed; as-is vs its sandbox (Seatbelt on macOS, container on Linux).
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini }
-          # gemini-docker re-execs the whole CLI in a container; reaching the mock + injecting auth
-          # across that boundary is fragile, so it is best-effort (optional) rather than blocking.
-          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini-docker,       backend: docker,       expect: '["docker"]', optional: true }
+          # gemini-docker re-execs the whole CLI in a container; the mock is reached and auth injected
+          # across that boundary via SANDBOX_FLAGS in the gemini stub runner.
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini-docker,       backend: docker,       expect: '["docker"]' }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini-sandbox-exec, backend: sandbox-exec, expect: '["seatbelt"]' }
-          # opencode / goose — real agents (chat/completions), model stubbed; NO native sandbox (unconfined "as-is").
+          # opencode / goose / pi — real agents (chat/completions), model stubbed; NO native sandbox (unconfined "as-is").
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: opencode, harness: opencode }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: opencode, harness: opencode }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: goose,    harness: goose }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: goose,    harness: goose }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: pi,       harness: pi }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: pi,       harness: pi }
           # sandbox runtimes — no agent, no model; each a distinct keyless OS sandbox the probe fingerprints.
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: srt,      runtime: srt,      expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: sandbox, harness: srt,      runtime: srt,      expect: '["seatbelt"]' }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: firejail, runtime: firejail, expect: '["firejail"]' }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: nono,     runtime: nono,     expect: '["landlock","seccomp-notify","seccomp-filter","no-new-privs"]' }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: sandbox, harness: nono,     runtime: nono,     expect: '["seatbelt"]' }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: podman,   runtime: podman,   expect: '["podman"]' }
     runs-on: ${{ matrix.runner }}
     env:
       PROBE: ./sandbox-probe${{ matrix.ext }}
@@ -133,6 +138,9 @@ jobs:
         run: |
           curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | CONFIGURE=false bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - if: matrix.family == 'pi'
+        run: npm install -g @earendil-works/pi-coding-agent && pi --version
+        shell: bash
       - if: matrix.backend == 'docker'
         run: docker info
 
@@ -152,6 +160,24 @@ jobs:
           fi
       - if: matrix.runtime == 'firejail'
         run: sudo apt-get update && sudo apt-get install -y firejail
+      - if: matrix.runtime == 'nono'
+        name: install nono
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            curl -fsSL https://nono.sh/install.sh | sh
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+            # nono's seccomp-notify supervisor may need unprivileged user namespaces (gated on 24.04).
+            if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
+              sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+            fi
+          else
+            brew install nono
+          fi
+      - if: matrix.runtime == 'podman'
+        name: ensure podman
+        shell: bash
+        run: command -v podman >/dev/null || { sudo apt-get update && sudo apt-get install -y podman; }
 
       # ── run the probe under the harness (model stubbed by the general mock) ────
       - if: matrix.family == 'direct'
@@ -206,6 +232,15 @@ jobs:
           OUT: ${{ env.REPORT }}
           RUNNER: ${{ matrix.runner }}
         run: ./scripts/run-probe-via-goose-stub.sh
+
+      - if: matrix.family == 'pi'
+        name: probe (pi)
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+        run: ./scripts/run-probe-via-pi-stub.sh
 
       - if: matrix.family == 'sandbox'
         name: probe (${{ matrix.harness }})
