@@ -118,7 +118,7 @@ jobs:
         name: linux sandbox deps (bwrap)
         shell: bash
         run: |
-          sudo apt-get update && sudo apt-get install -y bubblewrap socat
+          sudo apt-get update || true; sudo apt-get install -y bubblewrap socat
           # Ubuntu 24.04+ blocks unprivileged user namespaces by default; bwrap needs them.
           if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -160,7 +160,7 @@ jobs:
         run: |
           npm install -g @anthropic-ai/sandbox-runtime && srt --version
           if [ "$RUNNER_OS" = "Linux" ]; then
-            sudo apt-get update && sudo apt-get install -y bubblewrap socat ripgrep
+            sudo apt-get update || true; sudo apt-get install -y bubblewrap socat ripgrep
             if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
               sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
             fi
@@ -168,7 +168,7 @@ jobs:
             brew install ripgrep || true
           fi
       - if: matrix.runtime == 'firejail'
-        run: sudo apt-get update && sudo apt-get install -y firejail
+        run: sudo apt-get update || true; sudo apt-get install -y firejail
       - if: matrix.runtime == 'nono'
         name: install nono
         shell: bash
@@ -186,12 +186,12 @@ jobs:
       - if: matrix.runtime == 'podman'
         name: ensure podman
         shell: bash
-        run: command -v podman >/dev/null || { sudo apt-get update && sudo apt-get install -y podman; }
+        run: command -v podman >/dev/null || { sudo apt-get update || true; sudo apt-get install -y podman; }
       - if: matrix.runtime == 'bwrap'
         name: install bubblewrap
         shell: bash
         run: |
-          sudo apt-get update && sudo apt-get install -y bubblewrap
+          sudo apt-get update || true; sudo apt-get install -y bubblewrap
           # Ubuntu 24.04+ gates unprivileged user namespaces; bwrap --unshare-user needs them.
           if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0

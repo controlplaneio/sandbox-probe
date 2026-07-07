@@ -19,7 +19,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 mkdir -p "$(dirname "$OUT")"
 
-VERSION="$(gptme --version 2>/dev/null | head -1 | awk '{print $2}')"
+# awk consumes the whole stream (no `head`): gptme --version prints 2 lines, so `head -1` would
+# SIGPIPE it and abort the script under `set -o pipefail`.
+VERSION="$(gptme --version 2>/dev/null | awk 'NR==1{print $2}')" || VERSION=unknown
 TAGS="runner=${RUNNER},harness=gptme,gptme=${VERSION},mode=via-gptme-stub"
 
 STUB_LOG="$(mktemp)"
