@@ -115,6 +115,30 @@ function openaiResponses(res, body) {
   res.end();
 }
 
+// ── OpenAI /v1/chat/completions (OpenCode, Goose, Crush, most stubbable agents) ──
+function chatCompletions(res, body) {
+  const model = body.model || 'mock-model';
+  const shell = (Array.isArray(body.tools) ? body.tools : []).find((t) => t && t.function && /bash|shell|exec/i.test(t.function.name || ''));
+  const messages = Array.isArray(body.messages) ? body.messages : [];
+  const done = messages.some((m) => m && m.role === 'tool');
+  for (const m of messages.filter((m) => m && m.role === 'tool')) log(`tool result: ${clip(typeof m.content === 'string' ? m.content : JSON.stringify(m.content || ''))}`);
+
+  sseHead(res);
+  const id = rid('chatcmpl_');
+  const chunk = (choice) => data(res, { id, object: 'chat.completion.chunk', created: 0, model, choices: [choice] });
+  if (shell && !done && PROBE_CMD) {
+    log(`chat ${shell.function.name} -> ${PROBE_CMD}`);
+    chunk({ index: 0, delta: { role: 'assistant', content: null, tool_calls: [{ index: 0, id: rid('call_'), type: 'function', function: { name: shell.function.name, arguments: JSON.stringify({ command: PROBE_CMD }) } }] }, finish_reason: null });
+    chunk({ index: 0, delta: {}, finish_reason: 'tool_calls' });
+  } else {
+    log(`chat final (shell=${!!shell} done=${done})`);
+    chunk({ index: 0, delta: { role: 'assistant', content: 'done' }, finish_reason: null });
+    chunk({ index: 0, delta: {}, finish_reason: 'stop' });
+  }
+  res.write('data: [DONE]\n\n');
+  res.end();
+}
+
 http.createServer((req, res) => {
   let raw = '';
   req.on('data', (chunk) => { raw += chunk; });
@@ -126,6 +150,7 @@ http.createServer((req, res) => {
     if (path.endsWith('/v1/messages')) return anthropic(res, body);
     if (/generateContent$/i.test(path)) return gemini(res, body); // :generateContent / :streamGenerateContent
     if (path.endsWith('/v1/responses')) return openaiResponses(res, body);
+    if (path.endsWith('/v1/chat/completions')) return chatCompletions(res, body);
 
     // Trivial answers for endpoints the CLIs probe but we don't model.
     res.writeHead(200, { 'Content-Type': 'application/json' });

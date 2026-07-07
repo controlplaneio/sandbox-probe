@@ -79,6 +79,17 @@ jobs:
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini-docker,       backend: docker,       expect: '["docker"]', optional: true }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini-sandbox-exec, backend: sandbox-exec, expect: '["seatbelt"]' }
+          # opencode / goose — real agents (chat/completions), model stubbed; NO native sandbox (unconfined "as-is").
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: opencode, harness: opencode }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: opencode, harness: opencode }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: goose,    harness: goose }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: goose,    harness: goose }
+          # sandbox runtimes — no agent, no model; each a distinct keyless OS sandbox the probe fingerprints.
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: srt,      runtime: srt,      expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: sandbox, harness: srt,      runtime: srt,      expect: '["seatbelt"]' }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: firejail, runtime: firejail, expect: '["firejail"]' }
+          # gVisor runsc do-mode setup/privileges are the fragile bit -> best-effort (optional).
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: gvisor,   runtime: gvisor,   expect: '["gvisor"]', optional: true }
     runs-on: ${{ matrix.runner }}
     env:
       PROBE: ./sandbox-probe${{ matrix.ext }}
@@ -115,8 +126,42 @@ jobs:
       - if: matrix.family == 'gemini'
         run: npm install -g @google/gemini-cli && gemini --version
         shell: bash
+      - if: matrix.family == 'opencode'
+        run: npm install -g opencode-ai && opencode --version
+        shell: bash
+      - if: matrix.family == 'goose'
+        name: install goose
+        shell: bash
+        run: |
+          curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | CONFIGURE=false bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - if: matrix.backend == 'docker'
         run: docker info
+
+      # ── sandbox-runtime installs (family=sandbox) ──────────────────────────────
+      - if: matrix.runtime == 'srt'
+        name: install srt (+ bwrap deps on linux)
+        shell: bash
+        run: |
+          npm install -g @anthropic-ai/sandbox-runtime && srt --version
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y bubblewrap socat ripgrep
+            if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
+              sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+            fi
+          else
+            brew install ripgrep || true
+          fi
+      - if: matrix.runtime == 'firejail'
+        run: sudo apt-get update && sudo apt-get install -y firejail
+      - if: matrix.runtime == 'gvisor'
+        name: install gvisor (runsc, systrap platform)
+        shell: bash
+        run: |
+          curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | sudo tee /etc/apt/sources.list.d/gvisor.list >/dev/null
+          sudo apt-get update && sudo apt-get install -y runsc
+          runsc --version
 
       # ── run the probe under the harness (model stubbed by the general mock) ────
       - if: matrix.family == 'direct'
@@ -153,6 +198,34 @@ jobs:
           RUNNER: ${{ matrix.runner }}
           GEMINI_SANDBOX: ${{ matrix.backend }}
         run: ./scripts/run-probe-via-gemini-stub.sh
+
+      - if: matrix.family == 'opencode'
+        name: probe (opencode)
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+        run: ./scripts/run-probe-via-opencode-stub.sh
+
+      - if: matrix.family == 'goose'
+        name: probe (goose)
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+        run: ./scripts/run-probe-via-goose-stub.sh
+
+      - if: matrix.family == 'sandbox'
+        name: probe (${{ matrix.harness }})
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+          RUNTIME: ${{ matrix.runtime }}
+        run: ./scripts/run-probe-in-sandbox.sh
 
       # ── assert confinement engaged (any row that declares `expect`) ────────────
       # Linux can't always fingerprint a bwrap wrapper, so bwrap-based rows accept the kernel
