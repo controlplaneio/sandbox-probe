@@ -141,7 +141,9 @@ tests/
 ├── detect_docker.sh                  # probe runs inside Docker
 ├── detect_podman.sh                  # probe runs inside Podman
 ├── detect_bwrap.sh                   # probe runs inside Bubblewrap
-└── detect_claude.sh                  # probe runs inside Claude Code's own sandbox (real binary, model stubbed — no LLM)
+├── detect_claude.sh                  # probe runs inside Claude Code's own sandbox (real binary, model stubbed — no LLM)
+├── detect_codex.sh                   # ... same for Codex
+└── detect_gemini.sh                  # ... same for Gemini
 ```
 
 Reports land in `./reports/`. A typical diff workflow:
@@ -281,11 +283,11 @@ The included test scripts target:
 - **[Claude Code](https://code.claude.com/docs/en/overview)** — see `tests/baseline_claude.sh`, `tests/sandbox_claude.sh` (which drive a real, billed agent), and `tests/detect_claude.sh` (the deterministic, no-LLM path described below)
 - **[Gemini CLI](https://geminicli.com/)** — see `tests/baseline_gemini.sh`, `tests/sandbox_gemini.sh` (and `*_interactive.sh` variants)
 
-### Claude Code's sandbox with no LLM
+### Agent sandboxes with no LLM
 
-Driving a real agent to run the probe costs tokens and is non-deterministic. For Claude Code we also ship a path that exercises its **real** sandbox with **no model call, no API key, and no tokens**: a tiny local stub ([`scripts/anthropic-stub.mjs`](./scripts/anthropic-stub.mjs)) speaks the Anthropic Messages API and returns a canned `Bash` tool call that runs the probe. The real `claude` binary then executes it inside its own OS sandbox — [bubblewrap](https://github.com/containers/bubblewrap) on Linux, Seatbelt on macOS. See [`scripts/run-probe-via-claude-stub.sh`](./scripts/run-probe-via-claude-stub.sh).
+Driving a real agent to run the probe costs tokens and is non-deterministic. So we exercise each agent's **real** sandbox with **no model call, no API key, and no tokens**: one general mock ([`scripts/mock-agent-api.mjs`](./scripts/mock-agent-api.mjs)) speaks the Anthropic, Gemini and OpenAI (Codex) APIs, and returns a canned shell tool call that runs the probe. The real `claude` / `gemini` / `codex` binary — pointed at the mock via its base-URL override — then executes it inside its own OS sandbox ([bubblewrap](https://github.com/containers/bubblewrap) on Linux, Seatbelt on macOS, or a container for Gemini). See `scripts/run-probe-via-{claude,gemini,codex}-stub.sh`.
 
-This is what CI runs. The [`scan-matrix`](./.github/workflows/scan-matrix.yaml) workflow builds the probe and runs it across a **harness** axis — one row per way of executing the probe: `direct` (unconfined baseline), `claude` and `claude-sandbox` (the real binary with the model stubbed — as-is vs its own sandbox), and `gemini-*` (the real agent in its sandbox, gated behind a key). Diffing `claude` against `claude-sandbox` is precisely what Claude Code's sandbox blocks. Adding another harness (nono, docker, bwrap, another agent) is one matrix row plus a gated setup/run step.
+This is what CI runs. The [`scan-matrix`](./.github/workflows/scan-matrix.yaml) workflow builds the probe and runs it across a **harness** axis — one row per way of executing the probe: `direct` (unconfined baseline), and each agent as-is vs its own sandbox (`claude`/`claude-sandbox`, `codex`/`codex-sandbox`, `gemini`/`gemini-docker`/`gemini-sandbox-exec`). Every row is keyless. Diffing an agent against its `-sandbox` row is precisely what that sandbox blocks. Adding another harness (nono, another agent) is one matrix row plus a family-gated setup/run step.
 
 Any AI agent that will run an arbitrary binary works in principle — the probe doesn't depend on the agent. Contributions of test scripts for other agents are welcome.
 

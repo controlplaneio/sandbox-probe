@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run sandbox-probe via the REAL claude binary with the model stubbed out (no LLM, no API key,
-# no tokens). A tiny local server (scripts/anthropic-stub.mjs) speaks the Anthropic Messages
-# API and returns a canned Bash tool_use that runs the probe.
+# no tokens). The general mock (scripts/mock-agent-api.mjs) speaks the Anthropic Messages API
+# and returns a canned Bash tool_use that runs the probe.
 #
 # CLAUDE_SANDBOX=on (default) enables Claude Code's own sandbox — bubblewrap on Linux, Seatbelt
 # on macOS — so the probe measures that boundary. CLAUDE_SANDBOX=off runs the probe "as is",
@@ -36,13 +36,13 @@ BASH_TIMEOUT_MS="${BASH_TIMEOUT_MS:-600000}"
 export BASH_DEFAULT_TIMEOUT_MS="$BASH_TIMEOUT_MS"
 export BASH_MAX_TIMEOUT_MS="$BASH_TIMEOUT_MS"
 
-# Start the Anthropic API stub. It never contacts a real model.
+# Start the mock model API. It never contacts a real model.
 STUB_LOG="$(mktemp)"
 PORT="$PORT" \
 PROBE_CMD="${PROBE} ${SCAN_ARGS} --tags ${TAGS} --output_path ${OUT}" \
 BASH_TIMEOUT_MS="$BASH_TIMEOUT_MS" \
 STUB_LOG="$STUB_LOG" \
-  node "${PROJECT_ROOT}/scripts/anthropic-stub.mjs" &
+  node "${PROJECT_ROOT}/scripts/mock-agent-api.mjs" &
 STUB_PID=$!
 trap 'kill "$STUB_PID" 2>/dev/null || true' EXIT
 
@@ -73,7 +73,7 @@ claude \
   -p "Run the sandbox probe and then stop." || true
 echo "::endgroup::"
 
-echo "== anthropic-stub request log =="
+echo "== mock request log =="
 cat "$STUB_LOG" 2>/dev/null || true
 rm -f "$STUB_LOG" 2>/dev/null || true
 

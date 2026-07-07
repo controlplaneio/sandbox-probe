@@ -225,11 +225,12 @@ cd api && buf generate    # regenerate Protocol Buffers
 The agent CLIs change quickly and their interfaces (and system prompts) aren't always stable. These are the versions
 we currently test against:
 
-| Program     | Version   |
-| :---------- | :-------- |
-| Claude Code | `2.1.202` |
-| Nono        | `0.4.1`   |
-| Gemini      | `0.28.2`  |
+| Program     | Version    |
+| :---------- | :--------- |
+| Claude Code | `2.1.202`  |
+| Codex CLI   | `0.142.5`  |
+| Nono        | `0.4.1`    |
+| Gemini      | `0.33.2`   |
 
 #### Trialling Against Agent Sandboxes
 
@@ -252,35 +253,34 @@ When validating a change against the real agents, the wrappers under `scripts/` 
 ./scripts/run-gemini-podman.sh "bin/sandbox-probe"
 ```
 
-#### Claude Code's sandbox with no LLM (stubbed model)
+#### Agent sandboxes with no LLM (general mock)
 
-`scripts/run-claude-sandbox.sh` above drives a **real, billed** Claude Code session. For CI — and
-for deterministic local runs — we instead exercise Claude Code's sandbox with **no model call**:
+The `run-*.sh` wrappers above drive **real, billed** agent sessions. For CI — and for deterministic
+local runs — we instead exercise each agent's sandbox with **no model call, no key, no tokens**:
 
-- `scripts/anthropic-stub.mjs` — a zero-dependency Node server that speaks the Anthropic Messages
-  API (`/v1/messages`, streaming) and returns a canned `Bash` tool call running `$PROBE_CMD`. It
-  answers any other endpoint (token counting, background calls) with a trivial response, so it keeps
-  working as Claude Code evolves. When Claude Code changes its request shape enough to break it, the
-  `claude` matrix rows fail loudly — that's the signal to update the stub (and the version table above).
-- `scripts/run-probe-via-claude-stub.sh` — points `claude` at the stub via `ANTHROPIC_BASE_URL`,
-  runs headless (`claude -p`) in `--permission-mode bypassPermissions` so the **OS sandbox is the only
-  boundary** constraining the probe, and enables the sandbox via `scripts/config/claude-code-sandbox.json`
-  (`enabled` + `failIfUnavailable` + `allowUnsandboxedCommands: false`, i.e. mandatory and non-escapable).
-- `tests/detect_claude.sh` — the `make e2etests` entry point; asserts the probe reports
-  `sandbox_detection = seatbelt` (macOS) / `bubblewrap` (Linux). It skips gracefully when `claude`
-  (or, on Linux, `bwrap`) is unavailable.
+- `scripts/mock-agent-api.mjs` — one zero-dependency Node server that speaks the Anthropic
+  (`/v1/messages`), Gemini (`:streamGenerateContent`) and OpenAI/Codex (`/v1/responses`) APIs, routing
+  by path. Each returns a canned shell tool call running `$PROBE_CMD`, echoing whatever tool name the
+  request advertised, and answers anything else trivially — so it survives CLI churn. When an agent
+  changes its wire shape enough to break it, that agent's matrix rows fail loudly — the signal to
+  update the mock (and the version table above).
+- `scripts/run-probe-via-{claude,gemini,codex}-stub.sh` — point the real CLI at the mock via its
+  base-URL override (`ANTHROPIC_BASE_URL` / `GOOGLE_GEMINI_BASE_URL` / a `[model_providers]` block),
+  run it headless with approvals bypassed so the **OS sandbox is the only boundary** on the probe, and
+  toggle the agent's sandbox on/off (as-is baseline vs confined).
+- `tests/detect_{claude,codex,gemini}.sh` — `make e2etests` entry points asserting the probe reports
+  the expected `sandbox_detection` (`seatbelt` on macOS; `bubblewrap`/kernel-enforcement on Linux;
+  `docker` for gemini's container). Each skips gracefully when its CLI (or sandbox dep) is unavailable.
 
 The [`scan-matrix`](../.github/workflows/scan-matrix.yaml) workflow runs the probe across a **harness**
 axis — one matrix row per way of executing it. Each row sets `family` (which setup steps run), `harness`
-(the job and report name), and optionally `sandbox` (the claude toggle) and `expect`. The `claude` rows
-drive the stub above: `claude` (as-is) and `claude-sandbox` (confined); both need no secret and spend no
-tokens. On Linux they install `bubblewrap` + `socat` and relax the Ubuntu 24.04 unprivileged-user-
-namespace restriction. (`bypassPermissions` is refused as root; GitHub-hosted runners are non-root.)
+(the job/report name), and optionally `sandbox`/`backend` (the sandbox toggle) and `expect`. Every agent
+has an as-is row and a `-sandbox` row; all are keyless. Linux sandbox rows install `bubblewrap` + `socat`
+and relax the Ubuntu 24.04 unprivileged-user-namespace restriction.
 
-To add a harness (nono, docker, bwrap, another agent): add a matrix row with a new `family`, a setup
-step and a run step gated on `matrix.family == '<name>'`, and — if it confines the probe — an `expect`
-array of the `sandbox_detection` values that prove it. The assert step is data-driven off `expect`, so
-nothing else changes.
+To add a harness (nono, another agent): add a matrix row with a new `family`, a setup step and a run
+step gated on `matrix.family == '<name>'`, and — if it confines the probe — an `expect` array of the
+`sandbox_detection` values that prove it. The assert step is data-driven off `expect`, so nothing else changes.
 
 #### Known Limitations
 
