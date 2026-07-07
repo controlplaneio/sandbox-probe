@@ -115,7 +115,7 @@ function openaiResponses(res, body) {
   res.end();
 }
 
-// ── OpenAI /v1/chat/completions (OpenCode, Goose, Crush, most stubbable agents) ──
+// ── OpenAI /v1/chat/completions (OpenCode, Goose, Pi, gptme, most stubbable agents) ──
 function chatCompletions(res, body) {
   const model = body.model || 'mock-model';
   const shell = (Array.isArray(body.tools) ? body.tools : []).find((t) => t && t.function && /bash|shell|exec/i.test(t.function.name || ''));
@@ -123,9 +123,7 @@ function chatCompletions(res, body) {
   const done = messages.some((m) => m && m.role === 'tool');
   for (const m of messages.filter((m) => m && m.role === 'tool')) log(`tool result: ${clip(typeof m.content === 'string' ? m.content : JSON.stringify(m.content || ''))}`);
 
-  sseHead(res);
-  const id = rid('chatcmpl_');
-  const chunk = (choice) => data(res, { id, object: 'chat.completion.chunk', created: 0, model, choices: [choice] });
+  let message, finish;
   if (shell && !done && PROBE_CMD) {
     // Raise the tool's own timeout if it advertises one (opencode's bash defaults to 120s, which a
     // full macOS scan overruns); harmless for tools without the param (e.g. goose's shell).
@@ -134,13 +132,24 @@ function chatCompletions(res, body) {
     if (props.timeout) args.timeout = 600000;
     if (props.timeout_ms) args.timeout_ms = 600000;
     log(`chat ${shell.function.name} -> ${PROBE_CMD}`);
-    chunk({ index: 0, delta: { role: 'assistant', content: null, tool_calls: [{ index: 0, id: rid('call_'), type: 'function', function: { name: shell.function.name, arguments: JSON.stringify(args) } }] }, finish_reason: null });
-    chunk({ index: 0, delta: {}, finish_reason: 'tool_calls' });
+    message = { role: 'assistant', content: null, tool_calls: [{ index: 0, id: rid('call_'), type: 'function', function: { name: shell.function.name, arguments: JSON.stringify(args) } }] };
+    finish = 'tool_calls';
   } else {
     log(`chat final (shell=${!!shell} done=${done})`);
-    chunk({ index: 0, delta: { role: 'assistant', content: 'done' }, finish_reason: null });
-    chunk({ index: 0, delta: {}, finish_reason: 'stop' });
+    message = { role: 'assistant', content: 'done' };
+    finish = 'stop';
   }
+
+  const id = rid('chatcmpl_');
+  if (body.stream !== true) { // non-streaming clients (e.g. gptme via the OpenAI SDK omit `stream`)
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ id, object: 'chat.completion', created: 0, model, choices: [{ index: 0, message, finish_reason: finish }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));
+    return;
+  }
+  sseHead(res);
+  const chunk = (choice) => data(res, { id, object: 'chat.completion.chunk', created: 0, model, choices: [choice] });
+  chunk({ index: 0, delta: message, finish_reason: null });
+  chunk({ index: 0, delta: {}, finish_reason: finish });
   res.write('data: [DONE]\n\n');
   res.end();
 }

@@ -5,13 +5,15 @@
 #   firejail — SUID namespaces + seccomp (Linux)
 #   nono     — capability sandbox: Landlock + seccomp-notify (Linux) / Seatbelt (macOS)
 #   podman   — rootless OCI container (Linux)
+#   docker   — Docker container (Linux)
+#   bwrap    — standalone bubblewrap, parent visible (the #38-detectable invocation; Linux)
 #
 # Required env: PROBE, OUT, RUNTIME. Optional: RUNNER, PORT (unused), SCAN_ARGS.
 set -eo pipefail
 
 : "${PROBE:?PROBE (probe binary path) is required}"
 : "${OUT:?OUT (report output path) is required}"
-: "${RUNTIME:?RUNTIME (srt|firejail|nono|podman) is required}"
+: "${RUNTIME:?RUNTIME (srt|firejail|nono|podman|docker|bwrap) is required}"
 RUNNER="${RUNNER:-$(uname -s)}"
 SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
 
@@ -46,6 +48,19 @@ JSON
     # the report lands back on the host. PROBE/OUT are under $PWD in CI.
     podman run --rm --network=none -v "$PWD:/work" -w /work docker.io/library/ubuntu:latest \
       "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" </dev/null || true
+    ;;
+  docker)
+    # Same as podman but the Docker daemon; the probe fingerprints it as "docker".
+    docker run --rm --network=none -v "$PWD:/work" -w /work ubuntu:latest \
+      "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" </dev/null || true
+    ;;
+  bwrap)
+    # Standalone bubblewrap with bwrap left visible as the parent — the invocation the probe DOES
+    # fingerprint as "bubblewrap" (unlike Claude Code / srt; see controlplaneio/sandbox-probe#38).
+    bwrap --ro-bind /usr /usr --ro-bind /bin /bin --ro-bind-try /sbin /sbin \
+      --ro-bind /lib /lib --ro-bind-try /lib64 /lib64 --ro-bind /etc /etc --proc /proc --dev /dev \
+      --bind "$PWD" /work --chdir /work --unshare-user --unshare-ipc --unshare-uts --unshare-cgroup --die-with-parent \
+      "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" || true
     ;;
   *)
     echo "::error::unknown RUNTIME '${RUNTIME}'"; exit 1 ;;

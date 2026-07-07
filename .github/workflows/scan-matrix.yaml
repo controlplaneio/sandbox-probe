@@ -79,13 +79,14 @@ jobs:
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini-docker,       backend: docker,       expect: '["docker"]' }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini-sandbox-exec, backend: sandbox-exec, expect: '["seatbelt"]' }
-          # opencode / goose / pi — real agents (chat/completions), model stubbed; NO native sandbox (unconfined "as-is").
+          # opencode / goose / pi / gptme — real agents (chat/completions), model stubbed; NO native sandbox (unconfined "as-is").
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: opencode, harness: opencode }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: opencode, harness: opencode }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: goose,    harness: goose }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: goose,    harness: goose }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: pi,       harness: pi }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: pi,       harness: pi }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gptme,    harness: gptme }
           # sandbox runtimes — no agent, no model; each a distinct keyless OS sandbox the probe fingerprints.
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: srt,      runtime: srt,      expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: sandbox, harness: srt,      runtime: srt,      expect: '["seatbelt"]' }
@@ -93,6 +94,8 @@ jobs:
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: nono,     runtime: nono,     expect: '["landlock","seccomp-notify","seccomp-filter","no-new-privs"]' }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: sandbox, harness: nono,     runtime: nono,     expect: '["seatbelt"]' }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: podman,   runtime: podman,   expect: '["podman"]' }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: docker,   runtime: docker,   expect: '["docker"]' }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: bwrap,    runtime: bwrap,    expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
     runs-on: ${{ matrix.runner }}
     env:
       PROBE: ./sandbox-probe${{ matrix.ext }}
@@ -141,6 +144,12 @@ jobs:
       - if: matrix.family == 'pi'
         run: npm install -g @earendil-works/pi-coding-agent && pi --version
         shell: bash
+      - if: matrix.family == 'gptme'
+        name: install gptme
+        shell: bash
+        run: |
+          pipx install gptme
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - if: matrix.backend == 'docker'
         run: docker info
 
@@ -178,6 +187,15 @@ jobs:
         name: ensure podman
         shell: bash
         run: command -v podman >/dev/null || { sudo apt-get update && sudo apt-get install -y podman; }
+      - if: matrix.runtime == 'bwrap'
+        name: install bubblewrap
+        shell: bash
+        run: |
+          sudo apt-get update && sudo apt-get install -y bubblewrap
+          # Ubuntu 24.04+ gates unprivileged user namespaces; bwrap --unshare-user needs them.
+          if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
 
       # ── run the probe under the harness (model stubbed by the general mock) ────
       - if: matrix.family == 'direct'
@@ -241,6 +259,15 @@ jobs:
           OUT: ${{ env.REPORT }}
           RUNNER: ${{ matrix.runner }}
         run: ./scripts/run-probe-via-pi-stub.sh
+
+      - if: matrix.family == 'gptme'
+        name: probe (gptme)
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+        run: ./scripts/run-probe-via-gptme-stub.sh
 
       - if: matrix.family == 'sandbox'
         name: probe (${{ matrix.harness }})
