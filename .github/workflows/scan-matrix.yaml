@@ -1,0 +1,187 @@
+name: scan-matrix
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["matrix/**"]
+  schedule:
+    - cron: "0 8 * * 1" # weekly
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scan-matrix-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GEMINI_MODEL: gemini-2.5-flash-lite
+
+jobs:
+  build:
+    name: build (${{ matrix.goos }}/${{ matrix.goarch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest,  goos: linux,   goarch: amd64, ext: "" }
+          - { runner: macos-latest,   goos: darwin,  goarch: arm64, ext: "" }
+          - { runner: windows-latest, goos: windows, goarch: amd64, ext: ".exe" }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with: { go-version-file: go.mod }
+      - shell: bash
+        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o sandbox-probe${{ matrix.ext }} .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sandbox-probe-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: sandbox-probe${{ matrix.ext }}
+
+  scan:
+    name: ${{ matrix.label }}
+    needs: build
+    # Only the gemini rows run in the (secret-scoped) gemini environment; every other row
+    # resolves to an empty environment name, i.e. no environment.
+    environment: ${{ matrix.agent == 'gemini' && 'gemini' || '' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # agent=none — unconfined baseline per OS (no agent involved).
+          - { label: linux-none,          runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     agent: none }
+          - { label: macos-none,          runner: macos-latest,   arch: darwin-arm64,  ext: "",     agent: none }
+          - { label: windows-none,        runner: windows-latest, arch: windows-amd64, ext: ".exe", agent: none }
+          # agent=gemini — probe via the real gemini-cli agent, in gemini's own sandbox
+          # (gated on GEMINI_API_KEY + workflow_dispatch/schedule). backend = gemini's sandbox.
+          - { label: linux-gemini-docker, runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     agent: gemini, backend: docker }
+          - { label: linux-gemini-podman, runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     agent: gemini, backend: podman }
+          - { label: macos-gemini-sbx,    runner: macos-latest,   arch: darwin-arm64,  ext: "",     agent: gemini, backend: sandbox-exec }
+          # agent=claude — probe via the REAL claude binary with the model stubbed out
+          # (no LLM, no secret, always runs). Claude Code applies its own sandbox: bubblewrap
+          # on Linux, Seatbelt on macOS. No Windows row: the sandbox is WSL2-only there.
+          - { label: linux-claude,        runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     agent: claude }
+          - { label: macos-claude,        runner: macos-latest,   arch: darwin-arm64,  ext: "",     agent: claude }
+    runs-on: ${{ matrix.runner }}
+    env:
+      RUN_GEMINI: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && secrets.GEMINI_API_KEY != '' }}
+      PROBE: ./sandbox-probe${{ matrix.ext }}
+      DIRECT_REPORT: reports/${{ matrix.label }}-direct.json
+      GEMINI_REPORT: reports/${{ matrix.label }}-via-gemini.json
+      CLAUDE_REPORT: reports/${{ matrix.label }}-via-claude.json
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: sandbox-probe-${{ matrix.arch }}
+
+      - if: runner.os != 'Windows'
+        run: chmod +x $PROBE
+
+      # ── gemini setup ──────────────────────────────────────────────────────────
+      - if: matrix.backend == 'podman' && runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y podman
+
+      - if: matrix.backend == 'docker' && runner.os == 'Linux'
+        run: docker info
+
+      - if: matrix.agent == 'gemini' && env.RUN_GEMINI == 'true'
+        uses: actions/setup-node@v6
+        with: { node-version: "22" }
+
+      - if: matrix.agent == 'gemini' && env.RUN_GEMINI == 'true'
+        run: npm install -g @google/gemini-cli && gemini --version
+        shell: bash
+
+      # ── claude setup (real binary; model is stubbed at run time, no key needed) ──
+      - if: matrix.agent == 'claude'
+        uses: actions/setup-node@v6
+        with: { node-version: "22" }
+
+      - if: matrix.agent == 'claude' && runner.os == 'Linux'
+        name: claude sandbox deps (linux)
+        shell: bash
+        run: |
+          sudo apt-get update && sudo apt-get install -y bubblewrap socat
+          # Ubuntu 24.04+ blocks unprivileged user namespaces by default; bwrap needs them.
+          if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      - if: matrix.agent == 'claude'
+        name: install claude code
+        shell: bash
+        run: npm install -g @anthropic-ai/claude-code && claude --version
+
+      # ── probe (direct): unconfined baseline, every row ─────────────────────────
+      - name: probe (direct)
+        id: direct
+        shell: bash
+        run: |
+          mkdir -p reports
+          $PROBE scan --tasksets baseline \
+            --tags "runner=${{ matrix.runner }},agent=${{ matrix.agent }},backend=${{ matrix.backend || 'none' }},mode=direct" \
+            --output_path "$DIRECT_REPORT"
+
+      # ── probe (via gemini): real LLM agent, gated ──────────────────────────────
+      - name: probe (via gemini)
+        id: via_gemini
+        if: matrix.agent == 'gemini' && env.RUN_GEMINI == 'true'
+        shell: bash
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_SANDBOX: ${{ matrix.backend }}
+          GEMINI_CLI_TRUST_WORKSPACE: "true"
+          SANDBOX_FLAGS: '--entrypoint ""' # gemini-cli#26964 workaround
+          LABEL: ${{ matrix.label }}
+          RUNNER: ${{ matrix.runner }}
+          BACKEND: ${{ matrix.backend || 'none' }}
+          OUT: ${{ env.GEMINI_REPORT }}
+          MODEL: ${{ env.GEMINI_MODEL }}
+        run: ./scripts/run-probe-via-gemini.sh
+
+      # ── probe (via claude): real claude binary, model stubbed — NO LLM ─────────
+      - name: probe (via claude, stubbed model)
+        id: via_claude
+        if: matrix.agent == 'claude'
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.CLAUDE_REPORT }}
+          RUNNER: ${{ matrix.runner }}
+        run: ./scripts/run-probe-via-claude-stub.sh
+
+      - name: assert claude sandbox detected
+        if: matrix.agent == 'claude'
+        shell: bash
+        run: |
+          want=bubblewrap; [ "$RUNNER_OS" = "macOS" ] && want=seatbelt
+          echo "expecting sandbox_detection=$want in $CLAUDE_REPORT"
+          jq -e --arg w "$want" 'any(.findings[];
+            .findingType == "sandbox_detection"
+            and .task == "baseline_sandbox_detector"
+            and .value == $w)' "$CLAUDE_REPORT"
+
+      - name: summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## ${{ matrix.label }}"
+            echo "| | |"
+            echo "|---|---|"
+            echo "| agent | \`${{ matrix.agent }}\` |"
+            echo "| backend | \`${{ matrix.backend || 'none' }}\` |"
+            echo "| direct | \`${{ steps.direct.outcome }}\` |"
+            echo "| via gemini | \`${{ steps.via_gemini.outcome || 'skipped' }}\` |"
+            echo "| via claude | \`${{ steps.via_claude.outcome || 'skipped' }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: report-${{ matrix.label }}
+          path: reports/
+          if-no-files-found: ignore

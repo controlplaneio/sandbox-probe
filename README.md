@@ -140,7 +140,8 @@ tests/
 ├── sandbox_gemini.sh                 # ... same for Gemini
 ├── detect_docker.sh                  # probe runs inside Docker
 ├── detect_podman.sh                  # probe runs inside Podman
-└── detect_bwrap.sh                   # probe runs inside Bubblewrap
+├── detect_bwrap.sh                   # probe runs inside Bubblewrap
+└── detect_claude.sh                  # probe runs inside Claude Code's own sandbox (real binary, model stubbed — no LLM)
 ```
 
 Reports land in `./reports/`. A typical diff workflow:
@@ -277,8 +278,14 @@ The console output during a scan is structured logs; the same data is also writt
 
 The included test scripts target:
 
-- **[Claude Code](https://code.claude.com/docs/en/overview)** — see `tests/baseline_claude.sh`, `tests/sandbox_claude.sh`
+- **[Claude Code](https://code.claude.com/docs/en/overview)** — see `tests/baseline_claude.sh`, `tests/sandbox_claude.sh` (which drive a real, billed agent), and `tests/detect_claude.sh` (the deterministic, no-LLM path described below)
 - **[Gemini CLI](https://geminicli.com/)** — see `tests/baseline_gemini.sh`, `tests/sandbox_gemini.sh` (and `*_interactive.sh` variants)
+
+### Claude Code's sandbox with no LLM
+
+Driving a real agent to run the probe costs tokens and is non-deterministic. For Claude Code we also ship a path that exercises its **real** sandbox with **no model call, no API key, and no tokens**: a tiny local stub ([`scripts/anthropic-stub.mjs`](./scripts/anthropic-stub.mjs)) speaks the Anthropic Messages API and returns a canned `Bash` tool call that runs the probe. The real `claude` binary then executes it inside its own OS sandbox — [bubblewrap](https://github.com/containers/bubblewrap) on Linux, Seatbelt on macOS. See [`scripts/run-probe-via-claude-stub.sh`](./scripts/run-probe-via-claude-stub.sh).
+
+This is what CI runs. The [`scan-matrix`](./.github/workflows/scan-matrix.yaml) workflow builds the probe and runs it across an `agent` axis — `none` (unconfined baseline), `gemini` (the real agent, gated behind a key), and `claude` (real binary, model stubbed) — on Linux and macOS, diffing each agent's report against the baseline.
 
 Any AI agent that will run an arbitrary binary works in principle — the probe doesn't depend on the agent. Contributions of test scripts for other agents are welcome.
 

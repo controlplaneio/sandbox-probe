@@ -225,11 +225,11 @@ cd api && buf generate    # regenerate Protocol Buffers
 The agent CLIs change quickly and their interfaces (and system prompts) aren't always stable. These are the versions
 we currently test against:
 
-| Program     | Version  |
-| :---------- | :------- |
-| Claude Code | `2.1.39` |
-| Nono        | `0.4.1`  |
-| Gemini      | `0.28.2` |
+| Program     | Version   |
+| :---------- | :-------- |
+| Claude Code | `2.1.202` |
+| Nono        | `0.4.1`   |
+| Gemini      | `0.28.2`  |
 
 #### Trialling Against Agent Sandboxes
 
@@ -251,6 +251,30 @@ When validating a change against the real agents, the wrappers under `scripts/` 
 ./scripts/run-claude.sh "Execute !bin/sandbox-probe"
 ./scripts/run-gemini-podman.sh "bin/sandbox-probe"
 ```
+
+#### Claude Code's sandbox with no LLM (stubbed model)
+
+`scripts/run-claude-sandbox.sh` above drives a **real, billed** Claude Code session. For CI — and
+for deterministic local runs — we instead exercise Claude Code's sandbox with **no model call**:
+
+- `scripts/anthropic-stub.mjs` — a zero-dependency Node server that speaks the Anthropic Messages
+  API (`/v1/messages`, streaming) and returns a canned `Bash` tool call running `$PROBE_CMD`. It
+  answers any other endpoint (token counting, background calls) with a trivial response, so it keeps
+  working as Claude Code evolves. When Claude Code changes its request shape enough to break it, the
+  `claude` matrix rows fail loudly — that's the signal to update the stub (and the version table above).
+- `scripts/run-probe-via-claude-stub.sh` — points `claude` at the stub via `ANTHROPIC_BASE_URL`,
+  runs headless (`claude -p`) in `--permission-mode bypassPermissions` so the **OS sandbox is the only
+  boundary** constraining the probe, and enables the sandbox via `scripts/config/claude-code-sandbox.json`
+  (`enabled` + `failIfUnavailable` + `allowUnsandboxedCommands: false`, i.e. mandatory and non-escapable).
+- `tests/detect_claude.sh` — the `make e2etests` entry point; asserts the probe reports
+  `sandbox_detection = seatbelt` (macOS) / `bubblewrap` (Linux). It skips gracefully when `claude`
+  (or, on Linux, `bwrap`) is unavailable.
+
+The [`scan-matrix`](../.github/workflows/scan-matrix.yaml) workflow wires this into an `agent` axis
+(`none` / `gemini` / `claude`); the `claude` rows need no secret and spend no tokens. On Linux they
+install `bubblewrap` + `socat` and relax the Ubuntu 24.04 unprivileged-user-namespace restriction.
+Note `bypassPermissions` is refused when running as root — GitHub-hosted runners are non-root, so this
+is fine there.
 
 #### Known Limitations
 
