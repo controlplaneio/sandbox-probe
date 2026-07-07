@@ -39,68 +39,64 @@ jobs:
           name: sandbox-probe-${{ matrix.goos }}-${{ matrix.goarch }}
           path: sandbox-probe${{ matrix.ext }}
 
+  # One row per harness × OS. `family` drives setup, `harness` is the unique label. To add a
+  # harness (nono, docker, bwrap, another agent): add rows below, a setup step and a run step
+  # gated on its family, and — if it confines the probe — set `sandbox: "on"` so it is asserted.
   scan:
-    name: ${{ matrix.label }}
+    name: ${{ matrix.harness }} (${{ matrix.os }})
     needs: build
-    # Only the gemini rows run in the (secret-scoped) gemini environment; every other row
-    # resolves to an empty environment name, i.e. no environment.
-    environment: ${{ matrix.agent == 'gemini' && 'gemini' || '' }}
+    # Only gemini rows run in the (secret-scoped) gemini environment; others use none.
+    environment: ${{ matrix.family == 'gemini' && 'gemini' || '' }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # agent=none — unconfined baseline per OS (no agent involved).
-          - { label: linux-none,          runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     agent: none }
-          - { label: macos-none,          runner: macos-latest,   arch: darwin-arm64,  ext: "",     agent: none }
-          - { label: windows-none,        runner: windows-latest, arch: windows-amd64, ext: ".exe", agent: none }
-          # agent=gemini — probe via the real gemini-cli agent, in gemini's own sandbox
-          # (gated on GEMINI_API_KEY + workflow_dispatch/schedule). backend = gemini's sandbox.
-          - { label: linux-gemini-docker, runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     agent: gemini, backend: docker }
-          - { label: linux-gemini-podman, runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     agent: gemini, backend: podman }
-          - { label: macos-gemini-sbx,    runner: macos-latest,   arch: darwin-arm64,  ext: "",     agent: gemini, backend: sandbox-exec }
-          # agent=claude — probe via the REAL claude binary with the model stubbed out
-          # (no LLM, no secret, always runs). Claude Code applies its own sandbox: bubblewrap
-          # on Linux, Seatbelt on macOS. No Windows row: the sandbox is WSL2-only there.
-          - { label: linux-claude,        runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     agent: claude }
-          - { label: macos-claude,        runner: macos-latest,   arch: darwin-arm64,  ext: "",     agent: claude }
+          # direct — unconfined baseline on the runner.
+          - { os: linux,   runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     family: direct, harness: direct }
+          - { os: macos,   runner: macos-latest,   arch: darwin-arm64,  ext: "",     family: direct, harness: direct }
+          - { os: windows, runner: windows-latest, arch: windows-amd64, ext: ".exe", family: direct, harness: direct }
+          # claude — real binary, model stubbed (no LLM/key); as-is vs its own sandbox.
+          # `expect` (JSON array) is the set of sandbox_detection values that prove confinement.
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: claude, harness: claude,         sandbox: "off" }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: claude, harness: claude-sandbox, sandbox: "on", expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: claude, harness: claude,         sandbox: "off" }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: claude, harness: claude-sandbox, sandbox: "on", expect: '["seatbelt"]' }
+          # gemini — real agent in its own sandbox; gated on GEMINI_API_KEY + dispatch/schedule.
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini-docker,       backend: docker }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini-podman,       backend: podman }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini-sandbox-exec, backend: sandbox-exec }
     runs-on: ${{ matrix.runner }}
     env:
       RUN_GEMINI: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && secrets.GEMINI_API_KEY != '' }}
       PROBE: ./sandbox-probe${{ matrix.ext }}
-      DIRECT_REPORT: reports/${{ matrix.label }}-direct.json
-      GEMINI_REPORT: reports/${{ matrix.label }}-via-gemini.json
-      CLAUDE_REPORT: reports/${{ matrix.label }}-via-claude.json
+      REPORT: reports/${{ matrix.os }}-${{ matrix.harness }}.json
     steps:
       - uses: actions/checkout@v6
-
       - uses: actions/download-artifact@v8
         with:
           name: sandbox-probe-${{ matrix.arch }}
-
       - if: runner.os != 'Windows'
         run: chmod +x $PROBE
+      - run: mkdir -p reports
+        shell: bash
 
-      # ── gemini setup ──────────────────────────────────────────────────────────
-      - if: matrix.backend == 'podman' && runner.os == 'Linux'
+      # ── gemini setup (family=gemini, only when enabled) ────────────────────────
+      - if: matrix.backend == 'podman' && env.RUN_GEMINI == 'true'
         run: sudo apt-get update && sudo apt-get install -y podman
-
-      - if: matrix.backend == 'docker' && runner.os == 'Linux'
+      - if: matrix.backend == 'docker' && env.RUN_GEMINI == 'true'
         run: docker info
-
-      - if: matrix.agent == 'gemini' && env.RUN_GEMINI == 'true'
+      - if: matrix.family == 'gemini' && env.RUN_GEMINI == 'true'
         uses: actions/setup-node@v6
         with: { node-version: "22" }
-
-      - if: matrix.agent == 'gemini' && env.RUN_GEMINI == 'true'
+      - if: matrix.family == 'gemini' && env.RUN_GEMINI == 'true'
         run: npm install -g @google/gemini-cli && gemini --version
         shell: bash
 
-      # ── claude setup (real binary; model is stubbed at run time, no key needed) ──
-      - if: matrix.agent == 'claude'
+      # ── claude setup (family=claude) ───────────────────────────────────────────
+      - if: matrix.family == 'claude'
         uses: actions/setup-node@v6
         with: { node-version: "22" }
-
-      - if: matrix.agent == 'claude' && runner.os == 'Linux'
+      - if: matrix.family == 'claude' && runner.os == 'Linux'
         name: claude sandbox deps (linux)
         shell: bash
         run: |
@@ -109,84 +105,68 @@ jobs:
           if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
-
-      - if: matrix.agent == 'claude'
-        name: install claude code
-        shell: bash
+      - if: matrix.family == 'claude'
         run: npm install -g @anthropic-ai/claude-code && claude --version
-
-      # ── probe (direct): unconfined baseline, every row ─────────────────────────
-      - name: probe (direct)
-        id: direct
         shell: bash
-        run: |
-          mkdir -p reports
-          $PROBE scan --tasksets baseline \
-            --tags "runner=${{ matrix.runner }},agent=${{ matrix.agent }},backend=${{ matrix.backend || 'none' }},mode=direct" \
-            --output_path "$DIRECT_REPORT"
 
-      # ── probe (via gemini): real LLM agent, gated ──────────────────────────────
-      - name: probe (via gemini)
-        id: via_gemini
-        if: matrix.agent == 'gemini' && env.RUN_GEMINI == 'true'
+      # ── run the probe under the harness ────────────────────────────────────────
+      - if: matrix.family == 'direct'
+        name: probe (direct)
+        shell: bash
+        run: $PROBE scan --tasksets baseline --tags "os=${{ matrix.os }},harness=direct" --output_path "$REPORT"
+
+      - if: matrix.family == 'claude'
+        name: probe (${{ matrix.harness }})
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+          CLAUDE_SANDBOX: ${{ matrix.sandbox }}
+        run: ./scripts/run-probe-via-claude-stub.sh
+
+      - if: matrix.family == 'gemini' && env.RUN_GEMINI == 'true'
+        name: probe (${{ matrix.harness }})
         shell: bash
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_SANDBOX: ${{ matrix.backend }}
           GEMINI_CLI_TRUST_WORKSPACE: "true"
           SANDBOX_FLAGS: '--entrypoint ""' # gemini-cli#26964 workaround
-          LABEL: ${{ matrix.label }}
+          LABEL: ${{ matrix.harness }}
           RUNNER: ${{ matrix.runner }}
-          BACKEND: ${{ matrix.backend || 'none' }}
-          OUT: ${{ env.GEMINI_REPORT }}
+          BACKEND: ${{ matrix.backend }}
+          OUT: ${{ env.REPORT }}
           MODEL: ${{ env.GEMINI_MODEL }}
         run: ./scripts/run-probe-via-gemini.sh
 
-      # ── probe (via claude): real claude binary, model stubbed — NO LLM ─────────
-      - name: probe (via claude, stubbed model)
-        id: via_claude
-        if: matrix.agent == 'claude'
-        timeout-minutes: 12
+      # ── assert confinement engaged (any row that declares `expect`) ────────────
+      # Linux can't always fingerprint a bubblewrap wrapper, so claude-sandbox there accepts the
+      # kernel enforcement it adds (no-new-privs / seccomp-filter) — absent from the baseline.
+      - if: matrix.expect != ''
+        name: assert sandbox engaged
         shell: bash
         env:
-          OUT: ${{ env.CLAUDE_REPORT }}
-          RUNNER: ${{ matrix.runner }}
-        run: ./scripts/run-probe-via-claude-stub.sh
-
-      - name: assert claude sandbox engaged
-        if: matrix.agent == 'claude'
-        shell: bash
+          EXPECT: ${{ matrix.expect }}
         run: |
-          # macOS reports "seatbelt". On Linux the probe can't always fingerprint Claude Code's
-          # bubblewrap wrapper (no detectable user namespace), but the sandbox's kernel
-          # enforcement — no-new-privs / seccomp-filter — is unambiguous and absent from the
-          # unconfined baseline. ("unknown" appears in the baseline too, so it does not count.)
-          if [ "$RUNNER_OS" = "macOS" ]; then ok='["seatbelt"]'; else ok='["bubblewrap","no-new-privs","seccomp-filter","landlock"]'; fi
-          dns() { jq '[.findings[]|select(.findingType=="external_host_dns_resolution")|.value]|flatten|length' "$1"; }
-          echo "sandbox_detection accepted in $ok | dns egress: direct=$(dns "$DIRECT_REPORT") claude=$(dns "$CLAUDE_REPORT")"
-          jq --argjson ok "$ok" -e 'any(.findings[];
+          echo "sandbox_detection accepted in $EXPECT for $REPORT"
+          jq --argjson ok "$EXPECT" -e 'any(.findings[];
             .findingType == "sandbox_detection"
             and .task == "baseline_sandbox_detector"
-            and (.value as $v | $ok | index($v)))' "$CLAUDE_REPORT"
+            and (.value as $v | $ok | index($v)))' "$REPORT"
 
       - name: summary
         if: always()
         shell: bash
         run: |
           {
-            echo "## ${{ matrix.label }}"
-            echo "| | |"
-            echo "|---|---|"
-            echo "| agent | \`${{ matrix.agent }}\` |"
-            echo "| backend | \`${{ matrix.backend || 'none' }}\` |"
-            echo "| direct | \`${{ steps.direct.outcome }}\` |"
-            echo "| via gemini | \`${{ steps.via_gemini.outcome || 'skipped' }}\` |"
-            echo "| via claude | \`${{ steps.via_claude.outcome || 'skipped' }}\` |"
+            echo "### ${{ matrix.harness }} (${{ matrix.os }})"
+            echo "- report: \`${{ env.REPORT }}\`"
+            echo "- sandbox: \`${{ matrix.sandbox || 'n/a' }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: report-${{ matrix.label }}
+          name: report-${{ matrix.os }}-${{ matrix.harness }}
           path: reports/
           if-no-files-found: ignore

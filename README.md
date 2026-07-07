@@ -285,7 +285,7 @@ The included test scripts target:
 
 Driving a real agent to run the probe costs tokens and is non-deterministic. For Claude Code we also ship a path that exercises its **real** sandbox with **no model call, no API key, and no tokens**: a tiny local stub ([`scripts/anthropic-stub.mjs`](./scripts/anthropic-stub.mjs)) speaks the Anthropic Messages API and returns a canned `Bash` tool call that runs the probe. The real `claude` binary then executes it inside its own OS sandbox — [bubblewrap](https://github.com/containers/bubblewrap) on Linux, Seatbelt on macOS. See [`scripts/run-probe-via-claude-stub.sh`](./scripts/run-probe-via-claude-stub.sh).
 
-This is what CI runs. The [`scan-matrix`](./.github/workflows/scan-matrix.yaml) workflow builds the probe and runs it across an `agent` axis — `none` (unconfined baseline), `gemini` (the real agent, gated behind a key), and `claude` (real binary, model stubbed) — on Linux and macOS, diffing each agent's report against the baseline.
+This is what CI runs. The [`scan-matrix`](./.github/workflows/scan-matrix.yaml) workflow builds the probe and runs it across a **harness** axis — one row per way of executing the probe: `direct` (unconfined baseline), `claude` and `claude-sandbox` (the real binary with the model stubbed — as-is vs its own sandbox), and `gemini-*` (the real agent in its sandbox, gated behind a key). Diffing `claude` against `claude-sandbox` is precisely what Claude Code's sandbox blocks. Adding another harness (nono, docker, bwrap, another agent) is one matrix row plus a gated setup/run step.
 
 Any AI agent that will run an arbitrary binary works in principle — the probe doesn't depend on the agent. Contributions of test scripts for other agents are welcome.
 

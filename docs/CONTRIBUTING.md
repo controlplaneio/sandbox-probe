@@ -270,11 +270,17 @@ for deterministic local runs — we instead exercise Claude Code's sandbox with 
   `sandbox_detection = seatbelt` (macOS) / `bubblewrap` (Linux). It skips gracefully when `claude`
   (or, on Linux, `bwrap`) is unavailable.
 
-The [`scan-matrix`](../.github/workflows/scan-matrix.yaml) workflow wires this into an `agent` axis
-(`none` / `gemini` / `claude`); the `claude` rows need no secret and spend no tokens. On Linux they
-install `bubblewrap` + `socat` and relax the Ubuntu 24.04 unprivileged-user-namespace restriction.
-Note `bypassPermissions` is refused when running as root — GitHub-hosted runners are non-root, so this
-is fine there.
+The [`scan-matrix`](../.github/workflows/scan-matrix.yaml) workflow runs the probe across a **harness**
+axis — one matrix row per way of executing it. Each row sets `family` (which setup steps run), `harness`
+(the job and report name), and optionally `sandbox` (the claude toggle) and `expect`. The `claude` rows
+drive the stub above: `claude` (as-is) and `claude-sandbox` (confined); both need no secret and spend no
+tokens. On Linux they install `bubblewrap` + `socat` and relax the Ubuntu 24.04 unprivileged-user-
+namespace restriction. (`bypassPermissions` is refused as root; GitHub-hosted runners are non-root.)
+
+To add a harness (nono, docker, bwrap, another agent): add a matrix row with a new `family`, a setup
+step and a run step gated on `matrix.family == '<name>'`, and — if it confines the probe — an `expect`
+array of the `sandbox_detection` values that prove it. The assert step is data-driven off `expect`, so
+nothing else changes.
 
 #### Known Limitations
 

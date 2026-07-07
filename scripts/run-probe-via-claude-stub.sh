@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
-# Run sandbox-probe inside REAL Claude Code's sandbox, with the model stubbed out (no LLM,
-# no API key, no tokens). A tiny local server (scripts/anthropic-stub.mjs) speaks the
-# Anthropic Messages API and returns a canned Bash tool_use that runs the probe; Claude Code
-# executes that command inside its own sandbox (bubblewrap on Linux, Seatbelt on macOS).
+# Run sandbox-probe via the REAL claude binary with the model stubbed out (no LLM, no API key,
+# no tokens). A tiny local server (scripts/anthropic-stub.mjs) speaks the Anthropic Messages
+# API and returns a canned Bash tool_use that runs the probe.
 #
-# Only the probe (the Bash child) is sandboxed; the claude<->stub traffic is plain localhost
-# outside the sandbox, so the probe still measures Claude Code's real egress denial.
+# CLAUDE_SANDBOX=on (default) enables Claude Code's own sandbox — bubblewrap on Linux, Seatbelt
+# on macOS — so the probe measures that boundary. CLAUDE_SANDBOX=off runs the probe "as is",
+# giving a same-path unconfined baseline to diff against. Only the probe is ever sandboxed; the
+# claude<->stub traffic is plain localhost outside the sandbox.
 #
-# Required env: PROBE (path to the probe binary), OUT (report output path).
-# Optional env: RUNNER (label for tags), PORT (stub port, default 8787).
+# Required env: PROBE (probe binary), OUT (report path).
+# Optional env: CLAUDE_SANDBOX (on|off, default on), RUNNER (tag label), PORT (stub port),
+#               SCAN_ARGS (probe sub-command, default "scan --tasksets baseline").
 set -eo pipefail
 
 : "${PROBE:?PROBE (probe binary path) is required}"
 : "${OUT:?OUT (report output path) is required}"
 RUNNER="${RUNNER:-$(uname -s)}"
 PORT="${PORT:-8787}"
+CLAUDE_SANDBOX="${CLAUDE_SANDBOX:-on}"
 # The scan sub-command + taskset selection the probe runs inside the sandbox. Override to run
 # a quick subset locally, e.g. SCAN_ARGS="scan --tasks baseline_sandbox_task --tasksets none".
 SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
@@ -25,7 +28,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 mkdir -p "$(dirname "$OUT")"
 
 VERSION="$(claude --version 2>/dev/null | awk '{print $1}')"
-TAGS="runner=${RUNNER},agent=claude,claude=${VERSION},mode=via-claude-stub"
+TAGS="runner=${RUNNER},harness=claude,sandbox=${CLAUDE_SANDBOX},claude=${VERSION},mode=via-claude-stub"
 
 # A full baseline scan can take a few minutes, so lift Claude Code's Bash timeout well above
 # the ~2 min default (env caps + an explicit per-command timeout carried in the tool input).
@@ -53,14 +56,18 @@ export ANTHROPIC_BASE_URL="http://127.0.0.1:${PORT}"
 export ANTHROPIC_API_KEY="sk-ant-stub"              # any non-empty value; the stub ignores it
 export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1   # no autoupdate/telemetry/error-report egress
 
-echo "::group::claude (stubbed model)"
+# Sandbox on -> apply the mandatory sandbox settings; off -> claude's default (unconfined).
+settings=()
+[ "$CLAUDE_SANDBOX" = "on" ] && settings=(--settings "${PROJECT_ROOT}/scripts/config/claude-code-sandbox.json")
+
+echo "::group::claude (stubbed model, sandbox=${CLAUDE_SANDBOX})"
 # bypassPermissions makes the OS sandbox the ONLY constraint on the probe, and sidesteps auto
 # mode's classifier (which makes its own model call the stub can't satisfy). The sandbox is
 # enabled and made mandatory by --settings, independent of permission mode. It is refused when
 # running as root, but GitHub-hosted runners are non-root. Nonzero exit is fine — the report is
 # the success signal.
 claude \
-  --settings "${PROJECT_ROOT}/scripts/config/claude-code-sandbox.json" \
+  "${settings[@]}" \
   --permission-mode bypassPermissions \
   --allowedTools "Bash" \
   -p "Run the sandbox probe and then stop." || true
