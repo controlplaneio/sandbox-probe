@@ -34,6 +34,8 @@ const (
 	RuntimeSeatbelt
 	RuntimeLandlock
 	RuntimeBubblewrap
+	RuntimeNspawn
+	RuntimeAppArmor
 	// add other runtimes as needed
 	RuntimeUnknown
 )
@@ -201,6 +203,14 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return runtime
 	}
 
+	// AppArmor: /proc/self/attr/current names the confining profile, or "unconfined" when none
+	// applies. A named profile (e.g. "sandbox-probe (enforce)") means the process is AppArmor-confined.
+	if data, err := readFile("/proc/self/attr/current"); err == nil {
+		if v := strings.TrimSpace(string(data)); v != "" && !strings.HasPrefix(v, "unconfined") {
+			return RuntimeAppArmor
+		}
+	}
+
 	landlock, err := probeForLandlock()
 	if err != nil {
 		log.Error().Err(err).Msg("failed to check for landlock")
@@ -235,6 +245,8 @@ func stringToContainerRuntime(s string) ContainerRuntime {
 		return RuntimePodman
 	case strings.Contains(s, "lxc"):
 		return RuntimeLXC
+	case strings.Contains(s, "nspawn"):
+		return RuntimeNspawn
 	case strings.Contains(s, "firejail"):
 		return RuntimeFirejail
 	case strings.Contains(s, "seatbelt"):

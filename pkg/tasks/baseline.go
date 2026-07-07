@@ -536,6 +536,10 @@ func (t *SandboxTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 		runtimeStr = "seatbelt"
 	case baselineTasks.RuntimeLandlock:
 		runtimeStr = "landlock"
+	case baselineTasks.RuntimeNspawn:
+		runtimeStr = "nspawn"
+	case baselineTasks.RuntimeAppArmor:
+		runtimeStr = "apparmor"
 	case baselineTasks.RuntimeUnknown:
 		runtimeStr = "unknown"
 	}

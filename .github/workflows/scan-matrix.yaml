@@ -98,6 +98,10 @@ jobs:
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: podman,   runtime: podman,   expect: '["podman"]' }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: docker,   runtime: docker,   expect: '["docker"]' }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: bwrap,    runtime: bwrap,    expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
+          # New signals (best-effort until CI-proven): AppArmor (LSM), systemd-nspawn (container), gVisor (userspace kernel).
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: apparmor, runtime: apparmor, expect: '["apparmor"]', optional: true }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: nspawn,   runtime: nspawn,   expect: '["nspawn"]', optional: true }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: gvisor,   runtime: gvisor,   expect: '["gvisor"]', optional: true }
     runs-on: ${{ matrix.runner }}
     env:
       PROBE: ./sandbox-probe${{ matrix.ext }}
@@ -201,6 +205,43 @@ jobs:
           if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
+      - if: matrix.runtime == 'apparmor'
+        name: load a named AppArmor profile
+        shell: bash
+        run: |
+          sudo apt-get update || true; sudo apt-get install -y apparmor-utils
+          # Permissive but named (complain mode): the probe is *confined* — a profile shows in
+          # /proc/self/attr/current — without the profile blocking the scan.
+          sudo tee /etc/apparmor.d/sandbox-probe >/dev/null <<'PROFILE'
+          include <tunables/global>
+          profile sandbox-probe flags=(attach_disconnected,complain) {
+            file,
+            capability,
+            network,
+          }
+          PROFILE
+          sudo apparmor_parser -r /etc/apparmor.d/sandbox-probe
+          sudo aa-status | grep sandbox-probe || true
+      - if: matrix.runtime == 'nspawn'
+        name: install systemd-nspawn + build a rootfs
+        shell: bash
+        run: |
+          sudo apt-get update || true; sudo apt-get install -y systemd-container
+          ROOTFS="$RUNNER_TEMP/nspawn-rootfs"
+          mkdir -p "$ROOTFS"
+          # Populate a minimal rootfs from the ubuntu image (faster/more reliable than debootstrap).
+          cid=$(docker create ubuntu:latest)
+          docker export "$cid" | sudo tar -C "$ROOTFS" -xf -
+          docker rm "$cid"
+          echo "ROOTFS=$ROOTFS" >> "$GITHUB_ENV"
+      - if: matrix.runtime == 'gvisor'
+        name: install gvisor (runsc, systrap platform)
+        shell: bash
+        run: |
+          curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | sudo tee /etc/apt/sources.list.d/gvisor.list >/dev/null
+          sudo apt-get update || true; sudo apt-get install -y runsc
+          runsc --version
 
       # ── run the probe under the harness (model stubbed by the general mock) ────
       - if: matrix.family == 'direct'

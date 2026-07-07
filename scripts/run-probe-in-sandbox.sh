@@ -7,13 +7,16 @@
 #   podman   — rootless OCI container (Linux)
 #   docker   — Docker container (Linux)
 #   bwrap    — standalone bubblewrap, parent visible (the #38-detectable invocation; Linux)
+#   apparmor — aa-exec under a named AppArmor profile (Linux)
+#   nspawn   — systemd-nspawn container (Linux; needs ROOTFS)
+#   gvisor   — runsc run, systrap platform, no KVM (Linux)
 #
-# Required env: PROBE, OUT, RUNTIME. Optional: RUNNER, PORT (unused), SCAN_ARGS.
+# Required env: PROBE, OUT, RUNTIME. Optional: RUNNER, PORT (unused), SCAN_ARGS, ROOTFS (nspawn).
 set -eo pipefail
 
 : "${PROBE:?PROBE (probe binary path) is required}"
 : "${OUT:?OUT (report output path) is required}"
-: "${RUNTIME:?RUNTIME (srt|firejail|nono|podman|docker|bwrap) is required}"
+: "${RUNTIME:?RUNTIME (srt|firejail|nono|podman|docker|bwrap|apparmor|nspawn|gvisor) is required}"
 RUNNER="${RUNNER:-$(uname -s)}"
 SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
 
@@ -61,6 +64,35 @@ JSON
       --ro-bind /lib /lib --ro-bind-try /lib64 /lib64 --ro-bind /etc /etc --proc /proc --dev /dev \
       --bind "$PWD" /work --chdir /work --unshare-user --unshare-ipc --unshare-uts --unshare-cgroup --die-with-parent \
       "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" || true
+    ;;
+  apparmor)
+    # aa-exec transitions into the pre-loaded (permissive-but-named) profile; the probe then reads
+    # /proc/self/attr/current = "sandbox-probe (enforce)" -> "apparmor".
+    sudo aa-exec -p sandbox-probe -- "${CMD[@]}" || true
+    ;;
+  nspawn)
+    # ROOTFS is a prepared root filesystem (built by the workflow); copy the probe in and bind the
+    # report dir back to the host. Inside, container=systemd-nspawn -> "nspawn".
+    : "${ROOTFS:?ROOTFS (prepared rootfs dir) is required for nspawn}"
+    sudo cp "$PROBE_ABS" "$ROOTFS/probe"
+    sudo systemd-nspawn -q -D "$ROOTFS" --bind="$(dirname "$OUT_ABS")" \
+      /probe $SCAN_ARGS --tags "$TAGS" --output_path "$OUT_ABS" </dev/null || true
+    ;;
+  gvisor)
+    # Full runsc container (systrap platform — no KVM needed) so /__runsc_containers__ exists ->
+    # "gvisor". Build a minimal rootless OCI bundle: just the static probe + a bind-mounted report dir.
+    BUNDLE="$(mktemp -d)"; mkdir -p "$BUNDLE/rootfs"
+    sudo cp "$PROBE_ABS" "$BUNDLE/rootfs/probe"
+    OUTDIR="$(dirname "$OUT_ABS")"
+    ( cd "$BUNDLE" && runsc spec )
+    ARGS_JSON="$(printf '%s\n' /probe $SCAN_ARGS --tags "$TAGS" --output_path "$OUT_ABS" | jq -R . | jq -s .)"
+    TMPCFG="$(mktemp)"
+    jq --arg out "$OUTDIR" --argjson args "$ARGS_JSON" \
+      '.process.args=$args | .process.terminal=false
+       | .mounts += [{"destination":$out,"source":$out,"type":"bind","options":["bind","rw"]}]' \
+      "$BUNDLE/config.json" > "$TMPCFG" && mv "$TMPCFG" "$BUNDLE/config.json"
+    sudo runsc --network=none run -bundle "$BUNDLE" gvisor-probe </dev/null || true
+    sudo rm -rf "$BUNDLE"
     ;;
   *)
     echo "::error::unknown RUNTIME '${RUNTIME}'"; exit 1 ;;

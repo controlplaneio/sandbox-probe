@@ -122,6 +122,15 @@ func Test_getContainerRuntime(t *testing.T) {
 			},
 		},
 		{
+			name: "systemd-nspawn test",
+			args: args{
+				runtimeStr: "systemd-nspawn",
+			},
+			want: want{
+				runtime: RuntimeNspawn,
+			},
+		},
+		{
 			name: "unknown test",
 			args: args{
 				runtimeStr: "unknown",
@@ -154,4 +163,28 @@ func Test_getContainerRuntime(t *testing.T) {
 	}
 }
 
+func TestGetContainerRuntimeAppArmor(t *testing.T) {
+	origRead, origExists, origLandlock := readFile, fileExistsFunc, probeForLandlock
+	t.Cleanup(func() { readFile, fileExistsFunc, probeForLandlock = origRead, origExists, origLandlock })
+	fileExistsFunc = func(string) bool { return false }
+	probeForLandlock = func() (bool, error) { return false, nil }
 
+	// A named profile means AppArmor-confined; "unconfined" must not.
+	for _, tt := range []struct {
+		attr         string
+		wantApparmor bool
+	}{
+		{"sandbox-probe (enforce)\n", true},
+		{"unconfined\n", false},
+	} {
+		readFile = func(path string) ([]byte, error) {
+			if path == "/proc/self/attr/current" {
+				return []byte(tt.attr), nil
+			}
+			return nil, fmt.Errorf("file not found")
+		}
+		if got := GetContainerRuntime(0, 0) == RuntimeAppArmor; got != tt.wantApparmor {
+			t.Errorf("attr %q: apparmor=%v, want %v", tt.attr, got, tt.wantApparmor)
+		}
+	}
+}
