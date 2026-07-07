@@ -25,6 +25,19 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 mkdir -p "$(dirname "$OUT")"
 
+# Force gemini-cli to API-key auth against the mock (0.49+ needs the auth type set explicitly, and
+# this overrides any cached OAuth login). A workspace .gemini/settings.json works both directly and
+# inside the container sandbox, which mounts the workspace. Back up any existing one; cleanup() (the
+# EXIT trap set once the stub is up) restores it and stops the mock.
+GEMINI_SETTINGS=".gemini/settings.json"; GEMINI_BACKUP=""
+mkdir -p .gemini
+[ -f "$GEMINI_SETTINGS" ] && { GEMINI_BACKUP="$(mktemp)"; mv "$GEMINI_SETTINGS" "$GEMINI_BACKUP"; }
+printf '{"security":{"auth":{"selectedType":"gemini-api-key"}}}\n' > "$GEMINI_SETTINGS"
+cleanup() {
+  kill "${STUB_PID:-}" 2>/dev/null || true
+  if [ -n "$GEMINI_BACKUP" ]; then mv "$GEMINI_BACKUP" "$GEMINI_SETTINGS"; else rm -f "$GEMINI_SETTINGS"; rmdir .gemini 2>/dev/null || true; fi
+}
+
 VERSION="$(gemini --version 2>/dev/null | head -1)"
 TAGS="runner=${RUNNER},harness=gemini,sandbox=${GEMINI_SANDBOX:-none},gemini=${VERSION},mode=via-gemini-stub"
 
@@ -46,16 +59,15 @@ PROBE_CMD="${PROBE} ${SCAN_ARGS} --tags ${TAGS} --output_path ${OUT}" \
 STUB_LOG="$STUB_LOG" \
   node "${PROJECT_ROOT}/scripts/mock-agent-api.mjs" &
 STUB_PID=$!
-trap 'kill "$STUB_PID" 2>/dev/null || true' EXIT
+trap cleanup EXIT
 for _ in $(seq 1 50); do
   if (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") 2>/dev/null; then exec 3>&- 3<&-; break; fi
   sleep 0.1
 done
 
-# API-key auth against the local mock: a dummy key is fine (the mock ignores it) and, with no
-# cached OAuth creds, gemini-cli selects API-key auth from GEMINI_API_KEY. The mock injects
-# PROBE_CMD, so the prompt text is ignored. yolo auto-approves the shell tool;
-# GEMINI_CLI_TRUST_WORKSPACE avoids the folder-trust prompt (its --skip-trust flag was removed).
+# A dummy key is fine (the mock ignores it); the settings file above forces API-key auth. The mock
+# injects PROBE_CMD, so the prompt text is ignored. yolo auto-approves the shell tool;
+# GEMINI_CLI_TRUST_WORKSPACE avoids the folder-trust prompt (the --skip-trust flag was removed).
 export GEMINI_API_KEY=dummy
 export GOOGLE_GEMINI_BASE_URL="http://${BASE_HOST}:${PORT}"
 export GEMINI_CLI_TRUST_WORKSPACE=true

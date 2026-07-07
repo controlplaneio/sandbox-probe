@@ -30,12 +30,9 @@ mkdir -p reports
 OUT="reports/sandbox-gemini.json"
 rm -f "$OUT"
 
-# Scratch HOME so a cached gemini OAuth login can't hijack the dummy-key gateway auth.
-GEMHOME="$(mktemp -d)"
-HOME="$GEMHOME" PROBE=./bin/sandbox-probe OUT="$OUT" RUNNER="$(uname -s)" GEMINI_SANDBOX="$SBX" \
+PROBE=./bin/sandbox-probe OUT="$OUT" RUNNER="$(uname -s)" GEMINI_SANDBOX="$SBX" \
 SCAN_ARGS="scan --tasks baseline_sandbox_task --tasksets none" \
   bash "${PROJECT_ROOT}/scripts/run-probe-via-gemini-stub.sh"
-rm -rf "$GEMHOME"
 
 if [ ! -f "$OUT" ]; then
   echo "detect_gemini: no report produced ✗"

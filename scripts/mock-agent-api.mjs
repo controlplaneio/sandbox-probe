@@ -79,25 +79,38 @@ function gemini(res, body) {
 // ── OpenAI /v1/responses (Codex) ────────────────────────────────────────────
 function openaiResponses(res, body) {
   const input = Array.isArray(body.input) ? body.input : [];
-  const done = input.some((i) => i && i.type === 'function_call_output');
-  for (const o of input.filter((i) => i && i.type === 'function_call_output')) log(`function_call_output: ${clip(typeof o.output === 'string' ? o.output : JSON.stringify(o.output || ''))}`);
-  // Echo whatever shell tool the request advertised (shell_command / exec_command / shell / local_shell)
-  // and shape its args from the tool's own schema: the command key is `cmd` or `command`, and a
-  // long-running scan needs a high timeout only where the tool exposes one.
-  const tool = (Array.isArray(body.tools) ? body.tools : []).find((t) => t && /shell|exec/i.test(t.name || t.type || ''));
-  const name = (tool && (tool.name || tool.type)) || 'shell';
-  const props = (tool && tool.parameters && tool.parameters.properties) || {};
-  const args = { [props.cmd ? 'cmd' : 'command']: PROBE_CMD };
-  if (props.timeout_ms) args.timeout_ms = BASH_TIMEOUT_MS > 0 ? BASH_TIMEOUT_MS : 600000;
+  const outputs = input.filter((i) => i && i.type === 'function_call_output');
+  for (const o of outputs) log(`function_call_output: ${clip(typeof o.output === 'string' ? o.output : JSON.stringify(o.output || ''))}`);
+  const lastText = outputs.length ? (typeof outputs[outputs.length - 1].output === 'string' ? outputs[outputs.length - 1].output : JSON.stringify(outputs[outputs.length - 1].output || '')) : '';
+  const running = /session id[:\s]+(\d+)/i.exec(lastText); // unified-exec left the process backgrounded
+
+  const tools = Array.isArray(body.tools) ? body.tools : [];
+  const shell = tools.find((t) => t && /shell|exec/i.test(t.name || t.type || '') && !/stdin/i.test(t.name || ''));
+  const stdin = tools.find((t) => t && /stdin/i.test(t.name || ''));
+
+  let item;
+  if (!outputs.length && shell && PROBE_CMD) {
+    // Turn 1: run the probe. Shape args from the tool's own schema (cmd vs command) and ask for a
+    // long yield so a multi-minute scan finishes in one call where possible.
+    const props = (shell.parameters && shell.parameters.properties) || {};
+    const args = { [props.cmd ? 'cmd' : 'command']: PROBE_CMD };
+    if (props.timeout_ms) args.timeout_ms = 600000;
+    if (props.yield_time_ms) args.yield_time_ms = 600000;
+    log(`openai ${shell.name} -> ${PROBE_CMD}`);
+    item = { type: 'function_call', call_id: rid('call_'), name: shell.name, arguments: JSON.stringify(args) };
+  } else if (running && stdin && !/exited|exit code/i.test(lastText)) {
+    // The scan is still running in a background session: poll it (empty stdin) until it exits, so
+    // the process isn't killed when the turn ends before the probe has written its report.
+    const sid = parseInt(running[1], 10);
+    log(`openai poll ${stdin.name} session=${sid}`);
+    item = { type: 'function_call', call_id: rid('call_'), name: stdin.name, arguments: JSON.stringify({ session_id: sid, chars: '', yield_time_ms: 600000 }) };
+  } else {
+    log('openai final');
+    item = { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'done' }] };
+  }
   sseHead(res);
   data(res, { type: 'response.created', response: { id: rid('resp_') } });
-  if (!done && PROBE_CMD) {
-    log(`openai ${name} -> ${PROBE_CMD}`);
-    data(res, { type: 'response.output_item.done', item: { type: 'function_call', call_id: rid('call_'), name, arguments: JSON.stringify(args) } });
-  } else {
-    log(`openai final (done=${done})`);
-    data(res, { type: 'response.output_item.done', item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'done' }] } });
-  }
+  data(res, { type: 'response.output_item.done', item });
   data(res, { type: 'response.completed', response: { id: rid('resp_') } });
   res.end();
 }
