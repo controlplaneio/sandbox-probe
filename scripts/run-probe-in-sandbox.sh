@@ -66,8 +66,10 @@ JSON
       "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" || true
     ;;
   apparmor)
-    # aa-exec transitions into the pre-loaded (permissive-but-named) profile; the probe then reads
-    # /proc/self/attr/current = "sandbox-probe (enforce)" -> "apparmor".
+    # aa-exec transitions into the pre-loaded named profile; the probe then reads its confinement
+    # from /proc/self/attr[/apparmor]/current -> "apparmor".
+    echo "apparmor context under aa-exec:"
+    sudo aa-exec -p sandbox-probe -- sh -c 'cat /proc/self/attr/apparmor/current 2>/dev/null; cat /proc/self/attr/current 2>/dev/null' || echo "aa-exec probe failed rc=$?"
     sudo aa-exec -p sandbox-probe -- "${CMD[@]}" || true
     ;;
   nspawn)
@@ -93,6 +95,8 @@ JSON
       '.root.path=$root | .process.args=$args | .process.terminal=false
        | .mounts += [{"destination":$out,"source":$out,"type":"bind","options":["bind","rw"]}]' \
       "$BUNDLE/config.json" > "$TMPCFG" && mv "$TMPCFG" "$BUNDLE/config.json"
+    # gVisor maps the container root to an unprivileged host uid; make the report dir writable to it.
+    chmod 0777 "$OUTDIR"
     sudo runsc --network=none run -bundle "$BUNDLE" gvisor-probe </dev/null || true
     sudo rm -rf "$BUNDLE"
     ;;

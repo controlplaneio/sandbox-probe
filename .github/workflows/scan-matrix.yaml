@@ -98,9 +98,9 @@ jobs:
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: podman,   runtime: podman,   expect: '["podman"]' }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: docker,   runtime: docker,   expect: '["docker"]' }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: bwrap,    runtime: bwrap,    expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
-          # New signals (best-effort until CI-proven): AppArmor (LSM), systemd-nspawn (container), gVisor (userspace kernel).
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: nspawn,   runtime: nspawn,   expect: '["nspawn"]' }
+          # Still stabilising in CI (best-effort): AppArmor (LSM) and gVisor (userspace kernel).
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: apparmor, runtime: apparmor, expect: '["apparmor"]', optional: true }
-          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: nspawn,   runtime: nspawn,   expect: '["nspawn"]', optional: true }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: gvisor,   runtime: gvisor,   expect: '["gvisor"]', optional: true }
     runs-on: ${{ matrix.runner }}
     env:
