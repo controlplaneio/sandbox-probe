@@ -68,6 +68,7 @@ JSON
   apparmor)
     # aa-exec transitions into the pre-loaded named profile; the probe reads its confinement from
     # /proc/self/attr[/apparmor]/current -> "apparmor".
+    echo "DIAG(bash) single-read attr: [$(sudo aa-exec -p sandbox-probe -- head -c 96 /proc/self/attr/apparmor/current 2>&1)]"
     sudo aa-exec -p sandbox-probe -- "${CMD[@]}" || true
     ;;
   nspawn)

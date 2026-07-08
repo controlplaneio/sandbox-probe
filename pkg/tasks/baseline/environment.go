@@ -42,18 +42,26 @@ const (
 
 var readFile = os.ReadFile
 
-// readProcAttr reads a /proc/*/attr file with a single Read. os.ReadFile issues a follow-up read to
-// detect EOF, which the AppArmor/SELinux attr interfaces reject with EINVAL — so os.ReadFile fails
-// on them even though the first read returns the profile. Returns "" on any error.
+// readProcAttr reads a /proc/*/attr file. os.ReadFile issues a follow-up read to detect EOF, which
+// the AppArmor/SELinux attr interfaces reject with EINVAL — so it fails even though the first read
+// returns the profile. Read in a loop, keeping whatever the first read yields and stopping on any
+// error or short read. Returns "" on open error / no data.
 var readProcAttr = func(path string) string {
 	f, err := os.Open(path)
 	if err != nil {
 		return ""
 	}
 	defer func() { _ = f.Close() }()
-	buf := make([]byte, 256)
-	n, _ := f.Read(buf)
-	return strings.TrimSpace(string(buf[:n]))
+	var out []byte
+	buf := make([]byte, 128)
+	for len(out) < 4096 {
+		n, err := f.Read(buf)
+		out = append(out, buf[:n]...)
+		if err != nil || n < len(buf) {
+			break
+		}
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // detectSensitiveEnvVars scans environment variables for secrets
@@ -226,10 +234,6 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 
 	// AppArmor: the current profile ("unconfined" when none applies; a named profile means confined).
 	// Newer kernels (6.x) expose it at the LSM-specific path; older ones at the legacy attr path.
-	sdc, _ := readFile("/run/systemd/container")
-	log.Info().Str("systemd_container", string(sdc)).Str("container_env", os.Getenv("container")).
-		Str("attr_apparmor", readProcAttr("/proc/self/attr/apparmor/current")).
-		Str("attr_legacy", readProcAttr("/proc/self/attr/current")).Msg("DIAG pre-apparmor")
 	for _, p := range []string{"/proc/self/attr/apparmor/current", "/proc/self/attr/current"} {
 		if v := readProcAttr(p); v != "" && !strings.HasPrefix(v, "unconfined") {
 			return RuntimeAppArmor
