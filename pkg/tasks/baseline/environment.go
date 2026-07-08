@@ -217,27 +217,22 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		}
 	}
 
-	// /run/systemd/container names the container manager (e.g. "systemd-nspawn"); only trust it when
-	// it maps to a known runtime, otherwise a bare/unknown marker would mask later detections.
+	// isNamed reports whether a marker string identifies a specific runtime (not empty/unknown), so a
+	// bare or unrecognised marker doesn't mask the more specific detections below.
+	isNamed := func(rt ContainerRuntime) bool { return rt != RuntimeUnknown && rt != RuntimeNotFound }
+
+	// /run/systemd/container names the container manager (e.g. "systemd-nspawn").
 	systemdContainerFile := "/run/systemd/container"
 	if data, err := readFile(systemdContainerFile); err == nil {
-		if runtime := stringToContainerRuntime(string(data)); runtime != RuntimeUnknown {
+		if runtime := stringToContainerRuntime(string(data)); isNamed(runtime) {
 			return runtime
 		}
 	}
 
 	// container env variable (same: only when it identifies a known runtime)
 	if containerEnv := os.Getenv("container"); containerEnv != "" {
-		if runtime := stringToContainerRuntime(containerEnv); runtime != RuntimeUnknown {
+		if runtime := stringToContainerRuntime(containerEnv); isNamed(runtime) {
 			return runtime
-		}
-	}
-
-	// AppArmor: the current profile ("unconfined" when none applies; a named profile means confined).
-	// Newer kernels (6.x) expose it at the LSM-specific path; older ones at the legacy attr path.
-	for _, p := range []string{"/proc/self/attr/apparmor/current", "/proc/self/attr/current"} {
-		if v := readProcAttr(p); v != "" && !strings.HasPrefix(v, "unconfined") {
-			return RuntimeAppArmor
 		}
 	}
 
@@ -255,10 +250,20 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return RuntimeBubblewrap
 	}
 
-	// chroot: a differing root vs init's. Checked after the container/LSM detections above so a real
+	// chroot: a differing root vs init's. Checked after the container detections above so a real
 	// container (whose root also differs) is named first; this catches a bare chroot.
 	if isChroot() {
 		return RuntimeChroot
+	}
+
+	// AppArmor: a named profile ("unconfined" when none applies) means the process is LSM-confined.
+	// Ranked below the more specific wrappers above (a process can be both AppArmor-confined and
+	// bwrap/landlock-wrapped) but above the generic no-new-privs fallback. Newer kernels (6.x) expose
+	// the profile at the LSM-specific path; older ones at the legacy attr path.
+	for _, p := range []string{"/proc/self/attr/apparmor/current", "/proc/self/attr/current"} {
+		if v := readProcAttr(p); v != "" && !strings.HasPrefix(v, "unconfined") {
+			return RuntimeAppArmor
+		}
 	}
 
 	// no-new-privs is set by bwrap and by some other sandboxes (landlock, firejail);

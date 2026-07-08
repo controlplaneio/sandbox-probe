@@ -24,7 +24,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 mkdir -p "$(dirname "$OUT")"
 
-VERSION="$(codex --version 2>/dev/null | head -1)"
+VERSION="$(codex --version 2>/dev/null | awk 'NR==1{print}')" || VERSION=unknown
 TAGS="runner=${RUNNER},harness=codex,sandbox=${CODEX_SANDBOX},codex=${VERSION},mode=via-codex-stub"
 
 STUB_LOG="$(mktemp)"

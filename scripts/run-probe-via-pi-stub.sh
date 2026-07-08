@@ -18,7 +18,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 mkdir -p "$(dirname "$OUT")"
 
-VERSION="$(pi --version 2>/dev/null | head -1)"
+VERSION="$(pi --version 2>/dev/null | awk 'NR==1{print}')" || VERSION=unknown
 TAGS="runner=${RUNNER},harness=pi,pi=${VERSION},mode=via-pi-stub"
 
 STUB_LOG="$(mktemp)"

@@ -591,8 +591,6 @@ func (t *SandboxTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 		})
 	}
 
-	// TODO: Detect Seatbelt
-
 	log.Info().Str("task", t.GetName()).Msg("Sandbox detection task completed successfully")
 
 	return findings, nil

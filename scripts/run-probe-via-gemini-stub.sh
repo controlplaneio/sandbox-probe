@@ -38,7 +38,7 @@ cleanup() {
   if [ -n "$GEMINI_BACKUP" ]; then mv "$GEMINI_BACKUP" "$GEMINI_SETTINGS"; else rm -f "$GEMINI_SETTINGS"; rmdir .gemini 2>/dev/null || true; fi
 }
 
-VERSION="$(gemini --version 2>/dev/null | head -1)"
+VERSION="$(gemini --version 2>/dev/null | awk 'NR==1{print}')" || VERSION=unknown
 TAGS="runner=${RUNNER},harness=gemini,sandbox=${GEMINI_SANDBOX:-none},gemini=${VERSION},mode=via-gemini-stub"
 
 # Bind/reach the mock differently for the container sandbox (whole CLI runs inside it).

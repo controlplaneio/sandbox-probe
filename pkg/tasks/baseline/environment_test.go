@@ -166,13 +166,14 @@ func Test_getContainerRuntime(t *testing.T) {
 }
 
 func TestGetContainerRuntimeAppArmor(t *testing.T) {
-	origRead, origAttr, origExists, origLandlock := readFile, readProcAttr, fileExistsFunc, probeForLandlock
+	origRead, origAttr, origExists, origLandlock, origChroot := readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot
 	t.Cleanup(func() {
-		readFile, readProcAttr, fileExistsFunc, probeForLandlock = origRead, origAttr, origExists, origLandlock
+		readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot = origRead, origAttr, origExists, origLandlock, origChroot
 	})
 	readFile = func(string) ([]byte, error) { return nil, fmt.Errorf("file not found") }
 	fileExistsFunc = func(string) bool { return false }
 	probeForLandlock = func() (bool, error) { return false, nil }
+	isChroot = func() bool { return false }
 
 	// A named profile means AppArmor-confined; "unconfined" must not.
 	for _, tt := range []struct {
@@ -191,5 +192,46 @@ func TestGetContainerRuntimeAppArmor(t *testing.T) {
 		if got := GetContainerRuntime(0, 0) == RuntimeAppArmor; got != tt.wantApparmor {
 			t.Errorf("attr %q: apparmor=%v, want %v", tt.attr, got, tt.wantApparmor)
 		}
+	}
+}
+
+// The /run/systemd/container marker must name nspawn but must NOT mask a lower detector when the
+// marker is empty or unrecognised (the bug fixed by returning early only on a *named* runtime).
+func TestGetContainerRuntimeSystemdContainerMarker(t *testing.T) {
+	origRead, origAttr, origExists, origLandlock, origChroot := readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot
+	t.Cleanup(func() {
+		readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot = origRead, origAttr, origExists, origLandlock, origChroot
+	})
+	fileExistsFunc = func(string) bool { return false }
+	probeForLandlock = func() (bool, error) { return false, nil }
+
+	for _, tt := range []struct {
+		name        string
+		marker      string // /run/systemd/container contents ("" = file absent)
+		apparmor    bool   // whether a named AppArmor profile is present
+		wantRuntime ContainerRuntime
+	}{
+		{"nspawn marker names nspawn", "systemd-nspawn\n", false, RuntimeNspawn},
+		{"empty marker does not mask apparmor", "", true, RuntimeAppArmor},
+		{"unknown marker does not mask apparmor", "some-manager\n", true, RuntimeAppArmor},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			isChroot = func() bool { return false }
+			readFile = func(path string) ([]byte, error) {
+				if path == "/run/systemd/container" && tt.marker != "" {
+					return []byte(tt.marker), nil
+				}
+				return nil, fmt.Errorf("file not found")
+			}
+			readProcAttr = func(string) string {
+				if tt.apparmor {
+					return "sandbox-probe (complain)"
+				}
+				return ""
+			}
+			if got := GetContainerRuntime(0, 0); got != tt.wantRuntime {
+				t.Errorf("marker=%q apparmor=%v: got %v, want %v", tt.marker, tt.apparmor, got, tt.wantRuntime)
+			}
+		})
 	}
 }
