@@ -54,7 +54,7 @@ flowchart TB
     F --> Report[report.json<br/>+ logs/sandbox-probe-*.log]
 ```
 
-The 9 tasks in the `baseline` taskset:
+The 10 tasks in the `baseline` taskset:
 
 - `baseline_path_task`
 - `baseline_network_task`
@@ -63,6 +63,7 @@ The 9 tasks in the `baseline` taskset:
 - `baseline_process_task`
 - `baseline_user_context_task`
 - `baseline_hostname_task`
+- `baseline_environment_task`
 - `baseline_sandbox_task`
 - `baseline_mount_task`
 
@@ -86,7 +87,7 @@ Each row below is a `finding_type` string you will see in `report.json`, what it
 | `user_context_detection` | UID, GID, EUID, EGID | "Is the agent running as a privileged user?" |
 | `hostname_detection` | system hostname | "Does the sandbox leak the host identity?" |
 | `environment_detection` | host kernel release/version + OS release | "Which kernel/OS produced this result?" (so reports stay comparable across upgrades) |
-| `sandbox_detection` | detected runtime (Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, systemd-nspawn, WSL, OpenVZ, Seatbelt, Landlock, AppArmor) | "Is there *any* enforcement at all, and what kind?" |
+| `sandbox_detection` | detected runtime (Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, systemd-nspawn, WSL, OpenVZ, Seatbelt, Landlock, AppArmor, chroot) | "Is there *any* enforcement at all, and what kind?" |
 
 ## Reading a report
 
@@ -208,7 +209,7 @@ List every registered task with its description.
 ./bin/sandbox-probe tasks list
 ```
 
-The canonical task list (currently 12 tasks across two tasksets) is the output of this command.
+The canonical task list (currently 13 tasks across two tasksets) is the output of this command.
 
 ### `version`
 
@@ -336,6 +337,7 @@ The full task list (also obtainable from `./bin/sandbox-probe tasks list`):
 | `baseline_process_task` | Detects running processes and parent process information |
 | `baseline_user_context_task` | Detects user and group context information (UID, GID, EUID, EGID) |
 | `baseline_hostname_task` | Detects the system hostname |
+| `baseline_environment_task` | Records the host kernel release/version and OS release |
 | `baseline_sandbox_task` | Detects container runtime and sandbox environments (Docker, Podman, LXC, etc.) |
 | `baseline_mount_task` | Detects host-mounted volumes and filesystem mounts |
 | `ps_all_task` | Lists all running processes using `ps` |

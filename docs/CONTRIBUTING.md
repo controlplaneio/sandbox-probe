@@ -24,6 +24,7 @@ for improving this document are welcome too.
     - [Running Tests](#running-tests)
     - [Trialling Against Agent Sandboxes](#trialling-against-agent-sandboxes)
     - [Testing in AI Code Assistants](#testing-in-ai-code-assistants)
+    - [Agent sandboxes with no LLM (general mock)](#agent-sandboxes-with-no-llm-general-mock)
     - [Known Limitations](#known-limitations)
   - [Pull Requests](#pull-requests)
 - [Style Guides](#style-guides)
@@ -229,8 +230,8 @@ snapshot known to work:
 
 | Program     | Version     |
 | :---------- | :---------- |
-| Claude Code | `2.1.202`   |
-| Codex CLI   | `0.142.5`   |
+| Claude Code | `2.1.204`   |
+| Codex CLI   | `0.143.0`   |
 | Gemini      | `0.33.2`    |
 | OpenCode    | `1.17.15`   |
 | Goose       | `1.41.0`    |
@@ -269,7 +270,8 @@ local runs — we instead exercise each agent's sandbox with **no model call, no
 - `scripts/mock-agent-api.mjs` — one zero-dependency Node server that speaks **five** wire protocols,
   routing by request path: Anthropic (`/v1/messages`), Gemini (`:streamGenerateContent`), OpenAI
   Responses (`/v1/responses`, Codex), OpenAI Chat Completions (`/v1/chat/completions`, streaming and
-  non-streaming — OpenCode/Goose/Pi/gptme/Cline) and Ollama (`/api/chat`). Each returns a canned shell
+  non-streaming — OpenCode/Goose/Pi/gptme/Cline) and Ollama (`/api/chat`, wired for a future
+  native-Ollama agent; not yet exercised by a matrix row). Each returns a canned shell
   tool call running `$PROBE_CMD`, echoing whatever tool name the request advertised and shaping the
   argument from that tool's own schema (e.g. Cline's `run_commands` takes a `commands` array), and
   answers anything else trivially — so it survives CLI churn. When an agent changes its wire shape
