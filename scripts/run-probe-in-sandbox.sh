@@ -22,7 +22,25 @@ SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
 mkdir -p "$(dirname "$OUT")"
 PROBE_ABS="$(cd "$(dirname "$PROBE")" && pwd)/$(basename "$PROBE")"
 OUT_ABS="$(cd "$(dirname "$OUT")" && pwd)/$(basename "$OUT")"
-TAGS="runner=${RUNNER},harness=${RUNTIME},sandbox=on,mode=via-sandbox"
+
+# Capture the sandbox tool's own version (and the kernel) into the report tags, so results are
+# comparable across tool/kernel upgrades over time — seccomp/landlock/userns/systrap behaviour all
+# shift with these. awk consumes the whole stream (no `head` — that would SIGPIPE under pipefail);
+# each extractor picks the version token from the tool's first --version line.
+sandbox_version() {
+  case "$1" in
+    srt)      srt --version            2>/dev/null | awk 'NR==1{print $1}' ;;
+    firejail) firejail --version       2>/dev/null | awk 'NR==1{print $NF}' ;;
+    nono)     nono --version           2>/dev/null | awk 'NR==1{print $NF}' ;;
+    bwrap)    bwrap --version          2>/dev/null | awk 'NR==1{print $NF}' ;;
+    podman)   podman --version         2>/dev/null | awk 'NR==1{print $3}' ;;
+    docker)   docker --version         2>/dev/null | awk 'NR==1{gsub(/,/,"",$3); print $3}' ;;
+    gvisor)   runsc --version          2>/dev/null | awk 'NR==1{print $NF}' ;;
+    nspawn)   systemd-nspawn --version 2>/dev/null | awk 'NR==1{print $2}' ;;
+  esac
+}
+RUNTIME_VERSION="$(sandbox_version "$RUNTIME")" || RUNTIME_VERSION=""
+TAGS="runner=${RUNNER},harness=${RUNTIME},${RUNTIME}=${RUNTIME_VERSION:-unknown},kernel=$(uname -r),sandbox=on,mode=via-sandbox"
 CMD=("$PROBE_ABS" $SCAN_ARGS --tags "$TAGS" --output_path "$OUT_ABS")
 
 echo "::group::sandbox ${RUNTIME}"

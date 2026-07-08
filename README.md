@@ -85,7 +85,7 @@ Each row below is a `finding_type` string you will see in `report.json`, what it
 | `mounted_volumes_detections` | mounted filesystems visible from inside | "What of the host filesystem is exposed?" |
 | `user_context_detection` | UID, GID, EUID, EGID | "Is the agent running as a privileged user?" |
 | `hostname_detection` | system hostname | "Does the sandbox leak the host identity?" |
-| `sandbox_detection` | detected runtime (Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, WSL, OpenVZ, Seatbelt, Landlock) | "Is there *any* enforcement at all, and what kind?" |
+| `sandbox_detection` | detected runtime (Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, systemd-nspawn, WSL, OpenVZ, Seatbelt, Landlock, AppArmor) | "Is there *any* enforcement at all, and what kind?" |
 
 ## Reading a report
 
@@ -163,7 +163,7 @@ diff <(jq -S . reports/baseline-claude.json) \
 >
 > You can reduce the risk by using the interactive variants (`*_interactive.sh`), but the agent may still take autonomous action you don't expect.
 
-For more detail see [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md#trialing-against-agent-sandboxes).
+For more detail see [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md#trialling-against-agent-sandboxes).
 
 ## CLI reference
 
@@ -285,7 +285,7 @@ The included test scripts target:
 
 ### Agent sandboxes with no LLM
 
-Driving a real agent to run the probe costs tokens and is non-deterministic. So we exercise each agent's **real** sandbox with **no model call, no API key, and no tokens**: one general mock ([`scripts/mock-agent-api.mjs`](./scripts/mock-agent-api.mjs)) speaks five wire protocols — Anthropic (`/v1/messages`), Gemini (`:streamGenerateContent`), OpenAI Responses (`/v1/responses`, Codex), OpenAI Chat Completions (`/v1/chat/completions`, streaming and non-streaming — OpenCode/Goose/Pi/gptme/Cline) and Ollama (`/api/chat`) — and returns a canned shell tool call that runs the probe (shaping the argument from each tool's own schema — e.g. Cline's `run_commands` takes a `commands` array). The real agent binary — pointed at the mock via its base-URL override — then executes it inside whatever OS sandbox it ships ([bubblewrap](https://github.com/containers/bubblewrap) on Linux, Seatbelt on macOS, a container for Gemini; OpenCode, Goose, Pi, gptme and Cline ship none, so those rows run unconfined). See `scripts/run-probe-via-{claude,gemini,codex,opencode,goose,pi,gptme,cline}-stub.sh`.
+Driving a real agent to run the probe costs tokens and is non-deterministic. So we exercise each agent's **real** sandbox with **no model call, no API key, and no tokens**: one general mock ([`scripts/mock-agent-api.mjs`](./scripts/mock-agent-api.mjs)) speaks five wire protocols — Anthropic (`/v1/messages`), Gemini (`:streamGenerateContent`), OpenAI Responses (`/v1/responses`, Codex), OpenAI Chat Completions (`/v1/chat/completions`, streaming and non-streaming — OpenCode/Goose/Pi/gptme/Cline) and Ollama (`/api/chat`, wired for a future native-Ollama agent; not yet exercised by a matrix row) — and returns a canned shell tool call that runs the probe (shaping the argument from each tool's own schema — e.g. Cline's `run_commands` takes a `commands` array). The real agent binary — pointed at the mock via its base-URL override — then executes it inside whatever OS sandbox it ships ([bubblewrap](https://github.com/containers/bubblewrap) on Linux, Seatbelt on macOS, a container for Gemini; OpenCode, Goose, Pi, gptme and Cline ship none, so those rows run unconfined). See `scripts/run-probe-via-{claude,gemini,codex,opencode,goose,pi,gptme,cline}-stub.sh`.
 
 This is what CI runs. The [`scan-matrix`](./.github/workflows/scan-matrix.yaml) workflow builds the probe and runs it across a **harness** axis — one row per way of executing the probe:
 - `direct` (unconfined baseline, on linux/macos/windows), and each agent as-is vs its own sandbox: `claude`/`claude-sandbox`, `codex`/`codex-sandbox`, `gemini`/`gemini-docker`/`gemini-sandbox-exec`, and the unconfined `opencode` (linux/macos/**windows**) / `goose` / `pi` / `gptme` / `cline`.

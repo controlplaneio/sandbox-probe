@@ -53,6 +53,8 @@ jobs:
   scan:
     name: ${{ matrix.harness }} (${{ matrix.os }})
     needs: build
+    # Best-effort opt-in: a row may set `optional: true` to be non-blocking (e.g. a fragile new
+    # runtime being stabilised). All rows are currently blocking; none set it.
     continue-on-error: ${{ matrix.optional == true }}
     strategy:
       fail-fast: false
