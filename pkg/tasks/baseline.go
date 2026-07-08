@@ -540,6 +540,8 @@ func (t *SandboxTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 		runtimeStr = "nspawn"
 	case baselineTasks.RuntimeAppArmor:
 		runtimeStr = "apparmor"
+	case baselineTasks.RuntimeChroot:
+		runtimeStr = "chroot"
 	case baselineTasks.RuntimeUnknown:
 		runtimeStr = "unknown"
 	}

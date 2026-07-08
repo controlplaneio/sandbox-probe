@@ -36,6 +36,7 @@ const (
 	RuntimeBubblewrap
 	RuntimeNspawn
 	RuntimeAppArmor
+	RuntimeChroot
 	// add other runtimes as needed
 	RuntimeUnknown
 )
@@ -252,6 +253,12 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 	// this is detectable even when the ancestor /proc entries are hidden by PID namespace.
 	if isUserNamespaceWithUIDMap() {
 		return RuntimeBubblewrap
+	}
+
+	// chroot: a differing root vs init's. Checked after the container/LSM detections above so a real
+	// container (whose root also differs) is named first; this catches a bare chroot.
+	if isChroot() {
+		return RuntimeChroot
 	}
 
 	// no-new-privs is set by bwrap and by some other sandboxes (landlock, firejail);

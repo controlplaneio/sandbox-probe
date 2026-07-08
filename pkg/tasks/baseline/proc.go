@@ -3,6 +3,12 @@
 
 package tasks
 
+var isChroot = isChrootImpl
+
+func isChrootImpl() bool {
+	return false
+}
+
 func isProcSelfSetNoNewPrivs() bool {
 	return false
 }

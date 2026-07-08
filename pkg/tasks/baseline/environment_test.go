@@ -153,7 +153,9 @@ func Test_getContainerRuntime(t *testing.T) {
 			}
 			fileExistsFunc = func(path string) bool { return false }
 			probeForLandlock = func() (bool, error) { return false, nil }
-			t.Cleanup(func() { probeForLandlock = probeForLandlockImpl })
+			origChroot := isChroot
+			isChroot = func() bool { return false }
+			t.Cleanup(func() { probeForLandlock = probeForLandlockImpl; isChroot = origChroot })
 
 			runtime := GetContainerRuntime(0, 0)
 			if runtime != tt.want.runtime {

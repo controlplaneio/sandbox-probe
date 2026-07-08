@@ -9,6 +9,22 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+var isChroot = isChrootImpl
+
+// isChrootImpl reports whether the process root differs from init's root (/proc/1/root) — the
+// signature of a chroot. Best-effort: it needs /proc mounted and /proc/1/root readable, and chroot
+// is by design hard to detect. Returns false on any error (not chrooted / can't tell).
+func isChrootImpl() bool {
+	var root, initRoot unix.Stat_t
+	if err := unix.Stat("/", &root); err != nil {
+		return false
+	}
+	if err := unix.Stat("/proc/1/root", &initRoot); err != nil {
+		return false
+	}
+	return root.Dev != initRoot.Dev || root.Ino != initRoot.Ino
+}
+
 func isProcSelfSetNoNewPrivs() bool {
 	r1, _, errno := unix.Syscall6(
 		unix.SYS_PRCTL,
