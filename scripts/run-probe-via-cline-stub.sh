@@ -26,7 +26,7 @@ mkdir -p "$(dirname "$OUT")"
 PROBE_ABS="$(cd "$(dirname "$PROBE")" && pwd)/$(basename "$PROBE")"
 OUT_ABS="$(cd "$(dirname "$OUT")" && pwd)/$(basename "$OUT")"
 
-VERSION="$(cline --version 2>/dev/null | awk 'NR==1{if(match($0,/[0-9]+\.[0-9][0-9.]*/)) print substr($0,RSTART,RLENGTH)}')" || VERSION=""; VERSION="${VERSION:-unknown}"
+VERSION="$(cline --version 2>/dev/null | awk 'match($0,/[0-9]+\.[0-9][0-9.]*/) && !seen {print substr($0,RSTART,RLENGTH); seen=1}')" || VERSION=""; VERSION="${VERSION:-unknown}"
 TAGS="runner=${RUNNER},harness=cline,cline=${VERSION},mode=via-cline-stub"
 
 STUB_LOG="$(mktemp)"

@@ -26,7 +26,7 @@ mkdir -p "$(dirname "$OUT")"
 
 # Extract a whitespace-free version token (codex prints "codex-cli 0.143.0"; a space would word-split
 # the shell command the mock runs and truncate the tag list). match() reads to EOF so it's SIGPIPE-safe.
-VERSION="$(codex --version 2>/dev/null | awk 'NR==1{if(match($0,/[0-9]+\.[0-9][0-9.]*/)) print substr($0,RSTART,RLENGTH)}')" || VERSION=""; VERSION="${VERSION:-unknown}"
+VERSION="$(codex --version 2>/dev/null | awk 'match($0,/[0-9]+\.[0-9][0-9.]*/) && !seen {print substr($0,RSTART,RLENGTH); seen=1}')" || VERSION=""; VERSION="${VERSION:-unknown}"
 # When confining on Linux, Codex wraps the probe in bubblewrap — record bwrap's version too (the
 # sandbox engine the report reflects; kernel/OS is in the environment_detection finding). No-op on
 # macOS (Seatbelt) / when unconfined.

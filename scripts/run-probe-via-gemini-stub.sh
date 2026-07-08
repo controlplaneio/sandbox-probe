@@ -38,7 +38,7 @@ cleanup() {
   if [ -n "$GEMINI_BACKUP" ]; then mv "$GEMINI_BACKUP" "$GEMINI_SETTINGS"; else rm -f "$GEMINI_SETTINGS"; rmdir .gemini 2>/dev/null || true; fi
 }
 
-VERSION="$(gemini --version 2>/dev/null | awk 'NR==1{if(match($0,/[0-9]+\.[0-9][0-9.]*/)) print substr($0,RSTART,RLENGTH)}')" || VERSION=""; VERSION="${VERSION:-unknown}"
+VERSION="$(gemini --version 2>/dev/null | awk 'match($0,/[0-9]+\.[0-9][0-9.]*/) && !seen {print substr($0,RSTART,RLENGTH); seen=1}')" || VERSION=""; VERSION="${VERSION:-unknown}"
 # For the docker backend, record the docker version too (the sandbox engine the report reflects;
 # kernel/OS is in the environment_detection finding). Seatbelt (sandbox-exec) has no separate version.
 SANDBOX_TOOL_TAG=""

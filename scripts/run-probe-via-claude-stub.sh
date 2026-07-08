@@ -29,7 +29,7 @@ mkdir -p "$(dirname "$OUT")"
 
 # Extract a whitespace-free version token (a tag value with a space would word-split the shell
 # command the mock runs, truncating the tag list). match() reads to EOF so it's SIGPIPE-safe.
-VERSION="$(claude --version 2>/dev/null | awk 'NR==1{if(match($0,/[0-9]+\.[0-9][0-9.]*/)) print substr($0,RSTART,RLENGTH)}')" || VERSION=""; VERSION="${VERSION:-unknown}"
+VERSION="$(claude --version 2>/dev/null | awk 'match($0,/[0-9]+\.[0-9][0-9.]*/) && !seen {print substr($0,RSTART,RLENGTH); seen=1}')" || VERSION=""; VERSION="${VERSION:-unknown}"
 # When confining on Linux, Claude Code wraps the probe in bubblewrap — record bwrap's version too,
 # since that's the sandbox engine whose behaviour the report reflects (kernel/OS is in the report's
 # environment_detection finding). No-op on macOS (Seatbelt) / when unconfined.
