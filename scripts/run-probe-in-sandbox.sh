@@ -9,15 +9,13 @@
 #   bwrap    — standalone bubblewrap, parent visible (the #38-detectable invocation; Linux)
 #   nspawn   — systemd-nspawn container (Linux; needs ROOTFS)
 #   gvisor   — runsc run, systrap platform, no KVM (Linux; needs ROOTFS)
-#   chroot   — plain chroot, the "does almost nothing" control (Linux; needs ROOTFS)
-#   lxc      — privileged LXC application container (Linux; needs ROOTFS)
 #
 # Required env: PROBE, OUT, RUNTIME. Optional: RUNNER, PORT (unused), SCAN_ARGS, ROOTFS.
 set -eo pipefail
 
 : "${PROBE:?PROBE (probe binary path) is required}"
 : "${OUT:?OUT (report output path) is required}"
-: "${RUNTIME:?RUNTIME (srt|firejail|nono|podman|docker|bwrap|nspawn|gvisor|chroot|lxc) is required}"
+: "${RUNTIME:?RUNTIME (srt|firejail|nono|podman|docker|bwrap|nspawn|gvisor) is required}"
 RUNNER="${RUNNER:-$(uname -s)}"
 SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
 
@@ -93,30 +91,6 @@ JSON
     chmod 0777 "$OUTDIR"
     sudo runsc --network=none run -bundle "$BUNDLE" gvisor-probe </dev/null || true
     sudo rm -rf "$BUNDLE"
-    ;;
-  chroot)
-    # Plain chroot into the ubuntu ROOTFS. Bind /proc (so the probe can compare its root to init's)
-    # and the report dir back to the host. The "does almost nothing" control.
-    : "${ROOTFS:?ROOTFS (prepared rootfs dir) is required for chroot}"
-    sudo cp "$PROBE_ABS" "$ROOTFS/probe"
-    OUTDIR="$(dirname "$OUT_ABS")"
-    sudo mkdir -p "${ROOTFS}/proc" "${ROOTFS}${OUTDIR}"
-    sudo mount --bind /proc "${ROOTFS}/proc" 2>/dev/null || true
-    sudo mount --bind "$OUTDIR" "${ROOTFS}${OUTDIR}" 2>/dev/null || true
-    sudo chroot "$ROOTFS" /probe $SCAN_ARGS --tags "$TAGS" --output_path "$OUT_ABS" </dev/null || true
-    sudo umount "${ROOTFS}${OUTDIR}" 2>/dev/null || true
-    sudo umount "${ROOTFS}/proc" 2>/dev/null || true
-    ;;
-  lxc)
-    # Privileged LXC application container over the ubuntu ROOTFS; the probe fingerprints "lxc" from
-    # cgroup/container markers. Writes inside the container, then copied out.
-    : "${ROOTFS:?ROOTFS (prepared rootfs dir) is required for lxc}"
-    sudo cp "$PROBE_ABS" "$ROOTFS/probe"
-    CFG="$(mktemp)"
-    printf 'lxc.rootfs.path = dir:%s\nlxc.uts.name = sandbox-probe\n' "$ROOTFS" > "$CFG"
-    sudo lxc-execute -n sandbox-probe -f "$CFG" -- /probe $SCAN_ARGS --tags "$TAGS" --output_path /out.json </dev/null || true
-    sudo cp "${ROOTFS}/out.json" "$OUT_ABS" 2>/dev/null || true
-    rm -f "$CFG"
     ;;
   *)
     echo "::error::unknown RUNTIME '${RUNTIME}'"; exit 1 ;;

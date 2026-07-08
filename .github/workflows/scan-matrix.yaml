@@ -82,7 +82,7 @@ jobs:
           # opencode / goose / pi / gptme / cline — real agents (chat/completions), model stubbed; NO native sandbox (unconfined "as-is").
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: opencode, harness: opencode }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: opencode, harness: opencode }
-          - { os: windows, runner: windows-latest, arch: windows-amd64, ext: ".exe", family: opencode, harness: opencode, optional: true }
+          - { os: windows, runner: windows-latest, arch: windows-amd64, ext: ".exe", family: opencode, harness: opencode }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: goose,    harness: goose }
           - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: goose,    harness: goose }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: pi,       harness: pi }
@@ -101,9 +101,6 @@ jobs:
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: bwrap,    runtime: bwrap,    expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: nspawn,   runtime: nspawn,   expect: '["nspawn"]' }
           - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: gvisor,   runtime: gvisor,   expect: '["gvisor"]' }
-          # Tier-3 extras (best-effort): chroot (the near-useless control) and privileged LXC.
-          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: chroot,   runtime: chroot,   expect: '["chroot"]', optional: true }
-          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: lxc,      runtime: lxc,      expect: '["lxc"]', optional: true }
     runs-on: ${{ matrix.runner }}
     env:
       PROBE: ./sandbox-probe${{ matrix.ext }}
@@ -208,7 +205,7 @@ jobs:
           if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
-      - if: matrix.runtime == 'nspawn' || matrix.runtime == 'gvisor' || matrix.runtime == 'chroot' || matrix.runtime == 'lxc'
+      - if: matrix.runtime == 'nspawn' || matrix.runtime == 'gvisor'
         name: build a container rootfs (ubuntu)
         shell: bash
         run: |
@@ -225,10 +222,6 @@ jobs:
         name: install systemd-nspawn
         shell: bash
         run: sudo apt-get update || true; sudo apt-get install -y systemd-container
-      - if: matrix.runtime == 'lxc'
-        name: install lxc
-        shell: bash
-        run: sudo apt-get update || true; sudo apt-get install -y lxc
       - if: matrix.runtime == 'gvisor'
         name: install gvisor (runsc, systrap platform)
         shell: bash
