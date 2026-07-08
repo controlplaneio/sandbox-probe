@@ -25,7 +25,15 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 mkdir -p "$(dirname "$OUT")"
 
 VERSION="$(codex --version 2>/dev/null | awk 'NR==1{print}')" || VERSION=unknown
-TAGS="runner=${RUNNER},harness=codex,sandbox=${CODEX_SANDBOX},codex=${VERSION},mode=via-codex-stub"
+# When confining on Linux, Codex wraps the probe in bubblewrap — record bwrap's version too (the
+# sandbox engine the report reflects; kernel/OS is in the environment_detection finding). No-op on
+# macOS (Seatbelt) / when unconfined.
+SANDBOX_TOOL_TAG=""
+if [ "$CODEX_SANDBOX" = "on" ] && command -v bwrap >/dev/null 2>&1; then
+  BWRAP_VERSION="$(bwrap --version 2>/dev/null | awk 'NR==1{print $NF}')" || BWRAP_VERSION=""
+  [ -n "$BWRAP_VERSION" ] && SANDBOX_TOOL_TAG=",bwrap=${BWRAP_VERSION}"
+fi
+TAGS="runner=${RUNNER},harness=codex,sandbox=${CODEX_SANDBOX},codex=${VERSION}${SANDBOX_TOOL_TAG},mode=via-codex-stub"
 
 STUB_LOG="$(mktemp)"
 PORT="$PORT" \

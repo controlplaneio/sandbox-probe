@@ -26,6 +26,14 @@ type UserIdentity struct {
 	Groups []int
 }
 
+// HostEnvironment describes the host/kernel the probe ran on, for longitudinal comparison of
+// reports across kernel and OS upgrades (seccomp/landlock/userns/systrap behaviour tracks these).
+type HostEnvironment struct {
+	KernelRelease string // uname -r, e.g. "6.17.0-1018-azure"
+	KernelVersion string // uname -v / /proc/version — build flags and date
+	OSRelease     string // e.g. "Ubuntu 24.04.3 LTS" or "macOS 15.5"
+}
+
 // Process contains all the fields relevant to a process
 type Process struct {
 	Command    string

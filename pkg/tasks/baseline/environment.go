@@ -129,6 +129,18 @@ func GetHostName() (string, error) {
 	return os.Hostname()
 }
 
+// GetHostEnvironment returns the host/kernel the probe ran on. Fields it can't determine on a given
+// platform are left empty. Captured on every run (any harness) so reports stay comparable as the
+// kernel/OS moves under them — the substrate for seccomp/landlock/user-namespaces/gVisor-systrap.
+func GetHostEnvironment() *models.HostEnvironment {
+	release, version := hostKernelInfo()
+	return &models.HostEnvironment{
+		KernelRelease: release,
+		KernelVersion: version,
+		OSRelease:     hostOSRelease(),
+	}
+}
+
 // GetContainerRuntime detects the container runtime for a given process
 // note it will only work for Linux based systems
 func GetContainerRuntime(tgid, pid int) ContainerRuntime {

@@ -281,8 +281,13 @@ local runs — we instead exercise each agent's sandbox with **no model call, no
   comparable across CLI upgrades.
 - `scripts/run-probe-in-sandbox.sh` — wraps the probe directly in a keyless OS sandbox (no agent, no
   model): `srt`, `firejail`, `nono`, `podman`, `docker`, `bwrap`, `nspawn`, `gvisor`. It tags the
-  report with the runtime's `--version` and the `kernel` release, so a behaviour change across a tool
-  or kernel bump is visible in the diff.
+  report with the runtime's `--version` so a behaviour change across a tool bump is visible in the diff
+  (the confining agents likewise tag their sandbox engine, e.g. `bwrap=…`/`docker=…`).
+
+Every report also carries an `environment_detection` finding with the host kernel release/version and
+OS release — captured by the probe on **every** run regardless of harness — so a change caused by a
+kernel or OS upgrade (seccomp/landlock/user-namespace/gVisor-systrap behaviour all track these) shows
+up as a diff rather than a mystery.
 - `tests/detect_{claude,codex,gemini}.sh` — `make e2etests` entry points asserting the probe reports
   the expected `sandbox_detection` (`seatbelt` on macOS; `bubblewrap`/kernel-enforcement on Linux;
   `docker` for gemini's container). Each skips gracefully when its CLI (or sandbox dep) is unavailable.

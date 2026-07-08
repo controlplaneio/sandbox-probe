@@ -383,3 +383,28 @@ func TestProxyTaskRun(t *testing.T) {
 		}
 	}
 }
+
+// The environment task must always emit exactly one environment_detection finding whose value is a
+// map carrying the three host keys — the provenance record used to compare reports over time.
+func TestEnvironmentTaskEmitsFinding(t *testing.T) {
+	findings, err := NewEnvironmentTask().Run(context.Background(), Inputs{})
+	if err != nil {
+		t.Fatalf("EnvironmentTask.Run returned error: %v", err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 finding, got %d", len(findings))
+	}
+	f := findings[0]
+	if f.FindingType != ENVIRONMENTDETECTION {
+		t.Errorf("findingType = %q, want %q", f.FindingType, ENVIRONMENTDETECTION)
+	}
+	m, ok := f.Value.AsInterface().(map[string]interface{})
+	if !ok {
+		t.Fatalf("value is %T, want map", f.Value.AsInterface())
+	}
+	for _, k := range []string{"kernel_release", "kernel_version", "os_release"} {
+		if _, present := m[k]; !present {
+			t.Errorf("environment value missing key %q", k)
+		}
+	}
+}

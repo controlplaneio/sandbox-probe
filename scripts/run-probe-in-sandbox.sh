@@ -23,10 +23,10 @@ mkdir -p "$(dirname "$OUT")"
 PROBE_ABS="$(cd "$(dirname "$PROBE")" && pwd)/$(basename "$PROBE")"
 OUT_ABS="$(cd "$(dirname "$OUT")" && pwd)/$(basename "$OUT")"
 
-# Capture the sandbox tool's own version (and the kernel) into the report tags, so results are
-# comparable across tool/kernel upgrades over time — seccomp/landlock/userns/systrap behaviour all
-# shift with these. awk consumes the whole stream (no `head` — that would SIGPIPE under pipefail);
-# each extractor picks the version token from the tool's first --version line.
+# Capture the sandbox tool's own version into the report tags, so results are comparable across tool
+# upgrades over time (the kernel/OS is recorded separately by the probe's environment_detection
+# finding, on every run). awk consumes the whole stream (no `head` — that would SIGPIPE under
+# pipefail); each extractor picks the version token from the tool's first --version line.
 sandbox_version() {
   case "$1" in
     srt)      srt --version            2>/dev/null | awk 'NR==1{print $1}' ;;
@@ -40,7 +40,7 @@ sandbox_version() {
   esac
 }
 RUNTIME_VERSION="$(sandbox_version "$RUNTIME")" || RUNTIME_VERSION=""
-TAGS="runner=${RUNNER},harness=${RUNTIME},${RUNTIME}=${RUNTIME_VERSION:-unknown},kernel=$(uname -r),sandbox=on,mode=via-sandbox"
+TAGS="runner=${RUNNER},harness=${RUNTIME},${RUNTIME}=${RUNTIME_VERSION:-unknown},sandbox=on,mode=via-sandbox"
 CMD=("$PROBE_ABS" $SCAN_ARGS --tags "$TAGS" --output_path "$OUT_ABS")
 
 echo "::group::sandbox ${RUNTIME}"

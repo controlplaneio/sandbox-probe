@@ -27,8 +27,16 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 mkdir -p "$(dirname "$OUT")"
 
-VERSION="$(claude --version 2>/dev/null | awk '{print $1}')"
-TAGS="runner=${RUNNER},harness=claude,sandbox=${CLAUDE_SANDBOX},claude=${VERSION},mode=via-claude-stub"
+VERSION="$(claude --version 2>/dev/null | awk 'NR==1{print $1}')" || VERSION=unknown
+# When confining on Linux, Claude Code wraps the probe in bubblewrap — record bwrap's version too,
+# since that's the sandbox engine whose behaviour the report reflects (kernel/OS is in the report's
+# environment_detection finding). No-op on macOS (Seatbelt) / when unconfined.
+SANDBOX_TOOL_TAG=""
+if [ "$CLAUDE_SANDBOX" = "on" ] && command -v bwrap >/dev/null 2>&1; then
+  BWRAP_VERSION="$(bwrap --version 2>/dev/null | awk 'NR==1{print $NF}')" || BWRAP_VERSION=""
+  [ -n "$BWRAP_VERSION" ] && SANDBOX_TOOL_TAG=",bwrap=${BWRAP_VERSION}"
+fi
+TAGS="runner=${RUNNER},harness=claude,sandbox=${CLAUDE_SANDBOX},claude=${VERSION}${SANDBOX_TOOL_TAG},mode=via-claude-stub"
 
 # A full baseline scan can take a few minutes, so lift Claude Code's Bash timeout well above
 # the ~2 min default (env caps + an explicit per-command timeout carried in the tool input).

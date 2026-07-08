@@ -39,7 +39,14 @@ cleanup() {
 }
 
 VERSION="$(gemini --version 2>/dev/null | awk 'NR==1{print}')" || VERSION=unknown
-TAGS="runner=${RUNNER},harness=gemini,sandbox=${GEMINI_SANDBOX:-none},gemini=${VERSION},mode=via-gemini-stub"
+# For the docker backend, record the docker version too (the sandbox engine the report reflects;
+# kernel/OS is in the environment_detection finding). Seatbelt (sandbox-exec) has no separate version.
+SANDBOX_TOOL_TAG=""
+if [ "${GEMINI_SANDBOX:-}" = "docker" ] && command -v docker >/dev/null 2>&1; then
+  DOCKER_VERSION="$(docker --version 2>/dev/null | awk 'NR==1{gsub(/,/,"",$3); print $3}')" || DOCKER_VERSION=""
+  [ -n "$DOCKER_VERSION" ] && SANDBOX_TOOL_TAG=",docker=${DOCKER_VERSION}"
+fi
+TAGS="runner=${RUNNER},harness=gemini,sandbox=${GEMINI_SANDBOX:-none},gemini=${VERSION}${SANDBOX_TOOL_TAG},mode=via-gemini-stub"
 
 # Bind/reach the mock differently for the container sandbox (whole CLI runs inside it).
 MOCK_HOST=127.0.0.1; BASE_HOST=localhost; SANDBOX_FLAG=()

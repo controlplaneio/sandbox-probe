@@ -85,6 +85,7 @@ Each row below is a `finding_type` string you will see in `report.json`, what it
 | `mounted_volumes_detections` | mounted filesystems visible from inside | "What of the host filesystem is exposed?" |
 | `user_context_detection` | UID, GID, EUID, EGID | "Is the agent running as a privileged user?" |
 | `hostname_detection` | system hostname | "Does the sandbox leak the host identity?" |
+| `environment_detection` | host kernel release/version + OS release | "Which kernel/OS produced this result?" (so reports stay comparable across upgrades) |
 | `sandbox_detection` | detected runtime (Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, systemd-nspawn, WSL, OpenVZ, Seatbelt, Landlock, AppArmor) | "Is there *any* enforcement at all, and what kind?" |
 
 ## Reading a report
