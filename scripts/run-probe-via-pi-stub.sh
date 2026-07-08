@@ -18,7 +18,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 mkdir -p "$(dirname "$OUT")"
 
-VERSION="$(pi --version 2>/dev/null | awk 'NR==1{print}')" || VERSION=unknown
+VERSION="$(pi --version 2>/dev/null | awk 'NR==1{if(match($0,/[0-9]+\.[0-9][0-9.]*/)) print substr($0,RSTART,RLENGTH)}')" || VERSION=""; VERSION="${VERSION:-unknown}"
 TAGS="runner=${RUNNER},harness=pi,pi=${VERSION},mode=via-pi-stub"
 
 STUB_LOG="$(mktemp)"

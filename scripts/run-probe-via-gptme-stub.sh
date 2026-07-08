@@ -21,7 +21,7 @@ mkdir -p "$(dirname "$OUT")"
 
 # awk consumes the whole stream (no `head`): gptme --version prints 2 lines, so `head -1` would
 # SIGPIPE it and abort the script under `set -o pipefail`.
-VERSION="$(gptme --version 2>/dev/null | awk 'NR==1{print $2}')" || VERSION=unknown
+VERSION="$(gptme --version 2>/dev/null | awk 'NR==1{if(match($0,/[0-9]+\.[0-9][0-9.]*/)) print substr($0,RSTART,RLENGTH)}')" || VERSION=""; VERSION="${VERSION:-unknown}"
 TAGS="runner=${RUNNER},harness=gptme,gptme=${VERSION},mode=via-gptme-stub"
 
 STUB_LOG="$(mktemp)"
