@@ -43,6 +43,11 @@ RUNTIME_VERSION="$(sandbox_version "$RUNTIME")" || RUNTIME_VERSION=""
 TAGS="runner=${RUNNER},harness=${RUNTIME},${RUNTIME}=${RUNTIME_VERSION:-unknown},sandbox=on,mode=via-sandbox"
 CMD=("$PROBE_ABS" $SCAN_ARGS --tags "$TAGS" --output_path "$OUT_ABS")
 
+# The container runtimes mount $PWD at /work and strip the $PWD prefix from the probe/report paths;
+# that only holds when both live under $PWD. Fail clearly otherwise (instead of a cryptic broken
+# /work//abs path yielding a "did not produce" error with no cause).
+require_under_pwd() { case "$1" in "$PWD"/*) ;; *) echo "::error::$2 ($1) must be under \$PWD ($PWD) for the ${RUNTIME} container mount"; exit 1 ;; esac; }
+
 echo "::group::sandbox ${RUNTIME}"
 case "$RUNTIME" in
   srt)
@@ -65,12 +70,14 @@ JSON
     ;;
   podman)
     # Run the probe inside a rootless container so it fingerprints podman; mount the workspace so
-    # the report lands back on the host. PROBE/OUT are under $PWD in CI.
+    # the report lands back on the host. PROBE/OUT must be under $PWD (mounted at /work).
+    require_under_pwd "$PROBE_ABS" PROBE; require_under_pwd "$OUT_ABS" OUT
     podman run --rm --network=none -v "$PWD:/work" -w /work docker.io/library/ubuntu:latest \
       "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" </dev/null || true
     ;;
   docker)
     # Same as podman but the Docker daemon; the probe fingerprints it as "docker".
+    require_under_pwd "$PROBE_ABS" PROBE; require_under_pwd "$OUT_ABS" OUT
     docker run --rm --network=none -v "$PWD:/work" -w /work ubuntu:latest \
       "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" </dev/null || true
     ;;

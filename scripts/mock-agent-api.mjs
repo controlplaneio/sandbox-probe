@@ -198,18 +198,27 @@ http.createServer((req, res) => {
     const path = (req.url || '').split('?')[0];
     let body = {};
     try { body = raw ? JSON.parse(raw) : {}; } catch { /* tolerate non-JSON */ }
+    // JSON.parse can return null/array/scalar; the handlers assume an object. Coerce so a stray
+    // `null` body can't throw. Wrap dispatch too: one malformed request must never kill the server
+    // (and with it every in-flight probe) — respond and move on.
+    if (!body || typeof body !== 'object' || Array.isArray(body)) body = {};
 
-    if (path.endsWith('/v1/messages')) return anthropic(res, body);
-    if (/generateContent$/i.test(path)) return gemini(res, body); // :generateContent / :streamGenerateContent
-    if (path.endsWith('/v1/responses')) return openaiResponses(res, body);
-    if (path.endsWith('/v1/chat/completions')) return chatCompletions(res, body);
-    if (path.endsWith('/api/chat')) return ollamaChat(res, body);
+    try {
+      if (path.endsWith('/v1/messages')) return anthropic(res, body);
+      if (/generateContent$/i.test(path)) return gemini(res, body); // :generateContent / :streamGenerateContent
+      if (path.endsWith('/v1/responses')) return openaiResponses(res, body);
+      if (path.endsWith('/v1/chat/completions')) return chatCompletions(res, body);
+      if (path.endsWith('/api/chat')) return ollamaChat(res, body);
 
-    // Trivial answers for endpoints the CLIs probe but we don't model.
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    if (path.endsWith('/count_tokens')) return res.end('{"input_tokens":1}');
-    if (path.endsWith('/v1/models')) return res.end('{"data":[{"id":"mock-model"}]}');
-    log(`catch-all ${req.method} ${path}`);
-    res.end('{}');
+      // Trivial answers for endpoints the CLIs probe but we don't model.
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      if (path.endsWith('/count_tokens')) return res.end('{"input_tokens":1}');
+      if (path.endsWith('/v1/models')) return res.end('{"data":[{"id":"mock-model"}]}');
+      log(`catch-all ${req.method} ${path}`);
+      res.end('{}');
+    } catch (err) {
+      log(`handler error ${req.method} ${path}: ${err && err.message}`);
+      try { if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'application/json' }); res.end('{}'); } catch { /* already closed */ }
+    }
   });
 }).listen(PORT, HOST, () => log(`listening on ${HOST}:${PORT} (PROBE_CMD ${PROBE_CMD ? 'set' : 'MISSING'})`));

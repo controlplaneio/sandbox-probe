@@ -198,6 +198,9 @@ jobs:
         name: ensure podman
         shell: bash
         run: command -v podman >/dev/null || { sudo apt-get update || true; sudo apt-get install -y podman; }
+      - if: matrix.runtime == 'docker'
+        name: ensure docker
+        run: docker info
       - if: matrix.runtime == 'bwrap'
         name: install bubblewrap
         shell: bash

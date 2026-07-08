@@ -171,27 +171,39 @@ func TestGetContainerRuntimeAppArmor(t *testing.T) {
 		readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot = origRead, origAttr, origExists, origLandlock, origChroot
 	})
 	readFile = func(string) ([]byte, error) { return nil, fmt.Errorf("file not found") }
-	fileExistsFunc = func(string) bool { return false }
 	probeForLandlock = func() (bool, error) { return false, nil }
 	isChroot = func() bool { return false }
 
-	// A named profile means AppArmor-confined; "unconfined" must not.
 	for _, tt := range []struct {
-		attr         string
+		name         string
+		apparmorAttr string // /proc/self/attr/apparmor/current (LSM-specific)
+		legacyAttr   string // /proc/self/attr/current (LSM-agnostic)
+		apparmorLSM  bool   // /sys/module/apparmor present
 		wantApparmor bool
 	}{
-		{"sandbox-probe (complain)", true},
-		{"unconfined", false},
+		// LSM-specific path is unambiguous — trusted regardless of the module check.
+		{"apparmor-specific profile", "sandbox-probe (complain)", "", false, true},
+		{"unconfined", "unconfined", "unconfined", true, false},
+		// Legacy path only trusted when AppArmor is the active LSM (old kernels).
+		{"legacy profile, apparmor LSM", "", "sandbox-probe (enforce)", true, true},
+		// SELinux writes its context to the same legacy path — must NOT be read as apparmor.
+		{"selinux context, no apparmor LSM", "", "system_u:system_r:httpd_t:s0", false, false},
 	} {
-		readProcAttr = func(path string) string {
-			if path == "/proc/self/attr/apparmor/current" {
-				return tt.attr
+		t.Run(tt.name, func(t *testing.T) {
+			fileExistsFunc = func(p string) bool { return tt.apparmorLSM && p == "/sys/module/apparmor" }
+			readProcAttr = func(path string) string {
+				switch path {
+				case "/proc/self/attr/apparmor/current":
+					return tt.apparmorAttr
+				case "/proc/self/attr/current":
+					return tt.legacyAttr
+				}
+				return ""
 			}
-			return ""
-		}
-		if got := GetContainerRuntime(0, 0) == RuntimeAppArmor; got != tt.wantApparmor {
-			t.Errorf("attr %q: apparmor=%v, want %v", tt.attr, got, tt.wantApparmor)
-		}
+			if got := GetContainerRuntime(0, 0) == RuntimeAppArmor; got != tt.wantApparmor {
+				t.Errorf("apparmor=%v, want %v", got, tt.wantApparmor)
+			}
+		})
 	}
 }
 
@@ -214,6 +226,8 @@ func TestGetContainerRuntimeSystemdContainerMarker(t *testing.T) {
 		{"nspawn marker names nspawn", "systemd-nspawn\n", false, RuntimeNspawn},
 		{"empty marker does not mask apparmor", "", true, RuntimeAppArmor},
 		{"unknown marker does not mask apparmor", "some-manager\n", true, RuntimeAppArmor},
+		// An unrecognised marker (proot/rkt/…) still means "containerised" — preserve the signal.
+		{"unknown marker still reports unknown", "proot\n", false, RuntimeUnknown},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			isChroot = func() bool { return false }

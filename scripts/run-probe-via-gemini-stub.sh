@@ -37,6 +37,10 @@ cleanup() {
   kill "${STUB_PID:-}" 2>/dev/null || true
   if [ -n "$GEMINI_BACKUP" ]; then mv "$GEMINI_BACKUP" "$GEMINI_SETTINGS"; else rm -f "$GEMINI_SETTINGS"; rmdir .gemini 2>/dev/null || true; fi
 }
+# Arm the restore trap immediately — the real settings.json is already replaced above, so any exit
+# from here on (including a set -e abort before the mock starts) must restore it. cleanup guards
+# ${STUB_PID:-}, so arming before the mock exists is safe.
+trap cleanup EXIT
 
 VERSION="$(gemini --version 2>/dev/null | awk 'match($0,/[0-9]+\.[0-9][0-9.]*/) && !seen {print substr($0,RSTART,RLENGTH); seen=1}')" || VERSION=""; VERSION="${VERSION:-unknown}"
 # For the docker backend, record the docker version too (the sandbox engine the report reflects;
@@ -68,7 +72,6 @@ PROBE_CMD="${PROBE} ${SCAN_ARGS} --tags ${TAGS} --output_path ${OUT}" \
 STUB_LOG="$STUB_LOG" \
   node "${PROJECT_ROOT}/scripts/mock-agent-api.mjs" &
 STUB_PID=$!
-trap cleanup EXIT
 for _ in $(seq 1 50); do
   if (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") 2>/dev/null; then exec 3>&- 3<&-; break; fi
   sleep 0.1

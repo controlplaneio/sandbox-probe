@@ -233,12 +233,15 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 	// bare or unrecognised marker doesn't mask the more specific detections below.
 	isNamed := func(rt ContainerRuntime) bool { return rt != RuntimeUnknown && rt != RuntimeNotFound }
 
-	// /run/systemd/container names the container manager (e.g. "systemd-nspawn").
+	// /run/systemd/container names the container manager (e.g. "systemd-nspawn"). Return early only
+	// on a known runtime so an unrecognised marker doesn't mask the specific detectors below; but
+	// remember it was present so we still report "unknown" (containerised) if nothing else matches.
 	systemdContainerFile := "/run/systemd/container"
 	if data, err := readFile(systemdContainerFile); err == nil {
 		if runtime := stringToContainerRuntime(string(data)); isNamed(runtime) {
 			return runtime
 		}
+		identifiedRuntime = RuntimeUnknown
 	}
 
 	// container env variable (same: only when it identifies a known runtime)
@@ -246,6 +249,7 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		if runtime := stringToContainerRuntime(containerEnv); isNamed(runtime) {
 			return runtime
 		}
+		identifiedRuntime = RuntimeUnknown
 	}
 
 	landlock, err := probeForLandlock()
@@ -268,12 +272,16 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return RuntimeChroot
 	}
 
-	// AppArmor: a named profile ("unconfined" when none applies) means the process is LSM-confined.
-	// Ranked below the more specific wrappers above (a process can be both AppArmor-confined and
-	// bwrap/landlock-wrapped) but above the generic no-new-privs fallback. Newer kernels (6.x) expose
-	// the profile at the LSM-specific path; older ones at the legacy attr path.
-	for _, p := range []string{"/proc/self/attr/apparmor/current", "/proc/self/attr/current"} {
-		if v := readProcAttr(p); v != "" && !strings.HasPrefix(v, "unconfined") {
+	// AppArmor: a named profile ("unconfined" when none applies) means the process is AppArmor-
+	// confined. Ranked below the more specific wrappers above (a process can be both AppArmor-confined
+	// and bwrap/landlock-wrapped) but above the generic no-new-privs fallback.
+	// The LSM-specific path (kernel 6.x) is unambiguous; the legacy path is LSM-agnostic — on an
+	// SELinux host it returns the SELinux context, so only trust it when AppArmor is the active LSM.
+	if v := readProcAttr("/proc/self/attr/apparmor/current"); v != "" && !strings.HasPrefix(v, "unconfined") {
+		return RuntimeAppArmor
+	}
+	if fileExistsFunc("/sys/module/apparmor") {
+		if v := readProcAttr("/proc/self/attr/current"); v != "" && !strings.HasPrefix(v, "unconfined") {
 			return RuntimeAppArmor
 		}
 	}

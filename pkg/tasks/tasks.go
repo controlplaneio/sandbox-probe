@@ -56,6 +56,7 @@ var expectedTypes = map[string]reflect.Type{
 	MOUNTEDVOLUMESDETECTION:   reflect.TypeOf([]string{}),
 	USERCONTEXTDETECTION:      reflect.TypeOf(&models.UserIdentity{}),
 	HOSTNAMEDETECTION:         reflect.TypeOf(""),
+	ENVIRONMENTDETECTION:      reflect.TypeOf(&models.HostEnvironment{}),
 	SANDBOXDETECTION:          reflect.TypeOf(""),
 }
 
