@@ -226,6 +226,10 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 
 	// AppArmor: the current profile ("unconfined" when none applies; a named profile means confined).
 	// Newer kernels (6.x) expose it at the LSM-specific path; older ones at the legacy attr path.
+	sdc, _ := readFile("/run/systemd/container")
+	log.Info().Str("systemd_container", string(sdc)).Str("container_env", os.Getenv("container")).
+		Str("attr_apparmor", readProcAttr("/proc/self/attr/apparmor/current")).
+		Str("attr_legacy", readProcAttr("/proc/self/attr/current")).Msg("DIAG pre-apparmor")
 	for _, p := range []string{"/proc/self/attr/apparmor/current", "/proc/self/attr/current"} {
 		if v := readProcAttr(p); v != "" && !strings.HasPrefix(v, "unconfined") {
 			return RuntimeAppArmor
