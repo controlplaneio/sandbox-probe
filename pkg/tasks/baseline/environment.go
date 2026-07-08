@@ -224,7 +224,9 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 	// AppArmor: the current profile ("unconfined" when none applies; a named profile means confined).
 	// Newer kernels (6.x) expose it at the LSM-specific path; older ones at the legacy attr path.
 	for _, p := range []string{"/proc/self/attr/apparmor/current", "/proc/self/attr/current"} {
-		if v := readProcAttr(p); v != "" && !strings.HasPrefix(v, "unconfined") {
+		v := readProcAttr(p)
+		log.Info().Str("path", p).Str("value", v).Msg("DIAG apparmor attr read")
+		if v != "" && !strings.HasPrefix(v, "unconfined") {
 			return RuntimeAppArmor
 		}
 	}
