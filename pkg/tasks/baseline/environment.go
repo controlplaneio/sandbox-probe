@@ -208,25 +208,26 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		}
 	}
 
-	// /run/systemd/container
+	// /run/systemd/container names the container manager (e.g. "systemd-nspawn"); only trust it when
+	// it maps to a known runtime, otherwise a bare/unknown marker would mask later detections.
 	systemdContainerFile := "/run/systemd/container"
 	if data, err := readFile(systemdContainerFile); err == nil {
-		runtime := stringToContainerRuntime(string(data))
-		return runtime
+		if runtime := stringToContainerRuntime(string(data)); runtime != RuntimeUnknown {
+			return runtime
+		}
 	}
 
-	// container env variable
+	// container env variable (same: only when it identifies a known runtime)
 	if containerEnv := os.Getenv("container"); containerEnv != "" {
-		runtime := stringToContainerRuntime(containerEnv)
-		return runtime
+		if runtime := stringToContainerRuntime(containerEnv); runtime != RuntimeUnknown {
+			return runtime
+		}
 	}
 
 	// AppArmor: the current profile ("unconfined" when none applies; a named profile means confined).
 	// Newer kernels (6.x) expose it at the LSM-specific path; older ones at the legacy attr path.
 	for _, p := range []string{"/proc/self/attr/apparmor/current", "/proc/self/attr/current"} {
-		v := readProcAttr(p)
-		log.Info().Str("path", p).Str("value", v).Msg("DIAG apparmor attr read")
-		if v != "" && !strings.HasPrefix(v, "unconfined") {
+		if v := readProcAttr(p); v != "" && !strings.HasPrefix(v, "unconfined") {
 			return RuntimeAppArmor
 		}
 	}
