@@ -66,10 +66,8 @@ JSON
       "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" || true
     ;;
   apparmor)
-    # aa-exec transitions into the pre-loaded named profile; the probe then reads its confinement
-    # from /proc/self/attr[/apparmor]/current -> "apparmor".
-    echo "apparmor context under aa-exec:"
-    sudo aa-exec -p sandbox-probe -- sh -c 'cat /proc/self/attr/apparmor/current 2>/dev/null; cat /proc/self/attr/current 2>/dev/null' || echo "aa-exec probe failed rc=$?"
+    # aa-exec transitions into the pre-loaded named profile; the probe reads its confinement from
+    # /proc/self/attr[/apparmor]/current -> "apparmor".
     sudo aa-exec -p sandbox-probe -- "${CMD[@]}" || true
     ;;
   nspawn)

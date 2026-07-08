@@ -42,6 +42,20 @@ const (
 
 var readFile = os.ReadFile
 
+// readProcAttr reads a /proc/*/attr file with a single Read. os.ReadFile issues a follow-up read to
+// detect EOF, which the AppArmor/SELinux attr interfaces reject with EINVAL — so os.ReadFile fails
+// on them even though the first read returns the profile. Returns "" on any error.
+var readProcAttr = func(path string) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer func() { _ = f.Close() }()
+	buf := make([]byte, 256)
+	n, _ := f.Read(buf)
+	return strings.TrimSpace(string(buf[:n]))
+}
+
 // detectSensitiveEnvVars scans environment variables for secrets
 func detectSensitiveEnvVars() ([]models.EnvFinding, error) {
 	// TODO: Make it configurable
@@ -151,8 +165,12 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return RuntimeOpenVZ
 	}
 
-	// gVisor detection
+	// gVisor detection: the container-mode marker, or its synthetic /proc/version (present under
+	// `runsc run`, which does not create /__runsc_containers__).
 	if fileExistsFunc("/__runsc_containers__") {
+		return RuntimeGVisor
+	}
+	if data, err := readFile("/proc/version"); err == nil && strings.Contains(strings.ToLower(string(data)), "gvisor") {
 		return RuntimeGVisor
 	}
 
@@ -206,10 +224,8 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 	// AppArmor: the current profile ("unconfined" when none applies; a named profile means confined).
 	// Newer kernels (6.x) expose it at the LSM-specific path; older ones at the legacy attr path.
 	for _, p := range []string{"/proc/self/attr/apparmor/current", "/proc/self/attr/current"} {
-		if data, err := readFile(p); err == nil {
-			if v := strings.TrimSpace(string(data)); v != "" && !strings.HasPrefix(v, "unconfined") {
-				return RuntimeAppArmor
-			}
+		if v := readProcAttr(p); v != "" && !strings.HasPrefix(v, "unconfined") {
+			return RuntimeAppArmor
 		}
 	}
 

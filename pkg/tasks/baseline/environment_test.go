@@ -164,8 +164,11 @@ func Test_getContainerRuntime(t *testing.T) {
 }
 
 func TestGetContainerRuntimeAppArmor(t *testing.T) {
-	origRead, origExists, origLandlock := readFile, fileExistsFunc, probeForLandlock
-	t.Cleanup(func() { readFile, fileExistsFunc, probeForLandlock = origRead, origExists, origLandlock })
+	origRead, origAttr, origExists, origLandlock := readFile, readProcAttr, fileExistsFunc, probeForLandlock
+	t.Cleanup(func() {
+		readFile, readProcAttr, fileExistsFunc, probeForLandlock = origRead, origAttr, origExists, origLandlock
+	})
+	readFile = func(string) ([]byte, error) { return nil, fmt.Errorf("file not found") }
 	fileExistsFunc = func(string) bool { return false }
 	probeForLandlock = func() (bool, error) { return false, nil }
 
@@ -174,14 +177,14 @@ func TestGetContainerRuntimeAppArmor(t *testing.T) {
 		attr         string
 		wantApparmor bool
 	}{
-		{"sandbox-probe (enforce)\n", true},
-		{"unconfined\n", false},
+		{"sandbox-probe (complain)", true},
+		{"unconfined", false},
 	} {
-		readFile = func(path string) ([]byte, error) {
-			if path == "/proc/self/attr/current" {
-				return []byte(tt.attr), nil
+		readProcAttr = func(path string) string {
+			if path == "/proc/self/attr/apparmor/current" {
+				return tt.attr
 			}
-			return nil, fmt.Errorf("file not found")
+			return ""
 		}
 		if got := GetContainerRuntime(0, 0) == RuntimeAppArmor; got != tt.wantApparmor {
 			t.Errorf("attr %q: apparmor=%v, want %v", tt.attr, got, tt.wantApparmor)
