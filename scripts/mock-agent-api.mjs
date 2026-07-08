@@ -155,6 +155,39 @@ function chatCompletions(res, body) {
   res.end();
 }
 
+// ── Ollama /api/chat (agents pointed at a native Ollama provider) ────────────
+// Ollama's own wire format: tool_calls carry an `arguments` OBJECT (not a JSON string), and the
+// streaming form is newline-delimited JSON ending with `{done:true}` rather than SSE + [DONE].
+function ollamaChat(res, body) {
+  const model = body.model || 'mock-model';
+  const shell = (Array.isArray(body.tools) ? body.tools : []).find((t) => t && t.function && /bash|shell|exec|command/i.test(t.function.name || ''));
+  const messages = Array.isArray(body.messages) ? body.messages : [];
+  const done = messages.some((m) => m && m.role === 'tool');
+  for (const m of messages.filter((m) => m && m.role === 'tool')) log(`ollama tool result: ${clip(typeof m.content === 'string' ? m.content : JSON.stringify(m.content || ''))}`);
+
+  let message;
+  if (shell && !done && PROBE_CMD) {
+    const props = (shell.function.parameters && shell.function.parameters.properties) || {};
+    const args = props.commands ? { commands: [PROBE_CMD] } : { command: PROBE_CMD };
+    log(`ollama ${shell.function.name} -> ${PROBE_CMD}`);
+    message = { role: 'assistant', content: '', tool_calls: [{ function: { name: shell.function.name, arguments: args } }] };
+  } else {
+    log(`ollama final (shell=${!!shell} done=${done})`);
+    message = { role: 'assistant', content: 'done' };
+  }
+
+  const stamp = '1970-01-01T00:00:00Z';
+  if (body.stream === false) { // Ollama defaults stream:true, so only non-stream when explicitly false
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ model, created_at: stamp, message, done: true, done_reason: 'stop' }));
+    return;
+  }
+  res.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
+  res.write(JSON.stringify({ model, created_at: stamp, message, done: false }) + '\n');
+  res.write(JSON.stringify({ model, created_at: stamp, message: { role: 'assistant', content: '' }, done: true, done_reason: 'stop' }) + '\n');
+  res.end();
+}
+
 http.createServer((req, res) => {
   let raw = '';
   req.on('data', (chunk) => { raw += chunk; });
@@ -167,6 +200,7 @@ http.createServer((req, res) => {
     if (/generateContent$/i.test(path)) return gemini(res, body); // :generateContent / :streamGenerateContent
     if (path.endsWith('/v1/responses')) return openaiResponses(res, body);
     if (path.endsWith('/v1/chat/completions')) return chatCompletions(res, body);
+    if (path.endsWith('/api/chat')) return ollamaChat(res, body);
 
     // Trivial answers for endpoints the CLIs probe but we don't model.
     res.writeHead(200, { 'Content-Type': 'application/json' });
