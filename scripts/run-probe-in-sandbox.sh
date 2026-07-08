@@ -7,16 +7,15 @@
 #   podman   — rootless OCI container (Linux)
 #   docker   — Docker container (Linux)
 #   bwrap    — standalone bubblewrap, parent visible (the #38-detectable invocation; Linux)
-#   apparmor — aa-exec under a named AppArmor profile (Linux)
 #   nspawn   — systemd-nspawn container (Linux; needs ROOTFS)
-#   gvisor   — runsc run, systrap platform, no KVM (Linux)
+#   gvisor   — runsc run, systrap platform, no KVM (Linux; needs ROOTFS)
 #
-# Required env: PROBE, OUT, RUNTIME. Optional: RUNNER, PORT (unused), SCAN_ARGS, ROOTFS (nspawn).
+# Required env: PROBE, OUT, RUNTIME. Optional: RUNNER, PORT (unused), SCAN_ARGS, ROOTFS (nspawn/gvisor).
 set -eo pipefail
 
 : "${PROBE:?PROBE (probe binary path) is required}"
 : "${OUT:?OUT (report output path) is required}"
-: "${RUNTIME:?RUNTIME (srt|firejail|nono|podman|docker|bwrap|apparmor|nspawn|gvisor) is required}"
+: "${RUNTIME:?RUNTIME (srt|firejail|nono|podman|docker|bwrap|nspawn|gvisor) is required}"
 RUNNER="${RUNNER:-$(uname -s)}"
 SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
 
@@ -64,12 +63,6 @@ JSON
       --ro-bind /lib /lib --ro-bind-try /lib64 /lib64 --ro-bind /etc /etc --proc /proc --dev /dev \
       --bind "$PWD" /work --chdir /work --unshare-user --unshare-ipc --unshare-uts --unshare-cgroup --die-with-parent \
       "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" || true
-    ;;
-  apparmor)
-    # aa-exec transitions into the pre-loaded named profile; the probe reads its confinement from
-    # /proc/self/attr[/apparmor]/current -> "apparmor".
-    echo "DIAG(bash) single-read attr: [$(sudo aa-exec -p sandbox-probe -- head -c 96 /proc/self/attr/apparmor/current 2>&1)]"
-    sudo aa-exec -p sandbox-probe -- "${CMD[@]}" || true
     ;;
   nspawn)
     # ROOTFS is a prepared root filesystem (built by the workflow); copy the probe in and bind the
