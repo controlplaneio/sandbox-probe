@@ -96,8 +96,8 @@ A finding looks like this:
 ```json
 {
   "findingType": "sensitive_readable_paths",
-  "task": "baseline_path_task",
-  "description": "Sensitive readable paths",
+  "task": "baseline_filesystem_enumerator",
+  "description": "Readable sensitive paths",
   "value": [
     "/home/alice/.aws/credentials",
     "/home/alice/.ssh/id_ed25519"
@@ -240,7 +240,7 @@ A report is a JSON object with these top-level fields:
 Each `Finding` has four fields, defined in [`api/proto/report/v1/report.proto`](./api/proto/report/v1/report.proto):
 
 - `findingType` — a stable string key (see [What it detects](#what-it-detects)); the field you diff on
-- `task` — which task produced the finding (e.g. `baseline_path_task`)
+- `task` — which task produced the finding (e.g. `baseline_filesystem_enumerator`)
 - `description` — human-readable label
 - `value` — the actual data; shape depends on `findingType` (string, list of strings, list of ints, or a structured object for processes / user identity / proxy config)
 
@@ -262,14 +262,14 @@ Example report fragment:
   "findings": [
     {
       "findingType": "sandbox_detection",
-      "task": "baseline_sandbox_task",
-      "description": "Sandbox/container runtime",
+      "task": "baseline_sandbox_detector",
+      "description": "Container/wrapper runtime",
       "value": "landlock"
     },
     {
       "findingType": "sensitive_readable_paths",
-      "task": "baseline_path_task",
-      "description": "Sensitive readable paths",
+      "task": "baseline_filesystem_enumerator",
+      "description": "Readable sensitive paths",
       "value": ["/home/alice/.ssh/id_ed25519"]
     }
   ]

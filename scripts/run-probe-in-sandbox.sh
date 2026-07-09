@@ -84,6 +84,8 @@ JSON
   bwrap)
     # Standalone bubblewrap with bwrap left visible as the parent — the invocation the probe DOES
     # fingerprint as "bubblewrap" (unlike Claude Code / srt; see controlplaneio/sandbox-probe#38).
+    # Same $PWD->/work remap as the container cases, so the same guard applies.
+    require_under_pwd "$PROBE_ABS" PROBE; require_under_pwd "$OUT_ABS" OUT
     bwrap --ro-bind /usr /usr --ro-bind /bin /bin --ro-bind-try /sbin /sbin \
       --ro-bind /lib /lib --ro-bind-try /lib64 /lib64 --ro-bind /etc /etc --proc /proc --dev /dev \
       --bind "$PWD" /work --chdir /work --unshare-user --unshare-ipc --unshare-uts --unshare-cgroup --die-with-parent \
