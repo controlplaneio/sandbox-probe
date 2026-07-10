@@ -2,7 +2,7 @@ package tasks
 
 import (
 	"os"
-	"runtime"
+	"path/filepath"
 	"strings"
 )
 
@@ -33,123 +33,72 @@ func buildSensitivePaths() []SensitivePath {
 
 // buildSensitivePathsForHome is the testable core: it builds the path list
 // using the provided home directory instead of calling os.UserHomeDir().
+// buildSensitivePathsForHome returns the full list of credential paths to scan.
+// It combines platform-specific absolute paths (from platformSensitivePaths,
+// defined per-platform in filesystem_unix.go / filesystem_windows.go) with
+// home-relative paths that are meaningful on every OS.
 func buildSensitivePathsForHome(home string) []SensitivePath {
-	h := func(p string) string { return home + p }
+	h := func(p string) string { return filepath.Join(home, p) }
 
-	return []SensitivePath{
-		// ── User and group information ────────────────────────────────────
-		sp("/etc/passwd"),
-		sp("/etc/shadow"),
-		sp("/etc/group"),
-		sp("/etc/gshadow"),
-
-		// ── System configuration ──────────────────────────────────────────
-		sp("/etc/hostname"),
-		sp("/etc/hosts"),
-		sp("/etc/resolv.conf"),
-		sp("/etc/ssh/sshd_config"),
-		sp("/etc/sudoers"),
-
-		// ── Process and container information ─────────────────────────────
-		sp("/proc/self/cgroup"),
-		sp("/proc/self/mountinfo"),
-		sp("/proc/self/status"),
-		sp("/proc/1/cgroup"),
-		sp("/proc/1/environ"),
-
-		// ── Container runtime indicators ──────────────────────────────────
-		sp("/.dockerenv"),
-		sp("/run/.containerenv"),
-		sp("/var/run/docker.sock"),
-
-		// ── Root account credentials ──────────────────────────────────────
-		sp("/root"),
-		sp("/root/.ssh"),
-		sp("/root/.bash_history"),
-
-		// ── System credentials and keys ───────────────────────────────────
-		sp("/etc/ssl/private"),
-		sp("/etc/pki/private"),
-		sp("/var/lib/docker"),
-
-		// ── Runtime secrets (Docker / Kubernetes) ─────────────────────────
-		sp("/run/secrets"),
-		sp("/var/run/secrets/kubernetes.io/serviceaccount/token"),
-		sp("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"),
-
-		// ── SSH keys (current user) ───────────────────────────────────────
-		sp(h("/.ssh/id_rsa")),
-		sp(h("/.ssh/id_ed25519")),
-		sp(h("/.ssh/id_ecdsa")),
-		sp(h("/.ssh/config")),
-		sp(h("/.ssh/authorized_keys")),
+	// Cross-platform home-relative credential paths.
+	// filepath.Join handles the separator on every OS; os.Stat silently skips
+	// any path that doesn't exist on the current platform.
+	homePaths := []SensitivePath{
+		// ── SSH keys ──────────────────────────────────────────────────────
+		sp(h(".ssh/id_rsa")),
+		sp(h(".ssh/id_ed25519")),
+		sp(h(".ssh/id_ecdsa")),
+		sp(h(".ssh/config")),
+		sp(h(".ssh/authorized_keys")),
 
 		// ── Cloud credentials ─────────────────────────────────────────────
-		sp(h("/.aws/credentials")),
-		sp(h("/.aws/config")),
-		sp(h("/.gcloud/credentials.db")),
-		sp(h("/.gcloud/access_tokens.db")),
-		sp(h("/.config/gcloud")),
-		sp(h("/.azure/credentials")),
-		sp(h("/.azure/msal_token_cache.json")),
+		sp(h(".aws/credentials")),
+		sp(h(".aws/config")),
+		sp(h(".gcloud/credentials.db")),
+		sp(h(".gcloud/access_tokens.db")),
+		sp(h(".config/gcloud")),
+		sp(h(".azure/credentials")),
+		sp(h(".azure/msal_token_cache.json")),
 
 		// ── Container / Kubernetes credentials ───────────────────────────
-		sp(h("/.kube/config")),
-		sp(h("/.docker/config.json")),
+		sp(h(".kube/config")),
+		sp(h(".docker/config.json")),
 
 		// ── Crypto / signing ──────────────────────────────────────────────
-		sp(h("/.gnupg")),
+		sp(h(".gnupg")),
 
 		// ── VCS credentials ───────────────────────────────────────────────
-		sp(h("/.git-credentials")),
-		sp(h("/.netrc")),
+		sp(h(".git-credentials")),
+		sp(h(".netrc")),
 		// Only flag .gitconfig when it contains a [credential] section
-		spContains(h("/.gitconfig"), "[credential]"),
+		spContains(h(".gitconfig"), "[credential]"),
 
 		// ── Infrastructure / secrets management ───────────────────────────
-		sp(h("/.vault-token")),
-		sp(h("/.terraform.d/credentials.tfrc.json")),
-		sp(h("/.config/gh/hosts.yml")),
-		sp(h("/.config/op")),
-		sp(h("/.config/doctl/config.yaml")),
-		sp(h("/.fly/config.yml")),
-		sp(h("/.cloudflared")),
+		sp(h(".vault-token")),
+		sp(h(".terraform.d/credentials.tfrc.json")),
+		sp(h(".config/gh/hosts.yml")),
+		sp(h(".config/op")),
+		sp(h(".config/doctl/config.yaml")),
+		sp(h(".fly/config.yml")),
+		sp(h(".cloudflared")),
 
 		// ── Package manager tokens ────────────────────────────────────────
-		sp(h("/.npmrc")),
-		sp(h("/.pypirc")),
-		sp(h("/.gem/credentials")),
-		sp(h("/.cargo/credentials.toml")),
-		sp(h("/.m2/settings.xml")),
-		sp(h("/.gradle/gradle.properties")),
+		sp(h(".npmrc")),
+		sp(h(".pypirc")),
+		sp(h(".gem/credentials")),
+		sp(h(".cargo/credentials.toml")),
+		sp(h(".m2/settings.xml")),
+		sp(h(".gradle/gradle.properties")),
 	}
+
+	return append(platformSensitivePaths(home), homePaths...)
 }
 
-// System directories to check for write permissions (should typically be read-only)
-var SystemWritePaths = []string{
-	// Core system directories
-	"/etc",
-	"/boot",
-	"/usr",
-	"/usr/bin",
-	"/usr/sbin",
-	"/usr/lib",
-	"/bin",
-	"/sbin",
-	"/lib",
-	"/lib64",
-
-	// System state
-	"/sys",
-	"/proc",
-	"/dev",
-
-	// Variable data (some writable, some not)
-	"/var",
-	"/var/log",
-	"/var/lib",
-	"/opt",
-}
+// SystemWritePaths is the platform-specific list of system directories that
+// should be read-only. Defined per-platform in filesystem_unix.go /
+// filesystem_windows.go via the platformSystemWritePaths variable, then
+// exposed here for use by scanTargetedPathsForHome and tests.
+var SystemWritePaths = platformSystemWritePaths
 
 // PathPermissions holds lists of writable and readable paths
 type PathPermissions struct {
@@ -163,7 +112,7 @@ type PathPermissions struct {
 func ScanTargetedPaths() *PathPermissions {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		home = "/root"
+		home = platformDefaultHome()
 	}
 	return scanTargetedPathsForHome(home)
 }
@@ -174,11 +123,6 @@ func scanTargetedPathsForHome(home string) *PathPermissions {
 	result := &PathPermissions{
 		WritablePaths: make([]string, 0),
 		ReadablePaths: make([]string, 0),
-	}
-
-	// Unix-specific paths are not applicable on Windows
-	if runtime.GOOS == "windows" {
-		return result
 	}
 
 	// Check sensitive paths for read access

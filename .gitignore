@@ -133,3 +133,7 @@ results/
 .direnv/
 
 /reports
+MEMORY/
+
+# Personal test directories (machine-specific configs — keep in private repos)
+tests/cpai-*/
