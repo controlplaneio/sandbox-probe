@@ -269,18 +269,20 @@ local runs — we instead exercise each agent's sandbox with **no model call, no
 
 - `scripts/mock-agent-api.mjs` — one zero-dependency Node server that speaks **five** wire protocols,
   routing by request path: Anthropic (`/v1/messages`), Gemini (`:streamGenerateContent`), OpenAI
-  Responses (`/v1/responses`, Codex), OpenAI Chat Completions (`/v1/chat/completions`, streaming and
-  non-streaming — OpenCode/Goose/Pi/gptme/Cline) and Ollama (`/api/chat`, wired for a future
-  native-Ollama agent; not yet exercised by a matrix row). Each returns a canned shell
+  Responses (`/v1/responses`, streaming and non-streaming — Codex/trae), OpenAI Chat Completions
+  (`/v1/chat/completions`, streaming and non-streaming — OpenCode/Goose/Pi/gptme/Cline) and Ollama
+  (`/api/chat`, wired for a future native-Ollama agent; not yet exercised by a matrix row). Each returns a canned shell
   tool call running `$PROBE_CMD`, echoing whatever tool name the request advertised and shaping the
   argument from that tool's own schema (e.g. Cline's `run_commands` takes a `commands` array), and
   answers anything else trivially — so it survives CLI churn. When an agent changes its wire shape
   enough to break it, that agent's matrix rows fail loudly — the signal to update the mock.
-- `scripts/run-probe-via-{claude,gemini,codex,opencode,goose,pi,gptme,cline}-stub.sh` — point the real
-  CLI at the mock via its base-URL override, run it headless with approvals bypassed so the **OS
+- `scripts/run-probe-via-{claude,gemini,codex,opencode,goose,pi,gptme,cline,trae}-stub.sh` — point the
+  real CLI at the mock via its base-URL override, run it headless with approvals bypassed so the **OS
   sandbox is the only boundary** on the probe, and (for agents that ship a sandbox) toggle it on/off.
   Each stub tags the report with the agent's own `--version` (`claude=…`, `codex=…`, …) so results are
-  comparable across CLI upgrades.
+  comparable across CLI upgrades. `trae` is the open-source [bytedance/trae-agent](https://github.com/bytedance/trae-agent)
+  CLI (the Trae IDE is closed and has no keyless path); its `TRAE_DOCKER=on` mode runs the probe inside
+  a container (best-effort `trae-docker` row).
 - `scripts/run-probe-in-sandbox.sh` — wraps the probe directly in a keyless OS sandbox (no agent, no
   model): `srt`, `firejail`, `nono`, `podman`, `docker`, `bwrap`, `nspawn`, `gvisor`. It tags the
   report with the runtime's `--version` so a behaviour change across a tool bump is visible in the diff

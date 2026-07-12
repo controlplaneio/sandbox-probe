@@ -88,7 +88,7 @@ function openaiResponses(res, body) {
   const running = /session id[:\s]+(\d+)/i.exec(lastText); // unified-exec left the process backgrounded
 
   const tools = Array.isArray(body.tools) ? body.tools : [];
-  const shell = tools.find((t) => t && /shell|exec/i.test(t.name || t.type || '') && !/stdin/i.test(t.name || ''));
+  const shell = tools.find((t) => t && /shell|exec|bash|command/i.test(t.name || t.type || '') && !/stdin/i.test(t.name || ''));
   const stdin = tools.find((t) => t && /stdin/i.test(t.name || ''));
 
   let item;
@@ -108,8 +108,23 @@ function openaiResponses(res, body) {
     log(`openai poll ${stdin.name} session=${sid}`);
     item = { type: 'function_call', call_id: rid('call_'), name: stdin.name, arguments: JSON.stringify({ session_id: sid, chars: '', yield_time_ms: 600000 }) };
   } else {
-    log('openai final');
-    item = { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'done' }] };
+    // The probe has run. If the agent exposes a completion tool (trae's task_done), call it so its
+    // step loop ends cleanly after one run; otherwise a plain assistant message ends the turn (Codex).
+    const done = tools.find((t) => t && /task[_-]?done|complete|finish/i.test(t.name || t.type || ''));
+    if (done) {
+      log(`openai ${done.name} (task complete)`);
+      item = { type: 'function_call', call_id: rid('call_'), name: done.name, arguments: '{}' };
+    } else {
+      log('openai final');
+      item = { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'done' }] };
+    }
+  }
+  // Per the OpenAI Responses spec, SSE is only used when stream:true (Codex). Non-streaming clients
+  // (trae-agent) omit it and expect a single JSON Response object with an `output` array.
+  if (body.stream !== true) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ id: rid('resp_'), object: 'response', created_at: 0, status: 'completed', model: body.model || 'mock-model', output: [item], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2, input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 0 } } }));
+    return;
   }
   sseHead(res);
   data(res, { type: 'response.created', response: { id: rid('resp_') } });
