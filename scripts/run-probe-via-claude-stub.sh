@@ -12,24 +12,13 @@
 # Optional env: CLAUDE_SANDBOX (on|off, default on), RUNNER (tag label), PORT (stub port),
 #               SCAN_ARGS (probe sub-command, default "scan --tasksets baseline").
 set -eo pipefail
+source "$(dirname "$0")/stub-common.sh"
 
-: "${PROBE:?PROBE (probe binary path) is required}"
-: "${OUT:?OUT (report output path) is required}"
-RUNNER="${RUNNER:-$(uname -s)}"
 PORT="${PORT:-8787}"
 CLAUDE_SANDBOX="${CLAUDE_SANDBOX:-on}"
-# The scan sub-command + taskset selection the probe runs inside the sandbox. Override to run
-# a quick subset locally, e.g. SCAN_ARGS="scan --tasks baseline_sandbox_task --tasksets none".
-SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
+stub_init
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-mkdir -p "$(dirname "$OUT")"
-
-# Extract a whitespace-free version token (a tag value with a space would word-split the shell
-# command the mock runs, truncating the tag list). match() reads to EOF so it's SIGPIPE-safe.
-VERSION="$(claude --version 2>/dev/null | awk 'match($0,/[0-9]+\.[0-9][0-9.]*/) && !seen {print substr($0,RSTART,RLENGTH); seen=1}')" || VERSION=""; VERSION="${VERSION:-unknown}"
+VERSION="$(stub_semver claude --version)"
 # When confining on Linux, Claude Code wraps the probe in bubblewrap — record bwrap's version too,
 # since that's the sandbox engine whose behaviour the report reflects (kernel/OS is in the report's
 # environment_detection finding). No-op on macOS (Seatbelt) / when unconfined.
@@ -40,27 +29,12 @@ if [ "$CLAUDE_SANDBOX" = "on" ] && command -v bwrap >/dev/null 2>&1; then
 fi
 TAGS="runner=${RUNNER},harness=claude,sandbox=${CLAUDE_SANDBOX},claude=${VERSION}${SANDBOX_TOOL_TAG},mode=via-claude-stub"
 
-# A full baseline scan can take a few minutes, so lift Claude Code's Bash timeout well above
-# the ~2 min default (env caps + an explicit per-command timeout carried in the tool input).
+# A full baseline scan can take a few minutes, so lift Claude Code's Bash timeout well above the
+# ~2 min default (env caps + the per-command timeout the mock carries in the tool input). Exported
+# so both claude (the two BASH_*_TIMEOUT_MS caps) and the mock (BASH_TIMEOUT_MS) see it.
 BASH_TIMEOUT_MS="${BASH_TIMEOUT_MS:-600000}"
-export BASH_DEFAULT_TIMEOUT_MS="$BASH_TIMEOUT_MS"
-export BASH_MAX_TIMEOUT_MS="$BASH_TIMEOUT_MS"
-
-# Start the mock model API. It never contacts a real model.
-STUB_LOG="$(mktemp)"
-PORT="$PORT" \
-PROBE_CMD="${PROBE} ${SCAN_ARGS} --tags ${TAGS} --output_path ${OUT}" \
-BASH_TIMEOUT_MS="$BASH_TIMEOUT_MS" \
-STUB_LOG="$STUB_LOG" \
-  node "${PROJECT_ROOT}/scripts/mock-agent-api.mjs" &
-STUB_PID=$!
-trap 'kill "$STUB_PID" 2>/dev/null || true' EXIT
-
-# Wait (up to ~5s) for the stub to accept connections, using bash's /dev/tcp.
-for _ in $(seq 1 50); do
-  if (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") 2>/dev/null; then exec 3>&- 3<&-; break; fi
-  sleep 0.1
-done
+export BASH_DEFAULT_TIMEOUT_MS="$BASH_TIMEOUT_MS" BASH_MAX_TIMEOUT_MS="$BASH_TIMEOUT_MS" BASH_TIMEOUT_MS
+stub_start_mock
 
 export ANTHROPIC_BASE_URL="http://127.0.0.1:${PORT}"
 export ANTHROPIC_API_KEY="sk-ant-stub"              # any non-empty value; the stub ignores it
@@ -83,12 +57,4 @@ claude \
   -p "Run the sandbox probe and then stop." || true
 echo "::endgroup::"
 
-echo "== mock request log =="
-cat "$STUB_LOG" 2>/dev/null || true
-rm -f "$STUB_LOG" 2>/dev/null || true
-
-if [ ! -f "$OUT" ]; then
-  echo "::error::claude(stub) did not produce ${OUT}"
-  exit 1
-fi
-echo "claude(stub) wrote ${OUT}"
+stub_finish "claude(stub)"

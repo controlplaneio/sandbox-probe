@@ -7,35 +7,16 @@
 # Required env: PROBE (probe binary), OUT (report path).
 # Optional env: RUNNER, PORT, SCAN_ARGS (default "scan --tasksets baseline").
 set -eo pipefail
+source "$(dirname "$0")/stub-common.sh"
 
-: "${PROBE:?PROBE (probe binary path) is required}"
-: "${OUT:?OUT (report output path) is required}"
-RUNNER="${RUNNER:-$(uname -s)}"
 PORT="${PORT:-8792}"
-SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-mkdir -p "$(dirname "$OUT")"
-
-VERSION="$(pi --version 2>/dev/null | awk 'match($0,/[0-9]+\.[0-9][0-9.]*/) && !seen {print substr($0,RSTART,RLENGTH); seen=1}')" || VERSION=""; VERSION="${VERSION:-unknown}"
-TAGS="runner=${RUNNER},harness=pi,pi=${VERSION},mode=via-pi-stub"
-
-STUB_LOG="$(mktemp)"
-PORT="$PORT" \
-PROBE_CMD="${PROBE} ${SCAN_ARGS} --tags ${TAGS} --output_path ${OUT}" \
-STUB_LOG="$STUB_LOG" \
-  node "${PROJECT_ROOT}/scripts/mock-agent-api.mjs" &
-STUB_PID=$!
-CFG="$(mktemp -d)"
-trap 'kill "$STUB_PID" 2>/dev/null || true; rm -rf "$CFG"' EXIT
-for _ in $(seq 1 50); do
-  if (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") 2>/dev/null; then exec 3>&- 3<&-; break; fi
-  sleep 0.1
-done
+stub_init
+TAGS="runner=${RUNNER},harness=pi,pi=$(stub_semver pi --version),mode=via-pi-stub"
+stub_start_mock
 
 # Scratch config dir; a custom openai-completions provider points pi at the mock (dummy key). compat
 # flags keep pi off the `developer` role / reasoning_effort the mock doesn't implement.
+CFG="$(mktemp -d)"; STUB_SCRATCH+=("$CFG")
 export PI_CODING_AGENT_DIR="$CFG" PI_OFFLINE=1 PI_TELEMETRY=0
 cat > "$CFG/models.json" <<JSON
 { "providers": { "mock": {
@@ -51,12 +32,4 @@ pi -p --provider mock --model mock/mock-model --api-key dummy \
   "Run the sandbox probe and then stop." </dev/null || true
 echo "::endgroup::"
 
-echo "== mock request log =="
-cat "$STUB_LOG" 2>/dev/null || true
-rm -f "$STUB_LOG" 2>/dev/null || true
-
-if [ ! -f "$OUT" ]; then
-  echo "::error::pi(stub) did not produce ${OUT}"
-  exit 1
-fi
-echo "pi(stub) wrote ${OUT}"
+stub_finish "pi(stub)"

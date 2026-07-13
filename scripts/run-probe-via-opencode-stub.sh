@@ -7,35 +7,16 @@
 # Required env: PROBE (probe binary), OUT (report path).
 # Optional env: RUNNER, PORT, SCAN_ARGS (default "scan --tasksets baseline").
 set -eo pipefail
+source "$(dirname "$0")/stub-common.sh"
 
-: "${PROBE:?PROBE (probe binary path) is required}"
-: "${OUT:?OUT (report output path) is required}"
-RUNNER="${RUNNER:-$(uname -s)}"
 PORT="${PORT:-8790}"
-SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-mkdir -p "$(dirname "$OUT")"
-
-VERSION="$(opencode --version 2>/dev/null | awk 'match($0,/[0-9]+\.[0-9][0-9.]*/) && !seen {print substr($0,RSTART,RLENGTH); seen=1}')" || VERSION=""; VERSION="${VERSION:-unknown}"
-TAGS="runner=${RUNNER},harness=opencode,opencode=${VERSION},mode=via-opencode-stub"
-
-STUB_LOG="$(mktemp)"
-PORT="$PORT" \
-PROBE_CMD="${PROBE} ${SCAN_ARGS} --tags ${TAGS} --output_path ${OUT}" \
-STUB_LOG="$STUB_LOG" \
-  node "${PROJECT_ROOT}/scripts/mock-agent-api.mjs" &
-STUB_PID=$!
-CFG="$(mktemp -d)"
-trap 'kill "$STUB_PID" 2>/dev/null || true; rm -rf "$CFG"' EXIT
-for _ in $(seq 1 50); do
-  if (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") 2>/dev/null; then exec 3>&- 3<&-; break; fi
-  sleep 0.1
-done
+stub_init
+TAGS="runner=${RUNNER},harness=opencode,opencode=$(stub_semver opencode --version),mode=via-opencode-stub"
+stub_start_mock
 
 # Scratch config so we never touch the user's ~/.config/opencode. A custom openai-compatible
 # provider points opencode at the mock; a dummy key is fine.
+CFG="$(mktemp -d)"; STUB_SCRATCH+=("$CFG")
 export XDG_CONFIG_HOME="$CFG" XDG_DATA_HOME="$CFG/data"
 mkdir -p "$CFG/opencode"
 cat > "$CFG/opencode/opencode.json" <<JSON
@@ -61,12 +42,4 @@ opencode run --title probe --auto --model mock/mock-model \
   "Run the sandbox probe and then stop." </dev/null || true
 echo "::endgroup::"
 
-echo "== mock request log =="
-cat "$STUB_LOG" 2>/dev/null || true
-rm -f "$STUB_LOG" 2>/dev/null || true
-
-if [ ! -f "$OUT" ]; then
-  echo "::error::opencode(stub) did not produce ${OUT}"
-  exit 1
-fi
-echo "opencode(stub) wrote ${OUT}"
+stub_finish "opencode(stub)"

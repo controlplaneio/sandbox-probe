@@ -12,21 +12,13 @@
 # Optional env: CODEX_SANDBOX (on|off, default on), RUNNER, PORT,
 #               SCAN_ARGS (default "scan --tasksets baseline").
 set -eo pipefail
+source "$(dirname "$0")/stub-common.sh"
 
-: "${PROBE:?PROBE (probe binary path) is required}"
-: "${OUT:?OUT (report output path) is required}"
-RUNNER="${RUNNER:-$(uname -s)}"
 PORT="${PORT:-8789}"
 CODEX_SANDBOX="${CODEX_SANDBOX:-on}"
-SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
+stub_init
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-mkdir -p "$(dirname "$OUT")"
-
-# Extract a whitespace-free version token (codex prints "codex-cli 0.143.0"; a space would word-split
-# the shell command the mock runs and truncate the tag list). match() reads to EOF so it's SIGPIPE-safe.
-VERSION="$(codex --version 2>/dev/null | awk 'match($0,/[0-9]+\.[0-9][0-9.]*/) && !seen {print substr($0,RSTART,RLENGTH); seen=1}')" || VERSION=""; VERSION="${VERSION:-unknown}"
+VERSION="$(stub_semver codex --version)"
 # When confining on Linux, Codex wraps the probe in bubblewrap — record bwrap's version too (the
 # sandbox engine the report reflects; kernel/OS is in the environment_detection finding). No-op on
 # macOS (Seatbelt) / when unconfined.
@@ -37,23 +29,12 @@ if [ "$CODEX_SANDBOX" = "on" ] && command -v bwrap >/dev/null 2>&1; then
 fi
 TAGS="runner=${RUNNER},harness=codex,sandbox=${CODEX_SANDBOX},codex=${VERSION}${SANDBOX_TOOL_TAG},mode=via-codex-stub"
 
-STUB_LOG="$(mktemp)"
-PORT="$PORT" \
-PROBE_CMD="${PROBE} ${SCAN_ARGS} --tags ${TAGS} --output_path ${OUT}" \
-BASH_TIMEOUT_MS=600000 \
-STUB_LOG="$STUB_LOG" \
-  node "${PROJECT_ROOT}/scripts/mock-agent-api.mjs" &
-STUB_PID=$!
-trap 'kill "$STUB_PID" 2>/dev/null || true' EXIT
-for _ in $(seq 1 50); do
-  if (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") 2>/dev/null; then exec 3>&- 3<&-; break; fi
-  sleep 0.1
-done
+export BASH_TIMEOUT_MS=600000   # carried by the mock into the tool input
+stub_start_mock
 
 # Scratch config so we never touch the runner's real ~/.codex; dummy key for the mock provider.
-CODEX_HOME="$(mktemp -d)"; export CODEX_HOME
-export MOCK_KEY=dummy
-export OPENAI_API_KEY=dummy
+CODEX_HOME="$(mktemp -d)"; export CODEX_HOME; STUB_SCRATCH+=("$CODEX_HOME")
+export MOCK_KEY=dummy OPENAI_API_KEY=dummy
 
 # Confined = workspace-write (fs write limited to cwd, no network; the probe can still write its
 # report). As-is = bypass approvals + sandbox entirely.
@@ -69,13 +50,4 @@ codex exec --skip-git-repo-check "${SBX[@]}" \
   "Run the sandbox probe and then stop." </dev/null || true
 echo "::endgroup::"
 
-echo "== mock request log =="
-cat "$STUB_LOG" 2>/dev/null || true
-rm -f "$STUB_LOG" 2>/dev/null || true
-rm -rf "$CODEX_HOME" 2>/dev/null || true
-
-if [ ! -f "$OUT" ]; then
-  echo "::error::codex(stub) did not produce ${OUT}"
-  exit 1
-fi
-echo "codex(stub) wrote ${OUT}"
+stub_finish "codex(stub)"

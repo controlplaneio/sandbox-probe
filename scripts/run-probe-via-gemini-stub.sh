@@ -12,37 +12,27 @@
 # Optional env: GEMINI_SANDBOX (''|sandbox-exec|docker|podman), RUNNER, PORT, MODEL,
 #               SCAN_ARGS (default "scan --tasksets baseline").
 set -eo pipefail
+source "$(dirname "$0")/stub-common.sh"
 
-: "${PROBE:?PROBE (probe binary path) is required}"
-: "${OUT:?OUT (report output path) is required}"
-RUNNER="${RUNNER:-$(uname -s)}"
 PORT="${PORT:-8788}"
 GEMINI_SANDBOX="${GEMINI_SANDBOX:-}"
 MODEL="${MODEL:-gemini-2.5-flash}"
-SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-mkdir -p "$(dirname "$OUT")"
+stub_init
 
 # Force gemini-cli to API-key auth against the mock (0.49+ needs the auth type set explicitly, and
 # this overrides any cached OAuth login). A workspace .gemini/settings.json works both directly and
-# inside the container sandbox, which mounts the workspace. Back up any existing one; cleanup() (the
-# EXIT trap set once the stub is up) restores it and stops the mock.
+# inside the container sandbox, which mounts the workspace. Back up any existing one; the EXIT trap
+# (armed now, before the mock starts) restores it via stub_extra_cleanup.
 GEMINI_SETTINGS=".gemini/settings.json"; GEMINI_BACKUP=""
 mkdir -p .gemini
 [ -f "$GEMINI_SETTINGS" ] && { GEMINI_BACKUP="$(mktemp)"; mv "$GEMINI_SETTINGS" "$GEMINI_BACKUP"; }
 printf '{"security":{"auth":{"selectedType":"gemini-api-key"}}}\n' > "$GEMINI_SETTINGS"
-cleanup() {
-  kill "${STUB_PID:-}" 2>/dev/null || true
+stub_extra_cleanup() {
   if [ -n "$GEMINI_BACKUP" ]; then mv "$GEMINI_BACKUP" "$GEMINI_SETTINGS"; else rm -f "$GEMINI_SETTINGS"; rmdir .gemini 2>/dev/null || true; fi
 }
-# Arm the restore trap immediately — the real settings.json is already replaced above, so any exit
-# from here on (including a set -e abort before the mock starts) must restore it. cleanup guards
-# ${STUB_PID:-}, so arming before the mock exists is safe.
-trap cleanup EXIT
+trap _stub_cleanup EXIT
 
-VERSION="$(gemini --version 2>/dev/null | awk 'match($0,/[0-9]+\.[0-9][0-9.]*/) && !seen {print substr($0,RSTART,RLENGTH); seen=1}')" || VERSION=""; VERSION="${VERSION:-unknown}"
+VERSION="$(stub_semver gemini --version)"
 # For the docker backend, record the docker version too (the sandbox engine the report reflects;
 # kernel/OS is in the environment_detection finding). Seatbelt (sandbox-exec) has no separate version.
 SANDBOX_TOOL_TAG=""
@@ -66,16 +56,7 @@ case "$GEMINI_SANDBOX" in
     SANDBOX_FLAG=(--sandbox); export GEMINI_SANDBOX ;;
 esac
 
-STUB_LOG="$(mktemp)"
-HOST="$MOCK_HOST" PORT="$PORT" \
-PROBE_CMD="${PROBE} ${SCAN_ARGS} --tags ${TAGS} --output_path ${OUT}" \
-STUB_LOG="$STUB_LOG" \
-  node "${PROJECT_ROOT}/scripts/mock-agent-api.mjs" &
-STUB_PID=$!
-for _ in $(seq 1 50); do
-  if (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") 2>/dev/null; then exec 3>&- 3<&-; break; fi
-  sleep 0.1
-done
+stub_start_mock
 
 # A dummy key is fine (the mock ignores it); the settings file above forces API-key auth. The mock
 # injects PROBE_CMD, so the prompt text is ignored. yolo auto-approves the shell tool;
@@ -89,12 +70,4 @@ gemini --approval-mode=yolo --model "$MODEL" \
   --prompt "Run the sandbox probe and then stop." "${SANDBOX_FLAG[@]}" || true
 echo "::endgroup::"
 
-echo "== mock request log =="
-cat "$STUB_LOG" 2>/dev/null || true
-rm -f "$STUB_LOG" 2>/dev/null || true
-
-if [ ! -f "$OUT" ]; then
-  echo "::error::gemini(stub) did not produce ${OUT}"
-  exit 1
-fi
-echo "gemini(stub) wrote ${OUT}"
+stub_finish "gemini(stub)"
