@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>sandbox-probe — sandbox comparison</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>🛡️</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>sandbox-probe</h1>
+    <p class="tagline">What each AI coding agent's sandbox lets through — measured, not assumed.
+      A cell is <span class="k-leaked">leaked</span> only when the unconfined baseline could do it too.
+      <span class="k-blocked">blocked</span> = the sandbox closed the door; <span class="k-na">n/a</span> = nothing to prove.</p>
+    <div id="meta" class="meta"></div>
+  </header>
+
+  <section id="matrix-section">
+    <div class="section-head">
+      <h2>Comparison</h2>
+      <label>OS
+        <select id="os-filter"><option value="">all</option></select>
+      </label>
+    </div>
+    <div id="matrix"></div>
+  </section>
+
+  <section id="charts-section">
+    <h2>Over time</h2>
+    <p class="hint">Exposure = number of leaked capability categories (0–8). Vertical markers are version releases.</p>
+    <div id="chart-exposure" class="chart"></div>
+    <div class="section-head">
+      <h3>Per-capability timeline</h3>
+      <label>identity <select id="hm-identity"></select></label>
+    </div>
+    <div id="chart-heatmap" class="chart"></div>
+  </section>
+
+  <section id="flips-section">
+    <h2>Changes</h2>
+    <p class="hint">Every capability that flipped state between two configurations, attributed to what moved.</p>
+    <div id="flips"></div>
+  </section>
+
+  <aside id="drill" class="drill hidden">
+    <div class="drill-head"><strong id="drill-title"></strong><button id="drill-close">×</button></div>
+    <div id="drill-body"></div>
+  </aside>
+
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"
+    integrity="sha384-Mx5lkUEQPM1pOJCwFtUICyX45KNojXbkWdYhkKUKsbv391mavbfoAmONbzkgYPzR"
+    crossorigin="anonymous"></script>
+  <script src="app.js"></script>
+</body>
+</html>
