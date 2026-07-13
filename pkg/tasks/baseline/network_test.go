@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -159,6 +160,9 @@ func Test_getSockets(t *testing.T) {
 }
 
 func Test_ScanSocketRoots_dedupAndNesting(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix domain sockets and the /tmp layout are POSIX-only")
+	}
 	// Short /tmp base: macOS caps Unix socket bind paths at ~104 chars, which t.TempDir() blows.
 	dir, err := os.MkdirTemp("/tmp", "spr")
 	require.NoError(t, err)
