@@ -34,11 +34,36 @@ const (
 	RuntimeSeatbelt
 	RuntimeLandlock
 	RuntimeBubblewrap
+	RuntimeNspawn
+	RuntimeAppArmor
+	RuntimeChroot
 	// add other runtimes as needed
 	RuntimeUnknown
 )
 
 var readFile = os.ReadFile
+
+// readProcAttr reads a /proc/*/attr file. os.ReadFile issues a follow-up read to detect EOF, which
+// the AppArmor/SELinux attr interfaces reject with EINVAL — so it fails even though the first read
+// returns the profile. Read in a loop, keeping whatever the first read yields and stopping on any
+// error or short read. Returns "" on open error / no data.
+var readProcAttr = func(path string) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer func() { _ = f.Close() }()
+	var out []byte
+	buf := make([]byte, 128)
+	for len(out) < 4096 {
+		n, err := f.Read(buf)
+		out = append(out, buf[:n]...)
+		if err != nil || n < len(buf) {
+			break
+		}
+	}
+	return strings.TrimSpace(string(out))
+}
 
 // detectSensitiveEnvVars scans environment variables for secrets
 func detectSensitiveEnvVars() ([]models.EnvFinding, error) {
@@ -104,6 +129,18 @@ func GetHostName() (string, error) {
 	return os.Hostname()
 }
 
+// GetHostEnvironment returns the host/kernel the probe ran on. Fields it can't determine on a given
+// platform are left empty. Captured on every run (any harness) so reports stay comparable as the
+// kernel/OS moves under them — the substrate for seccomp/landlock/user-namespaces/gVisor-systrap.
+func GetHostEnvironment() *models.HostEnvironment {
+	release, version := hostKernelInfo()
+	return &models.HostEnvironment{
+		KernelRelease: release,
+		KernelVersion: version,
+		OSRelease:     hostOSRelease(),
+	}
+}
+
 // GetContainerRuntime detects the container runtime for a given process
 // note it will only work for Linux based systems
 func GetContainerRuntime(tgid, pid int) ContainerRuntime {
@@ -149,8 +186,12 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return RuntimeOpenVZ
 	}
 
-	// gVisor detection
+	// gVisor detection: the container-mode marker, or its synthetic /proc/version (present under
+	// `runsc run`, which does not create /__runsc_containers__).
 	if fileExistsFunc("/__runsc_containers__") {
+		return RuntimeGVisor
+	}
+	if data, err := readFile("/proc/version"); err == nil && strings.Contains(strings.ToLower(string(data)), "gvisor") {
 		return RuntimeGVisor
 	}
 
@@ -188,17 +229,27 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		}
 	}
 
-	// /run/systemd/container
+	// isNamed reports whether a marker string identifies a specific runtime (not empty/unknown), so a
+	// bare or unrecognised marker doesn't mask the more specific detections below.
+	isNamed := func(rt ContainerRuntime) bool { return rt != RuntimeUnknown && rt != RuntimeNotFound }
+
+	// /run/systemd/container names the container manager (e.g. "systemd-nspawn"). Return early only
+	// on a known runtime so an unrecognised marker doesn't mask the specific detectors below; but
+	// remember it was present so we still report "unknown" (containerised) if nothing else matches.
 	systemdContainerFile := "/run/systemd/container"
 	if data, err := readFile(systemdContainerFile); err == nil {
-		runtime := stringToContainerRuntime(string(data))
-		return runtime
+		if runtime := stringToContainerRuntime(string(data)); isNamed(runtime) {
+			return runtime
+		}
+		identifiedRuntime = RuntimeUnknown
 	}
 
-	// container env variable
+	// container env variable (same: only when it identifies a known runtime)
 	if containerEnv := os.Getenv("container"); containerEnv != "" {
-		runtime := stringToContainerRuntime(containerEnv)
-		return runtime
+		if runtime := stringToContainerRuntime(containerEnv); isNamed(runtime) {
+			return runtime
+		}
+		identifiedRuntime = RuntimeUnknown
 	}
 
 	landlock, err := probeForLandlock()
@@ -213,6 +264,26 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 	// this is detectable even when the ancestor /proc entries are hidden by PID namespace.
 	if isUserNamespaceWithUIDMap() {
 		return RuntimeBubblewrap
+	}
+
+	// chroot: a differing root vs init's. Checked after the container detections above so a real
+	// container (whose root also differs) is named first; this catches a bare chroot.
+	if isChroot() {
+		return RuntimeChroot
+	}
+
+	// AppArmor: a named profile ("unconfined" when none applies) means the process is AppArmor-
+	// confined. Ranked below the more specific wrappers above (a process can be both AppArmor-confined
+	// and bwrap/landlock-wrapped) but above the generic no-new-privs fallback.
+	// The LSM-specific path (kernel 6.x) is unambiguous; the legacy path is LSM-agnostic — on an
+	// SELinux host it returns the SELinux context, so only trust it when AppArmor is the active LSM.
+	if v := readProcAttr("/proc/self/attr/apparmor/current"); v != "" && !strings.HasPrefix(v, "unconfined") {
+		return RuntimeAppArmor
+	}
+	if fileExistsFunc("/sys/module/apparmor") {
+		if v := readProcAttr("/proc/self/attr/current"); v != "" && !strings.HasPrefix(v, "unconfined") {
+			return RuntimeAppArmor
+		}
 	}
 
 	// no-new-privs is set by bwrap and by some other sandboxes (landlock, firejail);
@@ -235,6 +306,8 @@ func stringToContainerRuntime(s string) ContainerRuntime {
 		return RuntimePodman
 	case strings.Contains(s, "lxc"):
 		return RuntimeLXC
+	case strings.Contains(s, "nspawn"):
+		return RuntimeNspawn
 	case strings.Contains(s, "firejail"):
 		return RuntimeFirejail
 	case strings.Contains(s, "seatbelt"):

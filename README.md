@@ -54,7 +54,7 @@ flowchart TB
     F --> Report[report.json<br/>+ logs/sandbox-probe-*.log]
 ```
 
-The 9 tasks in the `baseline` taskset:
+The 10 tasks in the `baseline` taskset:
 
 - `baseline_path_task`
 - `baseline_network_task`
@@ -63,6 +63,7 @@ The 9 tasks in the `baseline` taskset:
 - `baseline_process_task`
 - `baseline_user_context_task`
 - `baseline_hostname_task`
+- `baseline_environment_task`
 - `baseline_sandbox_task`
 - `baseline_mount_task`
 
@@ -85,7 +86,8 @@ Each row below is a `finding_type` string you will see in `report.json`, what it
 | `mounted_volumes_detections` | mounted filesystems visible from inside | "What of the host filesystem is exposed?" |
 | `user_context_detection` | UID, GID, EUID, EGID | "Is the agent running as a privileged user?" |
 | `hostname_detection` | system hostname | "Does the sandbox leak the host identity?" |
-| `sandbox_detection` | detected runtime (Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, WSL, OpenVZ, Seatbelt, Landlock) | "Is there *any* enforcement at all, and what kind?" |
+| `environment_detection` | host kernel release/version + OS release | "Which kernel/OS produced this result?" (so reports stay comparable across upgrades) |
+| `sandbox_detection` | detected runtime (Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, systemd-nspawn, WSL, OpenVZ, Seatbelt, Landlock, AppArmor, chroot) | "Is there *any* enforcement at all, and what kind?" |
 
 ## Reading a report
 
@@ -94,8 +96,8 @@ A finding looks like this:
 ```json
 {
   "findingType": "sensitive_readable_paths",
-  "task": "baseline_path_task",
-  "description": "Sensitive readable paths",
+  "task": "baseline_filesystem_enumerator",
+  "description": "Readable sensitive paths",
   "value": [
     "/home/alice/.aws/credentials",
     "/home/alice/.ssh/id_ed25519"
@@ -140,7 +142,10 @@ tests/
 ├── sandbox_gemini.sh                 # ... same for Gemini
 ├── detect_docker.sh                  # probe runs inside Docker
 ├── detect_podman.sh                  # probe runs inside Podman
-└── detect_bwrap.sh                   # probe runs inside Bubblewrap
+├── detect_bwrap.sh                   # probe runs inside Bubblewrap
+├── detect_claude.sh                  # probe runs inside Claude Code's own sandbox (real binary, model stubbed — no LLM)
+├── detect_codex.sh                   # ... same for Codex
+└── detect_gemini.sh                  # ... same for Gemini
 ```
 
 Reports land in `./reports/`. A typical diff workflow:
@@ -160,7 +165,7 @@ diff <(jq -S . reports/baseline-claude.json) \
 >
 > You can reduce the risk by using the interactive variants (`*_interactive.sh`), but the agent may still take autonomous action you don't expect.
 
-For more detail see [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md#trialing-against-agent-sandboxes).
+For more detail see [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md#trialling-against-agent-sandboxes).
 
 ## CLI reference
 
@@ -204,7 +209,7 @@ List every registered task with its description.
 ./bin/sandbox-probe tasks list
 ```
 
-The canonical task list (currently 12 tasks across two tasksets) is the output of this command.
+The canonical task list (currently 13 tasks across two tasksets) is the output of this command.
 
 ### `version`
 
@@ -235,7 +240,7 @@ A report is a JSON object with these top-level fields:
 Each `Finding` has four fields, defined in [`api/proto/report/v1/report.proto`](./api/proto/report/v1/report.proto):
 
 - `findingType` — a stable string key (see [What it detects](#what-it-detects)); the field you diff on
-- `task` — which task produced the finding (e.g. `baseline_path_task`)
+- `task` — which task produced the finding (e.g. `baseline_filesystem_enumerator`)
 - `description` — human-readable label
 - `value` — the actual data; shape depends on `findingType` (string, list of strings, list of ints, or a structured object for processes / user identity / proxy config)
 
@@ -257,14 +262,14 @@ Example report fragment:
   "findings": [
     {
       "findingType": "sandbox_detection",
-      "task": "baseline_sandbox_task",
-      "description": "Sandbox/container runtime",
+      "task": "baseline_sandbox_detector",
+      "description": "Container/wrapper runtime",
       "value": "landlock"
     },
     {
       "findingType": "sensitive_readable_paths",
-      "task": "baseline_path_task",
-      "description": "Sensitive readable paths",
+      "task": "baseline_filesystem_enumerator",
+      "description": "Readable sensitive paths",
       "value": ["/home/alice/.ssh/id_ed25519"]
     }
   ]
@@ -277,8 +282,18 @@ The console output during a scan is structured logs; the same data is also writt
 
 The included test scripts target:
 
-- **[Claude Code](https://code.claude.com/docs/en/overview)** — see `tests/baseline_claude.sh`, `tests/sandbox_claude.sh`
+- **[Claude Code](https://code.claude.com/docs/en/overview)** — see `tests/baseline_claude.sh`, `tests/sandbox_claude.sh` (which drive a real, billed agent), and `tests/detect_claude.sh` (the deterministic, no-LLM path described below)
 - **[Gemini CLI](https://geminicli.com/)** — see `tests/baseline_gemini.sh`, `tests/sandbox_gemini.sh` (and `*_interactive.sh` variants)
+
+### Agent sandboxes with no LLM
+
+Driving a real agent to run the probe costs tokens and is non-deterministic. So we exercise each agent's **real** sandbox with **no model call, no API key, and no tokens**: one general mock ([`scripts/mock-agent-api.mjs`](./scripts/mock-agent-api.mjs)) speaks five wire protocols — Anthropic (`/v1/messages`), Gemini (`:streamGenerateContent`), OpenAI Responses (`/v1/responses`, streaming and non-streaming — Codex/trae), OpenAI Chat Completions (`/v1/chat/completions`, streaming and non-streaming — OpenCode/Goose/Pi/gptme/Cline) and Ollama (`/api/chat`, wired for a future native-Ollama agent; not yet exercised by a matrix row) — and returns a canned shell tool call that runs the probe (shaping the argument from each tool's own schema — e.g. Cline's `run_commands` takes a `commands` array). The real agent binary — pointed at the mock via its base-URL override — then executes it inside whatever OS sandbox it ships ([bubblewrap](https://github.com/containers/bubblewrap) on Linux, Seatbelt on macOS, a container for Gemini; OpenCode, Goose, Pi, gptme, Cline and trae ship none, so those rows run unconfined — trae also has an opt-in Docker execution mode). See `scripts/run-probe-via-{claude,gemini,codex,opencode,goose,pi,gptme,cline,trae}-stub.sh`.
+
+This is what CI runs. The [`scan-matrix`](./.github/workflows/scan-matrix.yaml) workflow builds the probe and runs it across a **harness** axis — one row per way of executing the probe:
+- `direct` (unconfined baseline, on linux/macos/windows), and each agent as-is vs its own sandbox: `claude`/`claude-sandbox`, `codex`/`codex-sandbox`, `gemini`/`gemini-docker`/`gemini-sandbox-exec`, the unconfined `opencode` (linux/macos/**windows**) / `goose` / `pi` / `gptme` / `cline`, and `trae` ([bytedance/trae-agent](https://github.com/bytedance/trae-agent), open-source; `trae` unconfined + best-effort `trae-docker` for its Docker mode).
+- keyless **sandbox runtimes** that wrap the probe directly (no agent, no model): `srt` ([Anthropic sandbox-runtime](https://github.com/anthropic-experimental/sandbox-runtime) — bubblewrap/Seatbelt + network proxy), `firejail` (SUID namespaces + seccomp), `nono` ([nono.sh](https://nono.sh) — Landlock/Seatbelt capability sandbox), `podman` / `docker` (OCI containers), `bwrap` (standalone bubblewrap — the invocation the probe fingerprints as `bubblewrap`, unlike Claude Code / srt; see [#38](https://github.com/controlplaneio/sandbox-probe/issues/38)), `nspawn` (systemd-nspawn container) and `gvisor` (userspace-kernel sandbox via `runsc run`, systrap platform). See `scripts/run-probe-in-sandbox.sh`.
+
+Every row is keyless. Diffing an agent against its `-sandbox` row is precisely what that sandbox blocks. Adding another harness (another agent, another runtime) is one matrix row plus a family-gated setup/run step.
 
 Any AI agent that will run an arbitrary binary works in principle — the probe doesn't depend on the agent. Contributions of test scripts for other agents are welcome.
 
@@ -322,6 +337,7 @@ The full task list (also obtainable from `./bin/sandbox-probe tasks list`):
 | `baseline_process_task` | Detects running processes and parent process information |
 | `baseline_user_context_task` | Detects user and group context information (UID, GID, EUID, EGID) |
 | `baseline_hostname_task` | Detects the system hostname |
+| `baseline_environment_task` | Records the host kernel release/version and OS release |
 | `baseline_sandbox_task` | Detects container runtime and sandbox environments (Docker, Podman, LXC, etc.) |
 | `baseline_mount_task` | Detects host-mounted volumes and filesystem mounts |
 | `ps_all_task` | Lists all running processes using `ps` |

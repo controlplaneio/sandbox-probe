@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Run sandbox-probe via the REAL claude binary with the model stubbed out (no LLM, no API key,
+# no tokens). The general mock (scripts/mock-agent-api.mjs) speaks the Anthropic Messages API
+# and returns a canned Bash tool_use that runs the probe.
+#
+# CLAUDE_SANDBOX=on (default) enables Claude Code's own sandbox — bubblewrap on Linux, Seatbelt
+# on macOS — so the probe measures that boundary. CLAUDE_SANDBOX=off runs the probe "as is",
+# giving a same-path unconfined baseline to diff against. Only the probe is ever sandboxed; the
+# claude<->stub traffic is plain localhost outside the sandbox.
+#
+# Required env: PROBE (probe binary), OUT (report path).
+# Optional env: CLAUDE_SANDBOX (on|off, default on), RUNNER (tag label), PORT (stub port),
+#               SCAN_ARGS (probe sub-command, default "scan --tasksets baseline").
+set -eo pipefail
+source "$(dirname "$0")/stub-common.sh"
+
+PORT="${PORT:-8787}"
+CLAUDE_SANDBOX="${CLAUDE_SANDBOX:-on}"
+stub_init
+
+VERSION="$(stub_semver claude --version)"
+# When confining on Linux, Claude Code wraps the probe in bubblewrap — record bwrap's version too,
+# since that's the sandbox engine whose behaviour the report reflects (kernel/OS is in the report's
+# environment_detection finding). No-op on macOS (Seatbelt) / when unconfined.
+SANDBOX_TOOL_TAG=""
+if [ "$CLAUDE_SANDBOX" = "on" ] && command -v bwrap >/dev/null 2>&1; then
+  BWRAP_VERSION="$(bwrap --version 2>/dev/null | awk 'NR==1{print $NF}')" || BWRAP_VERSION=""
+  [ -n "$BWRAP_VERSION" ] && SANDBOX_TOOL_TAG=",bwrap=${BWRAP_VERSION}"
+fi
+TAGS="runner=${RUNNER},harness=claude,sandbox=${CLAUDE_SANDBOX},claude=${VERSION}${SANDBOX_TOOL_TAG},mode=via-claude-stub"
+
+# A full baseline scan can take a few minutes, so lift Claude Code's Bash timeout well above the
+# ~2 min default (env caps + the per-command timeout the mock carries in the tool input). Exported
+# so both claude (the two BASH_*_TIMEOUT_MS caps) and the mock (BASH_TIMEOUT_MS) see it.
+BASH_TIMEOUT_MS="${BASH_TIMEOUT_MS:-600000}"
+export BASH_DEFAULT_TIMEOUT_MS="$BASH_TIMEOUT_MS" BASH_MAX_TIMEOUT_MS="$BASH_TIMEOUT_MS" BASH_TIMEOUT_MS
+stub_start_mock
+
+export ANTHROPIC_BASE_URL="http://127.0.0.1:${PORT}"
+export ANTHROPIC_API_KEY="sk-ant-stub"              # any non-empty value; the stub ignores it
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1   # no autoupdate/telemetry/error-report egress
+
+# Sandbox on -> apply the mandatory sandbox settings; off -> claude's default (unconfined).
+settings=()
+[ "$CLAUDE_SANDBOX" = "on" ] && settings=(--settings "${PROJECT_ROOT}/scripts/config/claude-code-sandbox.json")
+
+echo "::group::claude (stubbed model, sandbox=${CLAUDE_SANDBOX})"
+# bypassPermissions makes the OS sandbox the ONLY constraint on the probe, and sidesteps auto
+# mode's classifier (which makes its own model call the stub can't satisfy). The sandbox is
+# enabled and made mandatory by --settings, independent of permission mode. It is refused when
+# running as root, but GitHub-hosted runners are non-root. Nonzero exit is fine — the report is
+# the success signal.
+claude \
+  "${settings[@]}" \
+  --permission-mode bypassPermissions \
+  --allowedTools "Bash" \
+  -p "Run the sandbox probe and then stop." || true
+echo "::endgroup::"
+
+stub_finish "claude(stub)"

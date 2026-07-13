@@ -133,3 +133,6 @@ results/
 .direnv/
 
 /reports
+
+# trae-agent writes run trajectories here when driving the probe (scripts/run-probe-via-trae-stub.sh)
+trajectories/

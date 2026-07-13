@@ -24,6 +24,7 @@ for improving this document are welcome too.
     - [Running Tests](#running-tests)
     - [Trialling Against Agent Sandboxes](#trialling-against-agent-sandboxes)
     - [Testing in AI Code Assistants](#testing-in-ai-code-assistants)
+    - [Agent sandboxes with no LLM (general mock)](#agent-sandboxes-with-no-llm-general-mock)
     - [Known Limitations](#known-limitations)
   - [Pull Requests](#pull-requests)
 - [Style Guides](#style-guides)
@@ -215,27 +216,36 @@ For tasks that wrap an external system command, use the generic command-based pr
 #### Running Tests
 
 ```bash
-make e2etest         # end-to-end tests
+make e2etests        # end-to-end tests
 make fmt             # format Go code
 cd api && buf generate    # regenerate Protocol Buffers
 ```
 
 ##### Known Working Tooling Versions
 
-The agent CLIs change quickly and their interfaces (and system prompts) aren't always stable. These are the versions
-we currently test against:
+The agent CLIs and sandbox runtimes change quickly and their interfaces (and system prompts) aren't always stable. CI
+installs the **latest** of each, and every report tags the exact version it ran against (`claude=…`, `opencode=…`,
+`srt=…`, `kernel=…`), so the source of truth is the report, not this table. The versions below are a representative
+snapshot known to work:
 
-| Program     | Version  |
-| :---------- | :------- |
-| Claude Code | `2.1.39` |
-| Nono        | `0.4.1`  |
-| Gemini      | `0.28.2` |
+| Program     | Version     |
+| :---------- | :---------- |
+| Claude Code | `2.1.204`   |
+| Codex CLI   | `0.143.0`   |
+| Gemini      | `0.33.2`    |
+| OpenCode    | `1.17.15`   |
+| Goose       | `1.41.0`    |
+| Pi          | `0.80.3`    |
+| gptme       | `0.31.0`    |
+| Cline       | `3.0.38`    |
+| Nono        | `0.67.1`    |
+| gVisor      | `20260622`  |
 
 #### Trialling Against Agent Sandboxes
 
 The scripts under `./tests/` are the easiest way to run the probe inside a real agent sandbox. The README's
-[Try with a sandbox](../README.md#try-with-a-sandbox) section covers running them; here we just call out what to
-keep in mind when adding or changing one:
+[Testing an agent's sandbox](../README.md#testing-an-agents-sandbox) section covers running them; here we just call
+out what to keep in mind when adding or changing one:
 
 - Each script should be runnable in isolation and write its `report.json` into `./reports/`.
 - If you add a script for a new agent or sandbox, follow the existing `baseline_<agent>.sh` / `sandbox_<agent>.sh`
@@ -251,6 +261,52 @@ When validating a change against the real agents, the wrappers under `scripts/` 
 ./scripts/run-claude.sh "Execute !bin/sandbox-probe"
 ./scripts/run-gemini-podman.sh "bin/sandbox-probe"
 ```
+
+#### Agent sandboxes with no LLM (general mock)
+
+The `run-*.sh` wrappers above drive **real, billed** agent sessions. For CI — and for deterministic
+local runs — we instead exercise each agent's sandbox with **no model call, no key, no tokens**:
+
+- `scripts/mock-agent-api.mjs` — one zero-dependency Node server that speaks **five** wire protocols,
+  routing by request path: Anthropic (`/v1/messages`), Gemini (`:streamGenerateContent`), OpenAI
+  Responses (`/v1/responses`, streaming and non-streaming — Codex/trae), OpenAI Chat Completions
+  (`/v1/chat/completions`, streaming and non-streaming — OpenCode/Goose/Pi/gptme/Cline) and Ollama
+  (`/api/chat`, wired for a future native-Ollama agent; not yet exercised by a matrix row). Each returns a canned shell
+  tool call running `$PROBE_CMD`, echoing whatever tool name the request advertised and shaping the
+  argument from that tool's own schema (e.g. Cline's `run_commands` takes a `commands` array), and
+  answers anything else trivially — so it survives CLI churn. When an agent changes its wire shape
+  enough to break it, that agent's matrix rows fail loudly — the signal to update the mock.
+- `scripts/run-probe-via-{claude,gemini,codex,opencode,goose,pi,gptme,cline,trae}-stub.sh` — point the
+  real CLI at the mock via its base-URL override, run it headless with approvals bypassed so the **OS
+  sandbox is the only boundary** on the probe, and (for agents that ship a sandbox) toggle it on/off.
+  Each stub tags the report with the agent's own `--version` (`claude=…`, `codex=…`, …) so results are
+  comparable across CLI upgrades. `trae` is the open-source [bytedance/trae-agent](https://github.com/bytedance/trae-agent)
+  CLI (the Trae IDE is closed and has no keyless path); its `TRAE_DOCKER=on` mode runs the probe inside
+  a container (best-effort `trae-docker` row).
+- `scripts/run-probe-in-sandbox.sh` — wraps the probe directly in a keyless OS sandbox (no agent, no
+  model): `srt`, `firejail`, `nono`, `podman`, `docker`, `bwrap`, `nspawn`, `gvisor`. It tags the
+  report with the runtime's `--version` so a behaviour change across a tool bump is visible in the diff
+  (the confining agents likewise tag their sandbox engine, e.g. `bwrap=…`/`docker=…`).
+
+Every report also carries an `environment_detection` finding with the host kernel release/version and
+OS release — captured by the probe on **every** run regardless of harness — so a change caused by a
+kernel or OS upgrade (seccomp/landlock/user-namespace/gVisor-systrap behaviour all track these) shows
+up as a diff rather than a mystery.
+- `tests/detect_{claude,codex,gemini}.sh` — `make e2etests` entry points asserting the probe reports
+  the expected `sandbox_detection` (`seatbelt` on macOS; `bubblewrap`/kernel-enforcement on Linux;
+  `docker` for gemini's container). Each skips gracefully when its CLI (or sandbox dep) is unavailable.
+
+The [`scan-matrix`](../.github/workflows/scan-matrix.yaml) workflow runs the probe across a **harness**
+axis — one matrix row per way of executing it. Each row sets `family` (which setup steps run), `harness`
+(the job/report name), and optionally `sandbox`/`backend`/`runtime` and `expect`. Agents that ship their
+own sandbox (Claude, Codex, Gemini) have both an as-is row and a confined row; OpenCode/Goose/Pi/gptme/
+Cline ship none, so those run unconfined only. All rows are keyless. bwrap-based rows install
+`bubblewrap` (+ `socat`) and relax the Ubuntu 24.04 unprivileged-user-namespace restriction;
+`nspawn`/`gvisor` build a small rootfs.
+
+To add a harness (another agent or sandbox runtime): add a matrix row with the right `family`/`runtime`,
+a setup step and a run step gated on it, and — if it confines the probe — an `expect` array of the
+`sandbox_detection` values that prove it. The assert step is data-driven off `expect`, so nothing else changes.
 
 #### Known Limitations
 

@@ -278,23 +278,23 @@ func (t *ProxyTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, er
 // SocketTask produces: UNIXSOCKETDETECTION
 type SocketTask struct {
 	baseTask
-	startPath string
+	startPaths []string
 }
 
 func NewSocketTask() *SocketTask {
 	return &SocketTask{
 		baseTask: baseTask{
 			name:        fmt.Sprintf("%s_socket_scanner", TaskPrefix),
-			description: "Scans filesystem for Unix domain sockets",
+			description: "Scans runtime directories for Unix domain sockets",
 		},
-		startPath: "/",
+		startPaths: baselineTasks.DefaultSocketRoots(),
 	}
 }
 
 func (t *SocketTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, error) {
-	log.Info().Str("task", t.GetName()).Str("start_path", t.startPath).Msg("Starting Unix socket scanning task")
+	log.Info().Str("task", t.GetName()).Strs("start_paths", t.startPaths).Msg("Starting Unix socket scanning task")
 
-	sockets, err := baselineTasks.GetSockets(t.startPath, ti.Fast)
+	sockets, err := baselineTasks.ScanSocketRoots(t.startPaths, ti.Fast)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to scan for Unix sockets")
 		return nil, err
@@ -491,6 +491,50 @@ func (t *HostnameTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding,
 	}, nil
 }
 
+// EnvironmentTask produces: ENVIRONMENTDETECTION
+type EnvironmentTask struct {
+	baseTask
+}
+
+func NewEnvironmentTask() *EnvironmentTask {
+	return &EnvironmentTask{
+		baseTask: baseTask{
+			name:        fmt.Sprintf("%s_environment", TaskPrefix),
+			description: "Records the host kernel and OS release the probe ran on (for tracking over time)",
+		},
+	}
+}
+
+func (t *EnvironmentTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, error) {
+	log.Info().Str("task", t.GetName()).Msg("Starting environment detection task")
+
+	env := baselineTasks.GetHostEnvironment()
+	log.Info().
+		Str("kernel_release", env.KernelRelease).
+		Str("os_release", env.OSRelease).
+		Msg("Host environment detected")
+
+	envValue, err := structpb.NewValue(map[string]interface{}{
+		"kernel_release": env.KernelRelease,
+		"kernel_version": env.KernelVersion,
+		"os_release":     env.OSRelease,
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert host environment to protobuf value")
+		return nil, err
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("Environment detection task completed successfully")
+	return []*reportv1.Finding{
+		{
+			FindingType: ENVIRONMENTDETECTION,
+			Task:        t.GetName(),
+			Description: "Host kernel and OS release",
+			Value:       envValue,
+		},
+	}, nil
+}
+
 // SandboxTask produces: SANDBOXDETECTION
 type SandboxTask struct {
 	baseTask
@@ -536,6 +580,12 @@ func (t *SandboxTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 		runtimeStr = "seatbelt"
 	case baselineTasks.RuntimeLandlock:
 		runtimeStr = "landlock"
+	case baselineTasks.RuntimeNspawn:
+		runtimeStr = "nspawn"
+	case baselineTasks.RuntimeAppArmor:
+		runtimeStr = "apparmor"
+	case baselineTasks.RuntimeChroot:
+		runtimeStr = "chroot"
 	case baselineTasks.RuntimeUnknown:
 		runtimeStr = "unknown"
 	}
@@ -584,8 +634,6 @@ func (t *SandboxTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 			Value:       mv,
 		})
 	}
-
-	// TODO: Detect Seatbelt
 
 	log.Info().Str("task", t.GetName()).Msg("Sandbox detection task completed successfully")
 
@@ -650,6 +698,7 @@ func GetBaselineTasks() []Task {
 		NewProcessTask(),     // PROCESSDETECTION, PARENTPROCESSDETECTION
 		NewUserContextTask(), // USERCONTEXTDETECTION
 		NewHostnameTask(),    // HOSTNAMEDETECTION
+		NewEnvironmentTask(), // ENVIRONMENTDETECTION
 		NewSandboxTask(),     // SANDBOXDETECTION
 		NewMountTask(),       // MOUNTEDVOLUMESDETECTION
 	}

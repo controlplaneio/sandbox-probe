@@ -122,6 +122,15 @@ func Test_getContainerRuntime(t *testing.T) {
 			},
 		},
 		{
+			name: "systemd-nspawn test",
+			args: args{
+				runtimeStr: "systemd-nspawn",
+			},
+			want: want{
+				runtime: RuntimeNspawn,
+			},
+		},
+		{
 			name: "unknown test",
 			args: args{
 				runtimeStr: "unknown",
@@ -144,7 +153,9 @@ func Test_getContainerRuntime(t *testing.T) {
 			}
 			fileExistsFunc = func(path string) bool { return false }
 			probeForLandlock = func() (bool, error) { return false, nil }
-			t.Cleanup(func() { probeForLandlock = probeForLandlockImpl })
+			origChroot := isChroot
+			isChroot = func() bool { return false }
+			t.Cleanup(func() { probeForLandlock = probeForLandlockImpl; isChroot = origChroot })
 
 			runtime := GetContainerRuntime(0, 0)
 			if runtime != tt.want.runtime {
@@ -154,4 +165,87 @@ func Test_getContainerRuntime(t *testing.T) {
 	}
 }
 
+func TestGetContainerRuntimeAppArmor(t *testing.T) {
+	origRead, origAttr, origExists, origLandlock, origChroot := readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot
+	t.Cleanup(func() {
+		readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot = origRead, origAttr, origExists, origLandlock, origChroot
+	})
+	readFile = func(string) ([]byte, error) { return nil, fmt.Errorf("file not found") }
+	probeForLandlock = func() (bool, error) { return false, nil }
+	isChroot = func() bool { return false }
 
+	for _, tt := range []struct {
+		name         string
+		apparmorAttr string // /proc/self/attr/apparmor/current (LSM-specific)
+		legacyAttr   string // /proc/self/attr/current (LSM-agnostic)
+		apparmorLSM  bool   // /sys/module/apparmor present
+		wantApparmor bool
+	}{
+		// LSM-specific path is unambiguous — trusted regardless of the module check.
+		{"apparmor-specific profile", "sandbox-probe (complain)", "", false, true},
+		{"unconfined", "unconfined", "unconfined", true, false},
+		// Legacy path only trusted when AppArmor is the active LSM (old kernels).
+		{"legacy profile, apparmor LSM", "", "sandbox-probe (enforce)", true, true},
+		// SELinux writes its context to the same legacy path — must NOT be read as apparmor.
+		{"selinux context, no apparmor LSM", "", "system_u:system_r:httpd_t:s0", false, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			fileExistsFunc = func(p string) bool { return tt.apparmorLSM && p == "/sys/module/apparmor" }
+			readProcAttr = func(path string) string {
+				switch path {
+				case "/proc/self/attr/apparmor/current":
+					return tt.apparmorAttr
+				case "/proc/self/attr/current":
+					return tt.legacyAttr
+				}
+				return ""
+			}
+			if got := GetContainerRuntime(0, 0) == RuntimeAppArmor; got != tt.wantApparmor {
+				t.Errorf("apparmor=%v, want %v", got, tt.wantApparmor)
+			}
+		})
+	}
+}
+
+// The /run/systemd/container marker must name nspawn but must NOT mask a lower detector when the
+// marker is empty or unrecognised (the bug fixed by returning early only on a *named* runtime).
+func TestGetContainerRuntimeSystemdContainerMarker(t *testing.T) {
+	origRead, origAttr, origExists, origLandlock, origChroot := readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot
+	t.Cleanup(func() {
+		readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot = origRead, origAttr, origExists, origLandlock, origChroot
+	})
+	fileExistsFunc = func(string) bool { return false }
+	probeForLandlock = func() (bool, error) { return false, nil }
+
+	for _, tt := range []struct {
+		name        string
+		marker      string // /run/systemd/container contents ("" = file absent)
+		apparmor    bool   // whether a named AppArmor profile is present
+		wantRuntime ContainerRuntime
+	}{
+		{"nspawn marker names nspawn", "systemd-nspawn\n", false, RuntimeNspawn},
+		{"empty marker does not mask apparmor", "", true, RuntimeAppArmor},
+		{"unknown marker does not mask apparmor", "some-manager\n", true, RuntimeAppArmor},
+		// An unrecognised marker (proot/rkt/…) still means "containerised" — preserve the signal.
+		{"unknown marker still reports unknown", "proot\n", false, RuntimeUnknown},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			isChroot = func() bool { return false }
+			readFile = func(path string) ([]byte, error) {
+				if path == "/run/systemd/container" && tt.marker != "" {
+					return []byte(tt.marker), nil
+				}
+				return nil, fmt.Errorf("file not found")
+			}
+			readProcAttr = func(string) string {
+				if tt.apparmor {
+					return "sandbox-probe (complain)"
+				}
+				return ""
+			}
+			if got := GetContainerRuntime(0, 0); got != tt.wantRuntime {
+				t.Errorf("marker=%q apparmor=%v: got %v, want %v", tt.marker, tt.apparmor, got, tt.wantRuntime)
+			}
+		})
+	}
+}

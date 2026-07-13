@@ -131,6 +131,12 @@ func (w *walker) enqueue(it walkItem) {
 }
 
 func (w *walker) onDirEnt(dirName, baseName string, typ os.FileMode) error {
+	// Skip macOS APFS firmlink aliases (/System/Volumes/Data etc.): they re-expose volumes already
+	// reachable from /, so descending re-walks the whole tree for no new sockets. macOS-only path.
+	if typ == os.ModeDir && dirName == "/System/Volumes" {
+		return nil
+	}
+
 	// ! added
 	if w.fast {
 		// skip logic to speed up processing

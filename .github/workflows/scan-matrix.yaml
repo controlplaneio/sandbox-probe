@@ -1,0 +1,390 @@
+name: scan-matrix
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["matrix/**"]
+  schedule:
+    - cron: "0 8 * * 1" # weekly
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scan-matrix-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build (${{ matrix.goos }}/${{ matrix.goarch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest,  goos: linux,   goarch: amd64, ext: "" }
+          - { runner: macos-latest,   goos: darwin,  goarch: arm64, ext: "" }
+          - { runner: windows-latest, goos: windows, goarch: amd64, ext: ".exe" }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      # Cache the built binary keyed on the Go sources; workflow/script/doc-only changes then
+      # reuse it instead of recompiling every run.
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: sandbox-probe${{ matrix.ext }}
+          key: probe-${{ matrix.goos }}-${{ matrix.goarch }}-${{ hashFiles('**/*.go', 'go.mod', 'go.sum') }}
+      - if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-go@v6
+        with: { go-version-file: go.mod }
+      - if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o sandbox-probe${{ matrix.ext }} .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sandbox-probe-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: sandbox-probe${{ matrix.ext }}
+
+  # One row per harness × OS. `family` drives setup, `harness` is the job/report name. Every agent
+  # runs via the general mock (scripts/mock-agent-api.mjs) with the model stubbed — no key, no
+  # tokens. To add a harness: add rows below + a family-gated setup/run step, and (if it confines
+  # the probe) an `expect` array of the sandbox_detection values that prove it. The assert is
+  # data-driven off `expect`, so nothing else changes.
+  scan:
+    name: ${{ matrix.harness }} (${{ matrix.os }})
+    needs: build
+    # Best-effort opt-in: a row may set `optional: true` to be non-blocking (e.g. a fragile new
+    # runtime being stabilised). All rows are currently blocking; none set it.
+    continue-on-error: ${{ matrix.optional == true }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # direct — unconfined baseline on the runner.
+          - { os: linux,   runner: ubuntu-latest,  arch: linux-amd64,   ext: "",     family: direct, harness: direct }
+          - { os: macos,   runner: macos-latest,   arch: darwin-arm64,  ext: "",     family: direct, harness: direct }
+          - { os: windows, runner: windows-latest, arch: windows-amd64, ext: ".exe", family: direct, harness: direct }
+          # claude — real binary, model stubbed; as-is vs its own sandbox (bwrap on Linux, Seatbelt on macOS).
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: claude, harness: claude,         sandbox: "off" }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: claude, harness: claude-sandbox, sandbox: "on", expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: claude, harness: claude,         sandbox: "off" }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: claude, harness: claude-sandbox, sandbox: "on", expect: '["seatbelt"]' }
+          # codex — real binary, model stubbed; as-is vs its workspace-write sandbox (bwrap on Linux, Seatbelt on macOS).
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: codex, harness: codex,         sandbox: "off" }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: codex, harness: codex-sandbox, sandbox: "on", expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: codex, harness: codex,         sandbox: "off" }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: codex, harness: codex-sandbox, sandbox: "on", expect: '["seatbelt"]' }
+          # gemini — real agent, model stubbed; as-is vs its sandbox (Seatbelt on macOS, container on Linux).
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini }
+          # gemini-docker re-execs the whole CLI in a container; the mock is reached and auth injected
+          # across that boundary via SANDBOX_FLAGS in the gemini stub runner.
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gemini, harness: gemini-docker,       backend: docker,       expect: '["docker"]' }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: gemini, harness: gemini-sandbox-exec, backend: sandbox-exec, expect: '["seatbelt"]' }
+          # opencode / goose / pi / gptme / cline — real agents (chat/completions), model stubbed; NO native sandbox (unconfined "as-is").
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: opencode, harness: opencode }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: opencode, harness: opencode }
+          - { os: windows, runner: windows-latest, arch: windows-amd64, ext: ".exe", family: opencode, harness: opencode }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: goose,    harness: goose }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: goose,    harness: goose }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: pi,       harness: pi }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: pi,       harness: pi }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: gptme,    harness: gptme }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: cline,    harness: cline }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: cline,    harness: cline }
+          # trae (bytedance/trae-agent) — open-source agent, model stubbed via the OpenAI Responses API.
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: trae,     harness: trae }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: trae,     harness: trae }
+          # trae-docker — trae's own Docker execution mode (agent-driven container). Heavy (source clone +
+          # pyinstaller tool-bundling per run) and only re-detects docker, so best-effort.
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: trae,     harness: trae-docker, sandbox: "docker", expect: '["docker"]', optional: true }
+          # sandbox runtimes — no agent, no model; each a distinct keyless OS sandbox the probe fingerprints.
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: srt,      runtime: srt,      expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: sandbox, harness: srt,      runtime: srt,      expect: '["seatbelt"]' }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: firejail, runtime: firejail, expect: '["firejail"]' }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: nono,     runtime: nono,     expect: '["landlock","seccomp-notify","seccomp-filter","no-new-privs"]' }
+          - { os: macos, runner: macos-latest,  arch: darwin-arm64, ext: "", family: sandbox, harness: nono,     runtime: nono,     expect: '["seatbelt"]' }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: podman,   runtime: podman,   expect: '["podman"]' }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: docker,   runtime: docker,   expect: '["docker"]' }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: bwrap,    runtime: bwrap,    expect: '["bubblewrap","no-new-privs","seccomp-filter","landlock"]' }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: nspawn,   runtime: nspawn,   expect: '["nspawn"]' }
+          - { os: linux, runner: ubuntu-latest, arch: linux-amd64,  ext: "", family: sandbox, harness: gvisor,   runtime: gvisor,   expect: '["gvisor"]' }
+    runs-on: ${{ matrix.runner }}
+    env:
+      PROBE: ./sandbox-probe${{ matrix.ext }}
+      REPORT: reports/${{ matrix.os }}-${{ matrix.harness }}.json
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: sandbox-probe-${{ matrix.arch }}
+      - if: runner.os != 'Windows'
+        run: chmod +x $PROBE
+      - run: mkdir -p reports
+        shell: bash
+
+      # ── agent setup: node for every agent, sandbox deps + the CLI per family ───
+      - if: matrix.family != 'direct'
+        uses: actions/setup-node@v6
+        with: { node-version: "22" }
+      - if: (matrix.family == 'claude' || matrix.family == 'codex') && runner.os == 'Linux'
+        name: linux sandbox deps (bwrap)
+        shell: bash
+        run: |
+          sudo apt-get update || true; sudo apt-get install -y bubblewrap socat
+          # Ubuntu 24.04+ blocks unprivileged user namespaces by default; bwrap needs them.
+          if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - if: matrix.family == 'claude'
+        run: npm install -g @anthropic-ai/claude-code && claude --version
+        shell: bash
+      - if: matrix.family == 'codex'
+        run: npm install -g @openai/codex && codex --version
+        shell: bash
+      - if: matrix.family == 'gemini'
+        run: npm install -g @google/gemini-cli && gemini --version
+        shell: bash
+      - if: matrix.family == 'opencode'
+        run: npm install -g opencode-ai && opencode --version
+        shell: bash
+      - if: matrix.family == 'goose'
+        name: install goose
+        shell: bash
+        run: |
+          curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | CONFIGURE=false bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - if: matrix.family == 'pi'
+        run: npm install -g @earendil-works/pi-coding-agent && pi --version
+        shell: bash
+      - if: matrix.family == 'gptme'
+        name: install gptme
+        shell: bash
+        run: |
+          pipx install gptme
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - if: matrix.family == 'cline'
+        name: install cline
+        shell: bash
+        run: npm install -g cline || { sleep 10; npm install -g cline; } && cline --version
+      - if: matrix.family == 'trae'
+        name: install trae-agent
+        shell: bash
+        run: |
+          command -v uv >/dev/null || { curl -LsSf https://astral.sh/uv/install.sh | sh; echo "$HOME/.local/bin" >> "$GITHUB_PATH"; }
+          export PATH="$HOME/.local/bin:$PATH"
+          git clone --depth 1 https://github.com/bytedance/trae-agent "$RUNNER_TEMP/trae-src"
+          cd "$RUNNER_TEMP/trae-src"
+          uv sync --python 3.12
+          uv pip install docker pexpect   # docker-mode manager imports these at startup (an extra)
+          echo "TRAE_SRC=$RUNNER_TEMP/trae-src" >> "$GITHUB_ENV"
+          echo "TRAE_CLI=$RUNNER_TEMP/trae-src/.venv/bin/trae-cli" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/trae-src/.venv/bin/trae-cli" --version
+      - if: matrix.harness == 'trae-docker'
+        run: docker info
+      - if: matrix.backend == 'docker'
+        run: docker info
+
+      # ── sandbox-runtime installs (family=sandbox) ──────────────────────────────
+      - if: matrix.runtime == 'srt'
+        name: install srt (+ bwrap deps on linux)
+        shell: bash
+        run: |
+          npm install -g @anthropic-ai/sandbox-runtime && srt --version
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update || true; sudo apt-get install -y bubblewrap socat ripgrep
+            if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
+              sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+            fi
+          else
+            brew install ripgrep || true
+          fi
+      - if: matrix.runtime == 'firejail'
+        run: sudo apt-get update || true; sudo apt-get install -y firejail
+      - if: matrix.runtime == 'nono'
+        name: install nono
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            curl -fsSL https://nono.sh/install.sh | sh
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+            # nono's seccomp-notify supervisor may need unprivileged user namespaces (gated on 24.04).
+            if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
+              sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+            fi
+          else
+            brew install nono
+          fi
+      - if: matrix.runtime == 'podman'
+        name: ensure podman
+        shell: bash
+        run: command -v podman >/dev/null || { sudo apt-get update || true; sudo apt-get install -y podman; }
+      - if: matrix.runtime == 'docker'
+        name: ensure docker
+        run: docker info
+      - if: matrix.runtime == 'bwrap'
+        name: install bubblewrap
+        shell: bash
+        run: |
+          sudo apt-get update || true; sudo apt-get install -y bubblewrap
+          # Ubuntu 24.04+ gates unprivileged user namespaces; bwrap --unshare-user needs them.
+          if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = "1" ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - if: matrix.runtime == 'nspawn' || matrix.runtime == 'gvisor'
+        name: build a container rootfs (ubuntu)
+        shell: bash
+        run: |
+          ROOTFS="$RUNNER_TEMP/rootfs"
+          mkdir -p "$ROOTFS"
+          # Populate from the ubuntu image (faster/more reliable than debootstrap).
+          cid=$(docker create ubuntu:latest)
+          docker export "$cid" | sudo tar -C "$ROOTFS" -xf -
+          docker rm "$cid"
+          # docker export ships /.dockerenv; left in place the probe would misreport "docker".
+          sudo rm -f "$ROOTFS/.dockerenv" "$ROOTFS/run/.containerenv"
+          echo "ROOTFS=$ROOTFS" >> "$GITHUB_ENV"
+      - if: matrix.runtime == 'nspawn'
+        name: install systemd-nspawn
+        shell: bash
+        run: sudo apt-get update || true; sudo apt-get install -y systemd-container
+      - if: matrix.runtime == 'gvisor'
+        name: install gvisor (runsc, systrap platform)
+        shell: bash
+        run: |
+          curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | sudo tee /etc/apt/sources.list.d/gvisor.list >/dev/null
+          sudo apt-get update || true; sudo apt-get install -y runsc
+          runsc --version
+
+      # ── run the probe under the harness (model stubbed by the general mock) ────
+      - if: matrix.family == 'direct'
+        name: probe (direct)
+        shell: bash
+        run: $PROBE scan --tasksets baseline --tags "os=${{ matrix.os }},harness=direct" --output_path "$REPORT"
+
+      - if: matrix.family == 'claude'
+        name: probe (${{ matrix.harness }})
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+          CLAUDE_SANDBOX: ${{ matrix.sandbox }}
+        run: ./scripts/run-probe-via-claude-stub.sh
+
+      - if: matrix.family == 'codex'
+        name: probe (${{ matrix.harness }})
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+          CODEX_SANDBOX: ${{ matrix.sandbox }}
+        run: ./scripts/run-probe-via-codex-stub.sh
+
+      - if: matrix.family == 'gemini'
+        name: probe (${{ matrix.harness }})
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+          GEMINI_SANDBOX: ${{ matrix.backend }}
+        run: ./scripts/run-probe-via-gemini-stub.sh
+
+      - if: matrix.family == 'opencode'
+        name: probe (opencode)
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+        run: ./scripts/run-probe-via-opencode-stub.sh
+
+      - if: matrix.family == 'goose'
+        name: probe (goose)
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+        run: ./scripts/run-probe-via-goose-stub.sh
+
+      - if: matrix.family == 'pi'
+        name: probe (pi)
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+        run: ./scripts/run-probe-via-pi-stub.sh
+
+      - if: matrix.family == 'gptme'
+        name: probe (gptme)
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+        run: ./scripts/run-probe-via-gptme-stub.sh
+
+      - if: matrix.family == 'cline'
+        name: probe (cline)
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+        run: ./scripts/run-probe-via-cline-stub.sh
+
+      - if: matrix.family == 'trae'
+        name: probe (${{ matrix.harness }})
+        timeout-minutes: 15
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+          TRAE_DOCKER: ${{ matrix.sandbox == 'docker' && 'on' || 'off' }}
+        run: ./scripts/run-probe-via-trae-stub.sh
+
+      - if: matrix.family == 'sandbox'
+        name: probe (${{ matrix.harness }})
+        timeout-minutes: 12
+        shell: bash
+        env:
+          OUT: ${{ env.REPORT }}
+          RUNNER: ${{ matrix.runner }}
+          RUNTIME: ${{ matrix.runtime }}
+        run: ./scripts/run-probe-in-sandbox.sh
+
+      # ── assert confinement engaged (any row that declares `expect`) ────────────
+      # Linux can't always fingerprint a bwrap wrapper, so bwrap-based rows accept the kernel
+      # enforcement it adds (no-new-privs / seccomp-filter) — absent from the unconfined baseline.
+      - if: matrix.expect != ''
+        name: assert sandbox engaged
+        shell: bash
+        env:
+          EXPECT: ${{ matrix.expect }}
+        run: |
+          echo "sandbox_detection accepted in $EXPECT for $REPORT"
+          jq --argjson ok "$EXPECT" -e 'any(.findings[];
+            .findingType == "sandbox_detection"
+            and .task == "baseline_sandbox_detector"
+            and (.value as $v | $ok | index($v)))' "$REPORT"
+
+      - name: summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### ${{ matrix.harness }} (${{ matrix.os }})"
+            echo "- report: \`${{ env.REPORT }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: report-${{ matrix.os }}-${{ matrix.harness }}
+          path: reports/
+          if-no-files-found: ignore

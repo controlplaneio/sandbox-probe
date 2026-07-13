@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -190,6 +192,76 @@ func GetSockets(startPath string, fast bool) ([]string, error) {
 	})
 	if err != nil {
 		return []string{}, err
+	}
+	return results, nil
+}
+
+// DefaultSocketRoots are the runtime dirs where Unix domain sockets live: FHS runtime dirs, the
+// macOS /private real-paths, and per-user runtime dirs ($XDG_RUNTIME_DIR, $TMPDIR). Scanning these
+// — not the whole root filesystem — finds every socket a sandbox can expose in well under a second.
+// /var/lib is omitted on purpose (its sockets are mirrored under /run; its docker/overlay2 tree
+// would re-introduce the multi-million-file walk).
+func DefaultSocketRoots() []string {
+	roots := []string{
+		"/run", "/var/run", "/dev",
+		"/tmp", "/var/tmp",
+		"/private/var/run", "/private/tmp", "/private/var/tmp",
+	}
+	if d := os.Getenv("XDG_RUNTIME_DIR"); d != "" {
+		roots = append(roots, d)
+	}
+	if d := os.Getenv("TMPDIR"); d != "" {
+		roots = append(roots, d)
+	}
+	return roots
+}
+
+// ScanSocketRoots walks each root for Unix domain sockets, returning the deduped set. Roots are
+// symlink-resolved and any nested inside another is dropped (so /var/run→/run, /tmp→/private/tmp
+// aren't walked twice); a missing or unreadable root is skipped, not fatal.
+func ScanSocketRoots(roots []string, fast bool) ([]string, error) {
+	// Resolve + dedup + drop nested roots.
+	var resolved []string
+	seenRoot := map[string]bool{}
+	for _, r := range roots {
+		real, err := filepath.EvalSymlinks(r)
+		if err != nil {
+			continue // doesn't exist / unreadable
+		}
+		if seenRoot[real] {
+			continue
+		}
+		seenRoot[real] = true
+		resolved = append(resolved, real)
+	}
+	var kept []string
+	for _, r := range resolved {
+		nested := false
+		for _, other := range resolved {
+			if other != r && strings.HasPrefix(r, other+string(os.PathSeparator)) {
+				nested = true
+				break
+			}
+		}
+		if !nested {
+			kept = append(kept, r)
+		}
+	}
+
+	seen := map[string]bool{}
+	results := []string{}
+	for _, root := range kept {
+		socks, err := GetSockets(root, fast)
+		if err != nil {
+			log.Warn().Err(err).Str("root", root).Msg("Socket scan of root failed; continuing")
+			continue
+		}
+		for _, s := range socks {
+			if !seen[s] {
+				seen[s] = true
+				results = append(results, s)
+			}
+		}
 	}
 	return results, nil
 }
