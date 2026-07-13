@@ -1,0 +1,61 @@
+/* Functional placeholder styling only. A design system replaces this later —
+   keep selectors semantic and structural, not decorative. */
+* { box-sizing: border-box; }
+body { font: 14px/1.5 system-ui, sans-serif; margin: 0; color: #1a1a1a; background: #fff; }
+header, section { padding: 16px 24px; }
+header { border-bottom: 1px solid #ddd; }
+h1 { margin: 0 0 4px; font-size: 20px; }
+h2 { font-size: 16px; margin: 0 0 8px; }
+h3 { font-size: 14px; margin: 0; }
+.tagline { max-width: 70ch; color: #444; margin: 4px 0; }
+.meta { color: #666; font-size: 12px; margin-top: 8px; }
+.hint { color: #666; font-size: 12px; margin: 0 0 8px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+section { border-bottom: 1px solid #eee; }
+
+/* matrix */
+table { border-collapse: collapse; font-size: 13px; }
+th, td { border: 1px solid #e2e2e2; padding: 5px 8px; text-align: center; }
+th { background: #f6f6f6; font-weight: 600; white-space: nowrap; }
+td.id { text-align: left; white-space: nowrap; font-family: ui-monospace, monospace; }
+td.exp { font-weight: 700; }
+.cell { cursor: pointer; font-size: 15px; }
+.cell.leaked { background: #fbe4e0; color: #c0392b; }
+.cell.blocked { background: #e3f1e5; color: #2e7d32; }
+.cell.na { background: #f2f2f2; color: #aaa; }
+.cell.unprovable { background: #fff6e0; color: #b8860b; }
+.baseline-row { opacity: 0.55; }
+.tag { display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 3px; background: #eee; color: #555; vertical-align: middle; }
+.tag.enf { background: #e6eef7; color: #2d5f9e; }
+.tag.root { background: #fdeaea; color: #c0392b; }
+.up { color: #c0392b; font-size: 10px; }
+.down { color: #2e7d32; font-size: 10px; }
+
+/* key glyphs in tagline */
+.k-leaked { color: #c0392b; font-weight: 600; }
+.k-blocked { color: #2e7d32; font-weight: 600; }
+.k-na { color: #999; font-weight: 600; }
+
+/* charts */
+.chart { width: 100%; height: 320px; }
+#chart-heatmap { height: 300px; }
+
+/* flips */
+.flip-list { list-style: none; padding: 0; margin: 0; }
+.flip-list li { padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+.badge { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-right: 6px; }
+.deg .badge { background: #fbe4e0; color: #c0392b; }
+.imp .badge { background: #e3f1e5; color: #2e7d32; }
+.muted { color: #888; }
+code { background: #f4f4f4; padding: 0 3px; border-radius: 3px; }
+
+/* drill panel */
+.drill { position: fixed; right: 0; top: 0; width: 340px; height: 100%; background: #fff; border-left: 1px solid #ccc; box-shadow: -2px 0 8px rgba(0,0,0,.08); padding: 16px; overflow: auto; }
+.drill.hidden { display: none; }
+.drill-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.drill-head button { border: none; background: none; font-size: 22px; cursor: pointer; line-height: 1; }
+.drill .fp { font-size: 11px; color: #777; margin-bottom: 8px; font-family: ui-monospace, monospace; }
+.drill ul { padding-left: 18px; margin: 0; }
+.drill li { font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; }
+label { font-size: 12px; color: #555; }
+select { font: inherit; padding: 2px 4px; }
