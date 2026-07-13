@@ -1,6 +1,9 @@
 package tasks
 
 import (
+	"net"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -153,4 +156,37 @@ func Test_getSockets(t *testing.T) {
 	for _, socket := range sockets {
 		t.Logf("found socket: %s", socket)
 	}
+}
+
+func Test_ScanSocketRoots_dedupAndNesting(t *testing.T) {
+	// Short /tmp base: macOS caps Unix socket bind paths at ~104 chars, which t.TempDir() blows.
+	dir, err := os.MkdirTemp("/tmp", "spr")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+	sub := filepath.Join(dir, "s")
+	require.NoError(t, os.Mkdir(sub, 0o755))
+
+	// A real bound Unix socket in the nested subdir.
+	sockPath := filepath.Join(sub, "x.sock")
+	l, err := net.Listen("unix", sockPath)
+	require.NoError(t, err)
+	defer l.Close()
+
+	// A symlink aliasing the parent dir.
+	alias := filepath.Join(dir, "alias")
+	require.NoError(t, os.Symlink(dir, alias))
+
+	// Pass overlapping roots: the parent, its nested subdir, the alias, and a non-existent path.
+	// Nesting/symlink resolution must yield the socket exactly once, and the missing root is skipped.
+	got, err := ScanSocketRoots([]string{dir, sub, alias, "/no/such/path/xyzzy"}, false)
+	require.NoError(t, err)
+
+	count := 0
+	realSock, _ := filepath.EvalSymlinks(sockPath)
+	for _, s := range got {
+		if s == sockPath || s == realSock {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count, "socket should be reported exactly once despite overlapping/aliased roots; got %v", got)
 }

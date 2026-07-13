@@ -278,23 +278,23 @@ func (t *ProxyTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, er
 // SocketTask produces: UNIXSOCKETDETECTION
 type SocketTask struct {
 	baseTask
-	startPath string
+	startPaths []string
 }
 
 func NewSocketTask() *SocketTask {
 	return &SocketTask{
 		baseTask: baseTask{
 			name:        fmt.Sprintf("%s_socket_scanner", TaskPrefix),
-			description: "Scans filesystem for Unix domain sockets",
+			description: "Scans runtime directories for Unix domain sockets",
 		},
-		startPath: "/",
+		startPaths: baselineTasks.DefaultSocketRoots(),
 	}
 }
 
 func (t *SocketTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, error) {
-	log.Info().Str("task", t.GetName()).Str("start_path", t.startPath).Msg("Starting Unix socket scanning task")
+	log.Info().Str("task", t.GetName()).Strs("start_paths", t.startPaths).Msg("Starting Unix socket scanning task")
 
-	sockets, err := baselineTasks.GetSockets(t.startPath, ti.Fast)
+	sockets, err := baselineTasks.ScanSocketRoots(t.startPaths, ti.Fast)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to scan for Unix sockets")
 		return nil, err

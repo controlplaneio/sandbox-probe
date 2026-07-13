@@ -19,10 +19,9 @@ set -eo pipefail
 : "${OUT:?OUT (report output path) is required}"
 RUNNER="${RUNNER:-$(uname -s)}"
 PORT="${PORT:-8794}"
-# trae's bash tool hard-kills any command at 120s (not configurable), which the full baseline scan
-# overruns on macOS. trae is unconfined (no sandbox to assert) — the point is that it drives the probe
-# keyless — so run the fast sandbox-detector task, which also yields sandbox_detection for trae-docker.
-SCAN_ARGS="${SCAN_ARGS:-scan --tasks baseline_sandbox_task --tasksets none}"
+# trae's bash tool hard-kills any command at 120s (not configurable); the full baseline completes in a
+# few seconds (the socket scan is bounded to runtime dirs, not the whole disk), so it runs inline.
+SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
 TRAE_DOCKER="${TRAE_DOCKER:-off}"
 TRAE_SRC="${TRAE_SRC:-.}"
 TRAE_CLI="${TRAE_CLI:-trae-cli}"

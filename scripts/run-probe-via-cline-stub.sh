@@ -4,19 +4,18 @@
 # run_commands tool call that runs the probe. cline has NO OS sandbox — run_commands executes on the
 # host — so this is an unconfined "as-is" harness.
 #
-# cline's run_commands tool kills any command at 30s, so this row runs a fast scan (SCAN_ARGS) rather
-# than the full baseline; cline is unconfined (no sandbox to assert), so the point is only that it
-# drives the probe keyless.
+# cline's run_commands tool hard-kills any command at 30s; the full baseline completes in a few
+# seconds (the socket scan is bounded to runtime dirs, not the whole disk), so it runs inline.
 #
 # Required env: PROBE (probe binary), OUT (report path).
-# Optional env: RUNNER, PORT, SCAN_ARGS (default the fast sandbox-detector task).
+# Optional env: RUNNER, PORT, SCAN_ARGS (default the full baseline).
 set -eo pipefail
 
 : "${PROBE:?PROBE (probe binary path) is required}"
 : "${OUT:?OUT (report output path) is required}"
 RUNNER="${RUNNER:-$(uname -s)}"
 PORT="${PORT:-8795}"
-SCAN_ARGS="${SCAN_ARGS:-scan --tasks baseline_sandbox_task --tasksets none}"
+SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -29,14 +28,16 @@ OUT_ABS="$(cd "$(dirname "$OUT")" && pwd)/$(basename "$OUT")"
 VERSION="$(cline --version 2>/dev/null | awk 'match($0,/[0-9]+\.[0-9][0-9.]*/) && !seen {print substr($0,RSTART,RLENGTH); seen=1}')" || VERSION=""; VERSION="${VERSION:-unknown}"
 TAGS="runner=${RUNNER},harness=cline,cline=${VERSION},mode=via-cline-stub"
 
+PROBE_CMD="${PROBE_ABS} ${SCAN_ARGS} --tags ${TAGS} --output_path ${OUT_ABS}"
+
 STUB_LOG="$(mktemp)"
 PORT="$PORT" \
-PROBE_CMD="${PROBE_ABS} ${SCAN_ARGS} --tags ${TAGS} --output_path ${OUT_ABS}" \
+PROBE_CMD="$PROBE_CMD" \
 STUB_LOG="$STUB_LOG" \
   node "${PROJECT_ROOT}/scripts/mock-agent-api.mjs" &
 STUB_PID=$!
 CFG="$(mktemp -d)"
-trap 'kill "$STUB_PID" 2>/dev/null || true; rm -rf "$CFG"' EXIT
+trap 'kill "$STUB_PID" 2>/dev/null || true; rm -rf "$CFG" "$STUB_LOG"' EXIT
 for _ in $(seq 1 50); do
   if (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") 2>/dev/null; then exec 3>&- 3<&-; break; fi
   sleep 0.1
@@ -50,9 +51,7 @@ echo "::group::cline (stubbed model)"
 cline "Run the sandbox probe and then stop." -P openai -m mock-model --data-dir "$CFG" --auto-approve true </dev/null || true
 echo "::endgroup::"
 
-echo "== mock request log =="
-cat "$STUB_LOG" 2>/dev/null || true
-rm -f "$STUB_LOG" 2>/dev/null || true
+echo "== mock request log =="; cat "$STUB_LOG" 2>/dev/null || true
 
 if [ ! -f "$OUT" ]; then
   echo "::error::cline(stub) did not produce ${OUT}"
