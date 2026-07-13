@@ -45,10 +45,21 @@ function harnessVersion(r) {
 }
 const fingerprint = (r) => [harnessVersion(r), r.report.probeBinary.commit, kernelOf(r), r.os].join("|");
 
-// which leak categories a report exhibits (a finding of that type is present).
+// A finding only signals a real capability if it carries something: a task can
+// run and find nothing, emitting the finding type with an empty value (e.g. DNS
+// resolution blocked -> external_host_dns_resolution: []). Empty != leaked.
+function hasSignal(f) {
+  const v = f.value;
+  if (Array.isArray(v)) return v.length > 0;
+  if (v && typeof v === "object") return Object.keys(v).length > 0;
+  return v != null && v !== "";
+}
+
+// which leak categories a report exhibits (a non-empty finding of that type).
 function leakedCats(r) {
   const s = new Set();
   for (const f of r.report.findings) {
+    if (!hasSignal(f)) continue;
     const cat = FT2CAT[f.findingType];
     if (cat) s.add(cat);
     else if (!CONTEXT_FT.has(f.findingType)) s.add("other");
