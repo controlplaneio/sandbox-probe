@@ -12,10 +12,12 @@ import (
 type SensitivePath struct {
 	path     string
 	contains string // if set, file must contain this string to be reported
+	isDir    bool   // path is a directory, not a regular file (never seeded)
 }
 
-func sp(path string) SensitivePath                  { return SensitivePath{path: path} }
-func spContains(path, substr string) SensitivePath  { return SensitivePath{path: path, contains: substr} }
+func sp(path string) SensitivePath                 { return SensitivePath{path: path} }
+func spDir(path string) SensitivePath              { return SensitivePath{path: path, isDir: true} }
+func spContains(path, substr string) SensitivePath { return SensitivePath{path: path, contains: substr} }
 
 // sensitivePaths is populated at runtime (requires home dir expansion).
 // See buildSensitivePaths().
@@ -63,17 +65,17 @@ func buildSensitivePathsForHome(home string) []SensitivePath {
 		sp("/var/run/docker.sock"),
 
 		// ── Root account credentials ──────────────────────────────────────
-		sp("/root"),
-		sp("/root/.ssh"),
+		spDir("/root"),
+		spDir("/root/.ssh"),
 		sp("/root/.bash_history"),
 
 		// ── System credentials and keys ───────────────────────────────────
-		sp("/etc/ssl/private"),
-		sp("/etc/pki/private"),
-		sp("/var/lib/docker"),
+		spDir("/etc/ssl/private"),
+		spDir("/etc/pki/private"),
+		spDir("/var/lib/docker"),
 
 		// ── Runtime secrets (Docker / Kubernetes) ─────────────────────────
-		sp("/run/secrets"),
+		spDir("/run/secrets"),
 		sp("/var/run/secrets/kubernetes.io/serviceaccount/token"),
 		sp("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"),
 
@@ -89,7 +91,7 @@ func buildSensitivePathsForHome(home string) []SensitivePath {
 		sp(h("/.aws/config")),
 		sp(h("/.gcloud/credentials.db")),
 		sp(h("/.gcloud/access_tokens.db")),
-		sp(h("/.config/gcloud")),
+		spDir(h("/.config/gcloud")),
 		sp(h("/.azure/credentials")),
 		sp(h("/.azure/msal_token_cache.json")),
 
@@ -98,7 +100,7 @@ func buildSensitivePathsForHome(home string) []SensitivePath {
 		sp(h("/.docker/config.json")),
 
 		// ── Crypto / signing ──────────────────────────────────────────────
-		sp(h("/.gnupg")),
+		spDir(h("/.gnupg")),
 
 		// ── VCS credentials ───────────────────────────────────────────────
 		sp(h("/.git-credentials")),
@@ -110,10 +112,10 @@ func buildSensitivePathsForHome(home string) []SensitivePath {
 		sp(h("/.vault-token")),
 		sp(h("/.terraform.d/credentials.tfrc.json")),
 		sp(h("/.config/gh/hosts.yml")),
-		sp(h("/.config/op")),
+		spDir(h("/.config/op")),
 		sp(h("/.config/doctl/config.yaml")),
 		sp(h("/.fly/config.yml")),
-		sp(h("/.cloudflared")),
+		spDir(h("/.cloudflared")),
 
 		// ── Package manager tokens ────────────────────────────────────────
 		sp(h("/.npmrc")),
@@ -123,6 +125,50 @@ func buildSensitivePathsForHome(home string) []SensitivePath {
 		sp(h("/.m2/settings.xml")),
 		sp(h("/.gradle/gradle.properties")),
 	}
+}
+
+// Target is one probe check target exposed by `list-targets`, carrying the
+// classification a seeder needs to plant decoys safely.
+type Target struct {
+	Path     string `json:"path"`
+	Kind     string `json:"kind"`     // "file" | "dir"
+	Scope    string `json:"scope"`    // "home" | "system"
+	Seedable bool   `json:"seedable"` // safe to soft-plant a decoy: home-scoped regular files only
+}
+
+// ListTargets returns the probe's sensitive-path registry as Targets. It is the
+// single source of truth for the seeder — a decoy is only ever planted where a
+// target is Seedable, so the seeder cannot drift from what is actually probed.
+func ListTargets() []Target { return listTargetsForHome(homeOrRoot()) }
+
+func homeOrRoot() string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return "/root"
+	}
+	return home
+}
+
+// listTargetsForHome is the testable core.
+func listTargetsForHome(home string) []Target {
+	out := make([]Target, 0, len(buildSensitivePathsForHome(home)))
+	for _, s := range buildSensitivePathsForHome(home) {
+		kind := "file"
+		if s.isDir {
+			kind = "dir"
+		}
+		scope := "system"
+		if strings.HasPrefix(s.path, home+"/") {
+			scope = "home"
+		}
+		out = append(out, Target{
+			Path:     s.path,
+			Kind:     kind,
+			Scope:    scope,
+			Seedable: scope == "home" && kind == "file",
+		})
+	}
+	return out
 }
 
 // System directories to check for write permissions (should typically be read-only)
