@@ -162,10 +162,15 @@ func listTargetsForHome(home string) []Target {
 			scope = "home"
 		}
 		out = append(out, Target{
-			Path:     s.path,
-			Kind:     kind,
-			Scope:    scope,
-			Seedable: scope == "home" && kind == "file",
+			Path:  s.path,
+			Kind:  kind,
+			Scope: scope,
+			// Home-scoped regular files only — and never a content-predicate target
+			// (contains != ""). Those are reported only when they hold specific
+			// structured content, so a generic decoy would never satisfy the predicate
+			// anyway, and worse, seeding one corrupts a file real tooling parses
+			// (e.g. ~/.gitconfig -> "fatal: bad config line 1", breaking git clone).
+			Seedable: scope == "home" && kind == "file" && s.contains == "",
 		})
 	}
 	return out

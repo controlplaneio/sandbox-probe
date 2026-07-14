@@ -51,6 +51,7 @@ func TestSeedableClassificationSpotChecks(t *testing.T) {
 		home + "/.gnupg":           false, // directory
 		home + "/.config/gcloud":   false, // directory
 		"/etc/shadow":              false, // system
+		home + "/.gitconfig":       false, // content-predicate: a decoy corrupts git and never matches the predicate
 	}
 	got := map[string]bool{}
 	for _, tg := range listTargetsForHome(home) {
