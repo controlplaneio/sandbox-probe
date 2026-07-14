@@ -1,0 +1,395 @@
+{
+  "version":  "1.0.0",
+  "timestamp":  "2026-07-13T16:18:38.465293663Z",
+  "probeBinary":  {
+    "goVersion":  "go1.25.6",
+    "os":  "linux",
+    "arch":  "amd64",
+    "binaryVersion":  "unknown",
+    "commit":  "unknown",
+    "buildDate":  "unknown"
+  },
+  "metadata":  {
+    "tags":  [
+      "runner=ubuntu-latest",
+      "harness=claude",
+      "sandbox=on",
+      "claude=2.1.207",
+      "bwrap=0.9.0",
+      "mode=via-claude-stub"
+    ]
+  },
+  "findings":  [
+    {
+      "findingType":  "writeable_paths",
+      "task":  "baseline_filesystem_enumerator",
+      "description":  "Writeable paths",
+      "value":  [
+        "/dev"
+      ]
+    },
+    {
+      "findingType":  "sensitive_readable_paths",
+      "task":  "baseline_filesystem_enumerator",
+      "description":  "Readable sensitive paths",
+      "value":  [
+        "/etc/passwd",
+        "/etc/group",
+        "/etc/hostname",
+        "/etc/hosts",
+        "/etc/resolv.conf",
+        "/etc/ssh/sshd_config",
+        "/proc/self/cgroup",
+        "/proc/self/mountinfo",
+        "/proc/self/status",
+        "/proc/1/cgroup",
+        "/home/runner/.ssh/id_rsa",
+        "/home/runner/.ssh/id_ed25519",
+        "/home/runner/.ssh/id_ecdsa",
+        "/home/runner/.ssh/config",
+        "/home/runner/.ssh/authorized_keys",
+        "/home/runner/.aws/credentials",
+        "/home/runner/.aws/config",
+        "/home/runner/.gcloud/credentials.db",
+        "/home/runner/.gcloud/access_tokens.db",
+        "/home/runner/.azure/credentials",
+        "/home/runner/.azure/msal_token_cache.json",
+        "/home/runner/.kube/config",
+        "/home/runner/.docker/config.json",
+        "/home/runner/.git-credentials",
+        "/home/runner/.netrc",
+        "/home/runner/.vault-token",
+        "/home/runner/.terraform.d/credentials.tfrc.json",
+        "/home/runner/.config/gh/hosts.yml",
+        "/home/runner/.config/doctl/config.yaml",
+        "/home/runner/.fly/config.yml",
+        "/home/runner/.npmrc",
+        "/home/runner/.pypirc",
+        "/home/runner/.gem/credentials",
+        "/home/runner/.cargo/credentials.toml",
+        "/home/runner/.m2/settings.xml",
+        "/home/runner/.gradle/gradle.properties"
+      ]
+    },
+    {
+      "findingType":  "external_host_dns_resolution",
+      "task":  "baseline_network_scanner",
+      "description":  "External host DNS resolution",
+      "value":  []
+    },
+    {
+      "findingType":  "external_host_connectivity",
+      "task":  "baseline_network_scanner",
+      "description":  "External host connectivity",
+      "value":  []
+    },
+    {
+      "findingType":  "tcp_ports_open",
+      "task":  "baseline_network_scanner",
+      "description":  "Open TCP ports",
+      "value":  [
+        3128,
+        1080
+      ]
+    },
+    {
+      "findingType":  "proxy_detection",
+      "task":  "baseline_proxy_detector",
+      "description":  "Proxy configuration",
+      "value":  {
+        "all_proxy":  "http://srt:b85e4df7a6c805544222ccd7616e05a2@localhost:3128",
+        "http_proxy":  "http://srt:b85e4df7a6c805544222ccd7616e05a2@localhost:3128",
+        "https_proxy":  "http://srt:b85e4df7a6c805544222ccd7616e05a2@localhost:3128",
+        "no_proxy":  "localhost,127.0.0.1,::1,169.254.0.0/16,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16",
+        "pac_url":  "",
+        "socks_proxy":  ""
+      }
+    },
+    {
+      "findingType":  "unix_socket_detection",
+      "task":  "baseline_socket_scanner",
+      "description":  "Unix sockets detected",
+      "value":  [
+        "/run/dhcpcd/eth0-4.sock",
+        "/run/dbus/system_bus_socket",
+        "/run/docker.sock",
+        "/run/dhcpcd/eth0-4.unpriv.sock",
+        "/run/lxd-installer.socket",
+        "/run/php/php8.3-fpm.sock",
+        "/run/snapd-snap.socket",
+        "/run/snapd.socket",
+        "/run/uuidd/request",
+        "/run/udev/control",
+        "/run/user/1001/bus",
+        "/run/user/1001/pk-debconf-socket",
+        "/run/user/1001/snapd-session-agent.socket",
+        "/run/user/1001/gnupg/S.dirmngr",
+        "/run/user/1001/gnupg/S.gpg-agent",
+        "/run/user/1001/gnupg/S.gpg-agent.browser",
+        "/run/user/1001/gnupg/S.gpg-agent.extra",
+        "/run/user/1001/gnupg/S.gpg-agent.ssh",
+        "/run/user/1001/gnupg/S.keyboxd",
+        "/run/systemd/coredump",
+        "/run/systemd/fsck.progress",
+        "/run/systemd/io.systemd.ManagedOOM",
+        "/run/systemd/io.systemd.sysext",
+        "/run/systemd/notify",
+        "/run/systemd/private",
+        "/run/systemd/inaccessible/sock",
+        "/run/systemd/resolve/io.systemd.Resolve",
+        "/run/systemd/resolve/io.systemd.Resolve.Monitor",
+        "/run/systemd/userdb/io.systemd.DynamicUser",
+        "/run/systemd/journal/dev-log",
+        "/run/systemd/journal/io.systemd.journal",
+        "/run/systemd/journal/socket",
+        "/run/systemd/journal/stdout",
+        "/run/systemd/journal/syslog",
+        "/run/user/1001/systemd/notify",
+        "/run/user/1001/systemd/private",
+        "/run/user/1001/systemd/inaccessible/sock",
+        "/tmp/claude-http-53ebaa77bde872ee.sock",
+        "/tmp/dotnet-diagnostic-1916-2705-socket",
+        "/tmp/dotnet-diagnostic-1937-2897-socket",
+        "/tmp/srt-mux-2780-0.sock"
+      ]
+    },
+    {
+      "findingType":  "process_detection",
+      "task":  "baseline_process_scanner",
+      "description":  "Running processes",
+      "value":  {
+        "command":  "/proc/self/fd/3 /bin/bash -c source /home/runner/.claude/shell-snapshots/snapshot-bash-1783959514302-xohdb7.sh 2>/dev/null || true && shopt -u extglob 2>/dev/null || true && eval './sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=claude,sandbox=on,claude=2.1.207,bwrap=0.9.0,mode=via-claude-stub --output_path reports/linux-claude-sandbox.json' < /dev/null && pwd -P >| /tmp/claude-1001/cwd-63d9",
+        "namespaces":  [],
+        "pid":  1,
+        "ppid":  0
+      }
+    },
+    {
+      "findingType":  "process_detection",
+      "task":  "baseline_process_scanner",
+      "description":  "Running processes",
+      "value":  {
+        "command":  "/bin/bash -c source /home/runner/.claude/shell-snapshots/snapshot-bash-1783959514302-xohdb7.sh 2>/dev/null || true && shopt -u extglob 2>/dev/null || true && eval './sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=claude,sandbox=on,claude=2.1.207,bwrap=0.9.0,mode=via-claude-stub --output_path reports/linux-claude-sandbox.json' < /dev/null && pwd -P >| /tmp/claude-1001/cwd-63d9",
+        "namespaces":  [
+          {
+            "inode":  4026532379,
+            "type":  "pid"
+          },
+          {
+            "inode":  4026532378,
+            "type":  "mnt"
+          },
+          {
+            "inode":  4026531835,
+            "type":  "cgroup"
+          },
+          {
+            "inode":  4026531834,
+            "type":  "time"
+          },
+          {
+            "inode":  4026532317,
+            "type":  "net"
+          },
+          {
+            "inode":  4026532379,
+            "type":  "pid"
+          },
+          {
+            "inode":  4026532377,
+            "type":  "user"
+          },
+          {
+            "inode":  4026531834,
+            "type":  "time"
+          },
+          {
+            "inode":  4026531838,
+            "type":  "uts"
+          },
+          {
+            "inode":  4026531839,
+            "type":  "ipc"
+          }
+        ],
+        "pid":  2,
+        "ppid":  1
+      }
+    },
+    {
+      "findingType":  "process_detection",
+      "task":  "baseline_process_scanner",
+      "description":  "Running processes",
+      "value":  {
+        "command":  "./sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=claude,sandbox=on,claude=2.1.207,bwrap=0.9.0,mode=via-claude-stub --output_path reports/linux-claude-sandbox.json",
+        "namespaces":  [
+          {
+            "inode":  4026532317,
+            "type":  "net"
+          },
+          {
+            "inode":  4026531839,
+            "type":  "ipc"
+          },
+          {
+            "inode":  4026532379,
+            "type":  "pid"
+          },
+          {
+            "inode":  4026532377,
+            "type":  "user"
+          },
+          {
+            "inode":  4026532378,
+            "type":  "mnt"
+          },
+          {
+            "inode":  4026531834,
+            "type":  "time"
+          },
+          {
+            "inode":  4026531838,
+            "type":  "uts"
+          },
+          {
+            "inode":  4026532379,
+            "type":  "pid"
+          },
+          {
+            "inode":  4026531835,
+            "type":  "cgroup"
+          },
+          {
+            "inode":  4026531834,
+            "type":  "time"
+          }
+        ],
+        "pid":  370,
+        "ppid":  2
+      }
+    },
+    {
+      "findingType":  "parent_process_detection",
+      "task":  "baseline_process_scanner",
+      "description":  "Parent process",
+      "value":  {
+        "command":  "/bin/bash -c source /home/runner/.claude/shell-snapshots/snapshot-bash-1783959514302-xohdb7.sh 2>/dev/null || true && shopt -u extglob 2>/dev/null || true && eval './sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=claude,sandbox=on,claude=2.1.207,bwrap=0.9.0,mode=via-claude-stub --output_path reports/linux-claude-sandbox.json' < /dev/null && pwd -P >| /tmp/claude-1001/cwd-63d9",
+        "namespaces":  [
+          {
+            "inode":  4026532317,
+            "type":  "net"
+          },
+          {
+            "inode":  4026531838,
+            "type":  "uts"
+          },
+          {
+            "inode":  4026531839,
+            "type":  "ipc"
+          },
+          {
+            "inode":  4026532379,
+            "type":  "pid"
+          },
+          {
+            "inode":  4026532378,
+            "type":  "mnt"
+          },
+          {
+            "inode":  4026531835,
+            "type":  "cgroup"
+          },
+          {
+            "inode":  4026531834,
+            "type":  "time"
+          },
+          {
+            "inode":  4026532379,
+            "type":  "pid"
+          },
+          {
+            "inode":  4026532377,
+            "type":  "user"
+          },
+          {
+            "inode":  4026531834,
+            "type":  "time"
+          }
+        ],
+        "pid":  2,
+        "ppid":  1
+      }
+    },
+    {
+      "findingType":  "user_context_detection",
+      "task":  "baseline_user_context",
+      "description":  "User context information",
+      "value":  {
+        "egid":  1001,
+        "euid":  1001,
+        "gid":  1001,
+        "groups":  [
+          65534,
+          65534,
+          65534,
+          65534,
+          1001
+        ],
+        "uid":  1001
+      }
+    },
+    {
+      "findingType":  "hostname_detection",
+      "task":  "baseline_hostname",
+      "description":  "Hostname",
+      "value":  "runnervm5mmn9"
+    },
+    {
+      "findingType":  "environment_detection",
+      "task":  "baseline_environment",
+      "description":  "Host kernel and OS release",
+      "value":  {
+        "kernel_release":  "6.17.0-1018-azure",
+        "kernel_version":  "Linux version 6.17.0-1018-azure (buildd@lcy02-amd64-096) (x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #18~24.04.1-Ubuntu SMP Thu May 28 16:39:11 UTC 2026",
+        "os_release":  "Ubuntu 24.04.4 LTS"
+      }
+    },
+    {
+      "findingType":  "sandbox_detection",
+      "task":  "baseline_sandbox_detector",
+      "description":  "Container/wrapper runtime",
+      "value":  "bubblewrap"
+    },
+    {
+      "findingType":  "sandbox_detection",
+      "task":  "baseline_sandbox_detector",
+      "description":  "Active kernel enforcement mechanism",
+      "value":  "seccomp-filter"
+    },
+    {
+      "findingType":  "sandbox_detection",
+      "task":  "baseline_sandbox_detector",
+      "description":  "Active kernel enforcement mechanism",
+      "value":  "no-new-privs"
+    },
+    {
+      "findingType":  "mounted_volumes_detections",
+      "task":  "baseline_mount_scanner",
+      "description":  "Host-mounted volumes",
+      "value":  [
+        "/dev/root -> / (ext4)",
+        "fusectl -> /sys/fs/fuse/connections (fusectl)",
+        "/dev/nvme0n1p16 -> /boot (ext4)",
+        "/dev/nvme0n1p15 -> /boot/efi (vfat)",
+        "/dev/root -> /home/runner/.npm/_logs (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe/scripts/config/claude-code-sandbox.json (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe/.claude/.cc-writes (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe/.git/hooks (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe/.git/config (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe/.git/config.worktree (ext4)",
+        "/dev/root -> /tmp/claude-1001 (ext4)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,158 @@
+{
+  "version":  "1.0.0",
+  "timestamp":  "2026-07-13T16:18:33.271749492Z",
+  "probeBinary":  {
+    "goVersion":  "go1.25.6",
+    "os":  "linux",
+    "arch":  "amd64",
+    "binaryVersion":  "unknown",
+    "commit":  "unknown",
+    "buildDate":  "unknown"
+  },
+  "metadata":  {
+    "tags":  [
+      "runner=ubuntu-latest",
+      "harness=gvisor",
+      "gvisor=release-20260706.0",
+      "sandbox=on",
+      "mode=via-sandbox"
+    ]
+  },
+  "findings":  [
+    {
+      "findingType":  "writeable_paths",
+      "task":  "baseline_filesystem_enumerator",
+      "description":  "Writeable paths",
+      "value":  [
+        "/dev"
+      ]
+    },
+    {
+      "findingType":  "sensitive_readable_paths",
+      "task":  "baseline_filesystem_enumerator",
+      "description":  "Readable sensitive paths",
+      "value":  [
+        "/etc/passwd",
+        "/etc/shadow",
+        "/etc/group",
+        "/etc/gshadow",
+        "/etc/hostname",
+        "/etc/hosts",
+        "/etc/resolv.conf",
+        "/proc/self/cgroup",
+        "/proc/self/mountinfo",
+        "/proc/self/status",
+        "/proc/1/cgroup",
+        "/proc/1/environ",
+        "/root"
+      ]
+    },
+    {
+      "findingType":  "external_host_dns_resolution",
+      "task":  "baseline_network_scanner",
+      "description":  "External host DNS resolution",
+      "value":  []
+    },
+    {
+      "findingType":  "external_host_connectivity",
+      "task":  "baseline_network_scanner",
+      "description":  "External host connectivity",
+      "value":  []
+    },
+    {
+      "findingType":  "proxy_detection",
+      "task":  "baseline_proxy_detector",
+      "description":  "Proxy configuration",
+      "value":  {
+        "all_proxy":  "",
+        "http_proxy":  "",
+        "https_proxy":  "",
+        "no_proxy":  "",
+        "pac_url":  "",
+        "socks_proxy":  ""
+      }
+    },
+    {
+      "findingType":  "unix_socket_detection",
+      "task":  "baseline_socket_scanner",
+      "description":  "Unix sockets detected",
+      "value":  []
+    },
+    {
+      "findingType":  "process_detection",
+      "task":  "baseline_process_scanner",
+      "description":  "Running processes",
+      "value":  {
+        "command":  "/probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=gvisor,gvisor=release-20260706.0,sandbox=on,mode=via-sandbox --output_path /home/runner/work/sandbox-probe/sandbox-probe/reports/linux-gvisor.json",
+        "namespaces":  [
+          {
+            "inode":  5,
+            "type":  "pid"
+          },
+          {
+            "inode":  1,
+            "type":  "user"
+          },
+          {
+            "inode":  3,
+            "type":  "ipc"
+          },
+          {
+            "inode":  4,
+            "type":  "uts"
+          },
+          {
+            "inode":  2,
+            "type":  "net"
+          },
+          {
+            "inode":  6,
+            "type":  "mnt"
+          }
+        ],
+        "pid":  1,
+        "ppid":  0
+      }
+    },
+    {
+      "findingType":  "user_context_detection",
+      "task":  "baseline_user_context",
+      "description":  "User context information",
+      "value":  {
+        "egid":  0,
+        "euid":  0,
+        "gid":  0,
+        "groups":  [],
+        "uid":  0
+      }
+    },
+    {
+      "findingType":  "hostname_detection",
+      "task":  "baseline_hostname",
+      "description":  "Hostname",
+      "value":  "runsc"
+    },
+    {
+      "findingType":  "environment_detection",
+      "task":  "baseline_environment",
+      "description":  "Host kernel and OS release",
+      "value":  {
+        "kernel_release":  "4.19.0-gvisor",
+        "kernel_version":  "Linux version 4.19.0-gvisor #1 SMP Sun Jan 10 15:06:54 PST 2016",
+        "os_release":  "Ubuntu 26.04 LTS"
+      }
+    },
+    {
+      "findingType":  "sandbox_detection",
+      "task":  "baseline_sandbox_detector",
+      "description":  "Container/wrapper runtime",
+      "value":  "gvisor"
+    },
+    {
+      "findingType":  "mounted_volumes_detections",
+      "task":  "baseline_mount_scanner",
+      "description":  "Host-mounted volumes",
+      "value":  []
+    }
+  ]
+}

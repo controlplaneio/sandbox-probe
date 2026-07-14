@@ -1,0 +1,205 @@
+{
+  "version":  "1.0.0",
+  "timestamp":  "2026-07-13T16:18:12.179629230Z",
+  "probeBinary":  {
+    "goVersion":  "go1.25.6",
+    "os":  "linux",
+    "arch":  "amd64",
+    "binaryVersion":  "unknown",
+    "commit":  "unknown",
+    "buildDate":  "unknown"
+  },
+  "metadata":  {
+    "tags":  [
+      "runner=ubuntu-latest",
+      "harness=podman",
+      "podman=4.9.3",
+      "sandbox=on",
+      "mode=via-sandbox"
+    ]
+  },
+  "findings":  [
+    {
+      "findingType":  "writeable_paths",
+      "task":  "baseline_filesystem_enumerator",
+      "description":  "Writeable paths",
+      "value":  [
+        "/etc",
+        "/boot",
+        "/usr",
+        "/usr/bin",
+        "/usr/sbin",
+        "/usr/lib",
+        "/bin",
+        "/sbin",
+        "/lib",
+        "/lib64",
+        "/dev",
+        "/var",
+        "/var/log",
+        "/var/lib",
+        "/opt"
+      ]
+    },
+    {
+      "findingType":  "sensitive_readable_paths",
+      "task":  "baseline_filesystem_enumerator",
+      "description":  "Readable sensitive paths",
+      "value":  [
+        "/etc/passwd",
+        "/etc/shadow",
+        "/etc/group",
+        "/etc/gshadow",
+        "/etc/hostname",
+        "/etc/hosts",
+        "/etc/resolv.conf",
+        "/proc/self/cgroup",
+        "/proc/self/mountinfo",
+        "/proc/self/status",
+        "/proc/1/cgroup",
+        "/proc/1/environ",
+        "/run/.containerenv",
+        "/root"
+      ]
+    },
+    {
+      "findingType":  "external_host_dns_resolution",
+      "task":  "baseline_network_scanner",
+      "description":  "External host DNS resolution",
+      "value":  []
+    },
+    {
+      "findingType":  "external_host_connectivity",
+      "task":  "baseline_network_scanner",
+      "description":  "External host connectivity",
+      "value":  []
+    },
+    {
+      "findingType":  "udp_ports_open",
+      "task":  "baseline_network_scanner",
+      "description":  "Open UDP ports",
+      "value":  [
+        50901
+      ]
+    },
+    {
+      "findingType":  "proxy_detection",
+      "task":  "baseline_proxy_detector",
+      "description":  "Proxy configuration",
+      "value":  {
+        "all_proxy":  "",
+        "http_proxy":  "",
+        "https_proxy":  "",
+        "no_proxy":  "",
+        "pac_url":  "",
+        "socks_proxy":  ""
+      }
+    },
+    {
+      "findingType":  "unix_socket_detection",
+      "task":  "baseline_socket_scanner",
+      "description":  "Unix sockets detected",
+      "value":  []
+    },
+    {
+      "findingType":  "process_detection",
+      "task":  "baseline_process_scanner",
+      "description":  "Running processes",
+      "value":  {
+        "command":  "/work/sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=podman,podman=4.9.3,sandbox=on,mode=via-sandbox --output_path /work/reports/linux-podman.json",
+        "namespaces":  [
+          {
+            "inode":  4026532275,
+            "type":  "net"
+          },
+          {
+            "inode":  4026532274,
+            "type":  "pid"
+          },
+          {
+            "inode":  4026532269,
+            "type":  "user"
+          },
+          {
+            "inode":  4026532334,
+            "type":  "cgroup"
+          },
+          {
+            "inode":  4026531834,
+            "type":  "time"
+          },
+          {
+            "inode":  4026531834,
+            "type":  "time"
+          },
+          {
+            "inode":  4026532272,
+            "type":  "uts"
+          },
+          {
+            "inode":  4026532273,
+            "type":  "ipc"
+          },
+          {
+            "inode":  4026532274,
+            "type":  "pid"
+          },
+          {
+            "inode":  4026532271,
+            "type":  "mnt"
+          }
+        ],
+        "pid":  1,
+        "ppid":  0
+      }
+    },
+    {
+      "findingType":  "user_context_detection",
+      "task":  "baseline_user_context",
+      "description":  "User context information",
+      "value":  {
+        "egid":  0,
+        "euid":  0,
+        "gid":  0,
+        "groups":  [],
+        "uid":  0
+      }
+    },
+    {
+      "findingType":  "hostname_detection",
+      "task":  "baseline_hostname",
+      "description":  "Hostname",
+      "value":  "8e361041e9c5"
+    },
+    {
+      "findingType":  "environment_detection",
+      "task":  "baseline_environment",
+      "description":  "Host kernel and OS release",
+      "value":  {
+        "kernel_release":  "6.17.0-1018-azure",
+        "kernel_version":  "Linux version 6.17.0-1018-azure (buildd@lcy02-amd64-096) (x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #18~24.04.1-Ubuntu SMP Thu May 28 16:39:11 UTC 2026",
+        "os_release":  "Ubuntu 26.04 LTS"
+      }
+    },
+    {
+      "findingType":  "sandbox_detection",
+      "task":  "baseline_sandbox_detector",
+      "description":  "Container/wrapper runtime",
+      "value":  "podman"
+    },
+    {
+      "findingType":  "sandbox_detection",
+      "task":  "baseline_sandbox_detector",
+      "description":  "Active kernel enforcement mechanism",
+      "value":  "seccomp-filter"
+    },
+    {
+      "findingType":  "mounted_volumes_detections",
+      "task":  "baseline_mount_scanner",
+      "description":  "Host-mounted volumes",
+      "value":  [
+        "/dev/root -> /work (ext4)"
+      ]
+    }
+  ]
+}
