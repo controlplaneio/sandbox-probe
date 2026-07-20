@@ -30,12 +30,12 @@ jobs:
       # Cache the built binary keyed on the Go sources; workflow/script/doc-only changes then
       # reuse it instead of recompiling every run.
       - id: cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: sandbox-probe${{ matrix.ext }}
           key: probe-${{ matrix.goos }}-${{ matrix.goarch }}-${{ hashFiles('**/*.go', 'go.mod', 'go.sum') }}
       - if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with: { go-version-file: go.mod }
       - if: steps.cache.outputs.cache-hit != 'true'
         shell: bash
@@ -115,7 +115,7 @@ jobs:
       REPORT: reports/${{ matrix.os }}-${{ matrix.harness }}.json
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: sandbox-probe-${{ matrix.arch }}
       - if: runner.os != 'Windows'
@@ -125,7 +125,7 @@ jobs:
 
       # ── agent setup: node for every agent, sandbox deps + the CLI per family ───
       - if: matrix.family != 'direct'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with: { node-version: "22" }
       - if: (matrix.family == 'claude' || matrix.family == 'codex') && runner.os == 'Linux'
         name: linux sandbox deps (bwrap)
