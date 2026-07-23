@@ -123,6 +123,15 @@ jobs:
       - run: mkdir -p reports
         shell: bash
 
+      # Soft-plant decoys at the probe's own seedable targets so a sandbox blocking
+      # a credential is a provable result, not "n/a". Runs identically here for the
+      # direct baseline AND every harness below — parity is what makes the diff mean
+      # "blocked" rather than "absent". Soft: never overwrites an existing file.
+      - if: runner.os != 'Windows'
+        name: seed decoys (baseline + sandbox parity)
+        shell: bash
+        run: ./scripts/seed-decoys.sh "$PROBE"
+
       # ── agent setup: node for every agent, sandbox deps + the CLI per family ───
       - if: matrix.family != 'direct'
         uses: actions/setup-node@v6
@@ -388,3 +397,39 @@ jobs:
           name: report-${{ matrix.os }}-${{ matrix.harness }}
           path: reports/
           if-no-files-found: ignore
+
+  # One aggregation job — collect every scan's report, append one immutable commit
+  # to the data branch, rebuild the concatenated all-reports.json from the whole
+  # history, and deploy the static site. `needs: scan` + `if: always()` so a partial
+  # matrix still publishes what succeeded (no 30-way git-push race — one commit here).
+  aggregate:
+    name: aggregate & publish
+    needs: [build, scan]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push snapshots to the data branch
+      pages: write # deploy the site
+      id-token: write # deploy-pages OIDC
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7 # main: site/ + scripts/
+      - uses: actions/setup-node@v6
+        with: { node-version: "22" }
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: report-*
+          path: incoming
+          merge-multiple: true
+      - name: append run to data branch + build site payload
+        shell: bash
+        env:
+          DATA_BRANCH: gh-pages-data
+        run: ./scripts/publish-site.sh
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: public }
+      - id: deploy
+        uses: actions/deploy-pages@v4
