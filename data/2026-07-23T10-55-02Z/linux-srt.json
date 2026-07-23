@@ -1,0 +1,300 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2026-07-23T10:50:50.256188023Z",
+  "probeBinary": {
+    "goVersion": "go1.25.6",
+    "os": "linux",
+    "arch": "amd64",
+    "binaryVersion": "unknown",
+    "commit": "unknown",
+    "buildDate": "unknown"
+  },
+  "metadata": {
+    "tags": [
+      "runner=ubuntu-latest",
+      "harness=srt",
+      "srt=1.0.0",
+      "sandbox=on",
+      "mode=via-sandbox"
+    ]
+  },
+  "findings": [
+    {
+      "findingType": "writeable_paths",
+      "task": "baseline_filesystem_enumerator",
+      "description": "Writeable paths",
+      "value": [
+        "/dev"
+      ]
+    },
+    {
+      "findingType": "sensitive_readable_paths",
+      "task": "baseline_filesystem_enumerator",
+      "description": "Readable sensitive paths",
+      "value": [
+        "/etc/passwd",
+        "/etc/group",
+        "/etc/hostname",
+        "/etc/hosts",
+        "/etc/resolv.conf",
+        "/etc/ssh/sshd_config",
+        "/proc/self/cgroup",
+        "/proc/self/mountinfo",
+        "/proc/self/status",
+        "/proc/1/cgroup",
+        "/home/runner/.ssh/id_rsa",
+        "/home/runner/.ssh/id_ed25519",
+        "/home/runner/.ssh/id_ecdsa",
+        "/home/runner/.ssh/config",
+        "/home/runner/.ssh/authorized_keys",
+        "/home/runner/.aws/credentials",
+        "/home/runner/.aws/config",
+        "/home/runner/.gcloud/credentials.db",
+        "/home/runner/.gcloud/access_tokens.db",
+        "/home/runner/.azure/credentials",
+        "/home/runner/.azure/msal_token_cache.json",
+        "/home/runner/.kube/config",
+        "/home/runner/.docker/config.json",
+        "/home/runner/.git-credentials",
+        "/home/runner/.netrc",
+        "/home/runner/.vault-token",
+        "/home/runner/.terraform.d/credentials.tfrc.json",
+        "/home/runner/.config/gh/hosts.yml",
+        "/home/runner/.config/doctl/config.yaml",
+        "/home/runner/.fly/config.yml",
+        "/home/runner/.npmrc",
+        "/home/runner/.pypirc",
+        "/home/runner/.gem/credentials",
+        "/home/runner/.cargo/credentials.toml",
+        "/home/runner/.m2/settings.xml",
+        "/home/runner/.gradle/gradle.properties"
+      ]
+    },
+    {
+      "findingType": "external_host_dns_resolution",
+      "task": "baseline_network_scanner",
+      "description": "External host DNS resolution",
+      "value": []
+    },
+    {
+      "findingType": "external_host_connectivity",
+      "task": "baseline_network_scanner",
+      "description": "External host connectivity",
+      "value": []
+    },
+    {
+      "findingType": "tcp_ports_open",
+      "task": "baseline_network_scanner",
+      "description": "Open TCP ports",
+      "value": [
+        1080,
+        3128
+      ]
+    },
+    {
+      "findingType": "proxy_detection",
+      "task": "baseline_proxy_detector",
+      "description": "Proxy configuration",
+      "value": {
+        "all_proxy": "http://srt:dfaed27d478e89830743d48ad634e75f@localhost:3128",
+        "http_proxy": "http://srt:dfaed27d478e89830743d48ad634e75f@localhost:3128",
+        "https_proxy": "http://srt:dfaed27d478e89830743d48ad634e75f@localhost:3128",
+        "no_proxy": "localhost,127.0.0.1,::1,169.254.0.0/16,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16",
+        "pac_url": "",
+        "socks_proxy": ""
+      }
+    },
+    {
+      "findingType": "unix_socket_detection",
+      "task": "baseline_socket_scanner",
+      "description": "Unix sockets detected",
+      "value": [
+        "/run/docker.sock",
+        "/run/lxd-installer.socket",
+        "/run/snapd-snap.socket",
+        "/run/snapd.socket",
+        "/run/dhcpcd/eth0-4.sock",
+        "/run/dhcpcd/eth0-4.unpriv.sock",
+        "/run/dbus/system_bus_socket",
+        "/run/udev/control",
+        "/run/systemd/coredump",
+        "/run/systemd/fsck.progress",
+        "/run/php/php8.3-fpm.sock",
+        "/run/systemd/io.systemd.ManagedOOM",
+        "/run/systemd/io.systemd.sysext",
+        "/run/systemd/notify",
+        "/run/systemd/private",
+        "/run/systemd/journal/dev-log",
+        "/run/systemd/journal/io.systemd.journal",
+        "/run/systemd/journal/socket",
+        "/run/systemd/journal/stdout",
+        "/run/systemd/journal/syslog",
+        "/run/systemd/inaccessible/sock",
+        "/run/user/1001/bus",
+        "/run/user/1001/pk-debconf-socket",
+        "/run/user/1001/snapd-session-agent.socket",
+        "/run/systemd/resolve/io.systemd.Resolve",
+        "/run/systemd/resolve/io.systemd.Resolve.Monitor",
+        "/run/user/1001/systemd/notify",
+        "/run/user/1001/systemd/private",
+        "/run/user/1001/systemd/inaccessible/sock",
+        "/run/user/1001/gnupg/S.dirmngr",
+        "/run/user/1001/gnupg/S.gpg-agent",
+        "/run/user/1001/gnupg/S.gpg-agent.browser",
+        "/run/user/1001/gnupg/S.gpg-agent.extra",
+        "/run/user/1001/gnupg/S.gpg-agent.ssh",
+        "/run/user/1001/gnupg/S.keyboxd",
+        "/run/uuidd/request",
+        "/run/systemd/userdb/io.systemd.DynamicUser",
+        "/tmp/claude-http-f44e9407bdb827b6.sock",
+        "/tmp/dotnet-diagnostic-2109-8903-socket",
+        "/tmp/dotnet-diagnostic-2129-9127-socket",
+        "/tmp/srt-mux-2945-0.sock"
+      ]
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "/opt/hostedtoolcache/node/22.23.1/x64/lib/node_modules/@anthropic-ai/sandbox-runtime/vendor/seccomp/x64/apply-seccomp /usr/bin/bash -c /home/runner/work/sandbox-probe/sandbox-probe/sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=srt,srt=1.0.0,sandbox=on,mode=via-sandbox --output_path /home/runner/work/sandbox-probe/sandbox-probe/reports/linux-srt.json",
+        "namespaces": [],
+        "pid": 1,
+        "ppid": 0
+      }
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "/home/runner/work/sandbox-probe/sandbox-probe/sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=srt,srt=1.0.0,sandbox=on,mode=via-sandbox --output_path /home/runner/work/sandbox-probe/sandbox-probe/reports/linux-srt.json",
+        "namespaces": [
+          {
+            "inode": 4026532332,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532331,
+            "type": "mnt"
+          },
+          {
+            "inode": 4026531835,
+            "type": "cgroup"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026532271,
+            "type": "net"
+          },
+          {
+            "inode": 4026532332,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532330,
+            "type": "user"
+          },
+          {
+            "inode": 4026531838,
+            "type": "uts"
+          },
+          {
+            "inode": 4026531839,
+            "type": "ipc"
+          }
+        ],
+        "pid": 2,
+        "ppid": 1
+      }
+    },
+    {
+      "findingType": "parent_process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Parent process",
+      "value": {
+        "command": "/opt/hostedtoolcache/node/22.23.1/x64/lib/node_modules/@anthropic-ai/sandbox-runtime/vendor/seccomp/x64/apply-seccomp /usr/bin/bash -c /home/runner/work/sandbox-probe/sandbox-probe/sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=srt,srt=1.0.0,sandbox=on,mode=via-sandbox --output_path /home/runner/work/sandbox-probe/sandbox-probe/reports/linux-srt.json",
+        "namespaces": [],
+        "pid": 1,
+        "ppid": 0
+      }
+    },
+    {
+      "findingType": "user_context_detection",
+      "task": "baseline_user_context",
+      "description": "User context information",
+      "value": {
+        "egid": 1001,
+        "euid": 1001,
+        "gid": 1001,
+        "groups": [
+          65534,
+          65534,
+          65534,
+          65534,
+          1001
+        ],
+        "uid": 1001
+      }
+    },
+    {
+      "findingType": "hostname_detection",
+      "task": "baseline_hostname",
+      "description": "Hostname",
+      "value": "runnervm3jd5f"
+    },
+    {
+      "findingType": "environment_detection",
+      "task": "baseline_environment",
+      "description": "Host kernel and OS release",
+      "value": {
+        "kernel_release": "6.17.0-1020-azure",
+        "kernel_version": "Linux version 6.17.0-1020-azure (buildd@lcy02-amd64-093) (x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #20~24.04.1-Ubuntu SMP Fri Jun 19 20:09:14 UTC 2026",
+        "os_release": "Ubuntu 24.04.4 LTS"
+      }
+    },
+    {
+      "findingType": "sandbox_detection",
+      "task": "baseline_sandbox_detector",
+      "description": "Container/wrapper runtime",
+      "value": "unknown"
+    },
+    {
+      "findingType": "sandbox_detection",
+      "task": "baseline_sandbox_detector",
+      "description": "Active kernel enforcement mechanism",
+      "value": "seccomp-filter"
+    },
+    {
+      "findingType": "sandbox_detection",
+      "task": "baseline_sandbox_detector",
+      "description": "Active kernel enforcement mechanism",
+      "value": "no-new-privs"
+    },
+    {
+      "findingType": "mounted_volumes_detections",
+      "task": "baseline_mount_scanner",
+      "description": "Host-mounted volumes",
+      "value": [
+        "/dev/root -> / (ext4)",
+        "fusectl -> /sys/fs/fuse/connections (fusectl)",
+        "/dev/sda16 -> /boot (ext4)",
+        "/dev/sda15 -> /boot/efi (vfat)",
+        "/dev/root -> /home/runner/.npm/_logs (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe/.claude (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe/.claude (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe/.git/hooks (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe/.git/config (ext4)",
+        "/dev/root -> /tmp (ext4)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,267 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2026-07-23T10:50:49.148937198Z",
+  "probeBinary": {
+    "goVersion": "go1.25.6",
+    "os": "linux",
+    "arch": "amd64",
+    "binaryVersion": "unknown",
+    "commit": "unknown",
+    "buildDate": "unknown"
+  },
+  "metadata": {
+    "tags": [
+      "runner=ubuntu-latest",
+      "harness=firejail",
+      "firejail=0.9.72",
+      "sandbox=on",
+      "mode=via-sandbox"
+    ]
+  },
+  "findings": [
+    {
+      "findingType": "writeable_paths",
+      "task": "baseline_filesystem_enumerator",
+      "description": "Writeable paths",
+      "value": [
+        "/opt"
+      ]
+    },
+    {
+      "findingType": "sensitive_readable_paths",
+      "task": "baseline_filesystem_enumerator",
+      "description": "Readable sensitive paths",
+      "value": [
+        "/etc/passwd",
+        "/etc/group",
+        "/etc/hostname",
+        "/etc/hosts",
+        "/etc/resolv.conf",
+        "/proc/self/cgroup",
+        "/proc/self/mountinfo",
+        "/proc/self/status",
+        "/proc/1/cgroup",
+        "/home/runner/.gcloud/credentials.db",
+        "/home/runner/.gcloud/access_tokens.db",
+        "/home/runner/.azure/credentials",
+        "/home/runner/.azure/msal_token_cache.json",
+        "/home/runner/.docker/config.json",
+        "/home/runner/.vault-token",
+        "/home/runner/.terraform.d/credentials.tfrc.json",
+        "/home/runner/.config/gh/hosts.yml",
+        "/home/runner/.config/doctl/config.yaml",
+        "/home/runner/.fly/config.yml",
+        "/home/runner/.pypirc",
+        "/home/runner/.gem/credentials",
+        "/home/runner/.m2/settings.xml"
+      ]
+    },
+    {
+      "findingType": "external_host_dns_resolution",
+      "task": "baseline_network_scanner",
+      "description": "External host DNS resolution",
+      "value": []
+    },
+    {
+      "findingType": "external_host_connectivity",
+      "task": "baseline_network_scanner",
+      "description": "External host connectivity",
+      "value": []
+    },
+    {
+      "findingType": "proxy_detection",
+      "task": "baseline_proxy_detector",
+      "description": "Proxy configuration",
+      "value": {
+        "all_proxy": "",
+        "http_proxy": "",
+        "https_proxy": "",
+        "no_proxy": "",
+        "pac_url": "",
+        "socks_proxy": ""
+      }
+    },
+    {
+      "findingType": "unix_socket_detection",
+      "task": "baseline_socket_scanner",
+      "description": "Unix sockets detected",
+      "value": [
+        "/run/dhcpcd/eth0-4.sock",
+        "/run/dhcpcd/eth0-4.unpriv.sock",
+        "/run/lxd-installer.socket",
+        "/run/dbus/system_bus_socket",
+        "/run/php/php8.3-fpm.sock",
+        "/run/snapd-snap.socket",
+        "/run/snapd.socket",
+        "/run/systemd/coredump",
+        "/run/systemd/fsck.progress",
+        "/run/uuidd/request",
+        "/run/systemd/io.systemd.ManagedOOM",
+        "/run/systemd/io.systemd.sysext",
+        "/run/udev/control",
+        "/run/user/1001/bus",
+        "/run/systemd/journal/dev-log",
+        "/run/systemd/journal/io.systemd.journal",
+        "/run/systemd/journal/socket",
+        "/run/systemd/journal/stdout",
+        "/run/systemd/journal/syslog",
+        "/run/systemd/notify",
+        "/run/systemd/private",
+        "/run/systemd/resolve/io.systemd.Resolve",
+        "/run/systemd/resolve/io.systemd.Resolve.Monitor",
+        "/run/systemd/userdb/io.systemd.DynamicUser",
+        "/run/systemd/inaccessible/sock",
+        "/tmp/dotnet-diagnostic-2067-1943-socket",
+        "/tmp/dotnet-diagnostic-2087-2097-socket"
+      ]
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "firejail --quiet --net=none --seccomp /home/runner/work/sandbox-probe/sandbox-probe/sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=firejail,firejail=0.9.72,sandbox=on,mode=via-sandbox --output_path /home/runner/work/sandbox-probe/sandbox-probe/reports/linux-firejail.json",
+        "namespaces": [],
+        "pid": 1,
+        "ppid": 0
+      }
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "/home/runner/work/sandbox-probe/sandbox-probe/sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=firejail,firejail=0.9.72,sandbox=on,mode=via-sandbox --output_path /home/runner/work/sandbox-probe/sandbox-probe/reports/linux-firejail.json",
+        "namespaces": [
+          {
+            "inode": 4026532271,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532271,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532331,
+            "type": "user"
+          },
+          {
+            "inode": 4026532268,
+            "type": "mnt"
+          },
+          {
+            "inode": 4026531835,
+            "type": "cgroup"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026532272,
+            "type": "net"
+          },
+          {
+            "inode": 4026532270,
+            "type": "uts"
+          },
+          {
+            "inode": 4026531839,
+            "type": "ipc"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          }
+        ],
+        "pid": 6,
+        "ppid": 1
+      }
+    },
+    {
+      "findingType": "parent_process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Parent process",
+      "value": {
+        "command": "firejail --quiet --net=none --seccomp /home/runner/work/sandbox-probe/sandbox-probe/sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=firejail,firejail=0.9.72,sandbox=on,mode=via-sandbox --output_path /home/runner/work/sandbox-probe/sandbox-probe/reports/linux-firejail.json",
+        "namespaces": [],
+        "pid": 1,
+        "ppid": 0
+      }
+    },
+    {
+      "findingType": "user_context_detection",
+      "task": "baseline_user_context",
+      "description": "User context information",
+      "value": {
+        "egid": 1001,
+        "euid": 1001,
+        "gid": 1001,
+        "groups": [],
+        "uid": 1001
+      }
+    },
+    {
+      "findingType": "hostname_detection",
+      "task": "baseline_hostname",
+      "description": "Hostname",
+      "value": "runnervm3jd5f"
+    },
+    {
+      "findingType": "environment_detection",
+      "task": "baseline_environment",
+      "description": "Host kernel and OS release",
+      "value": {
+        "kernel_release": "6.17.0-1020-azure",
+        "kernel_version": "Linux version 6.17.0-1020-azure (buildd@lcy02-amd64-093) (x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #20~24.04.1-Ubuntu SMP Fri Jun 19 20:09:14 UTC 2026",
+        "os_release": "Ubuntu 24.04.4 LTS"
+      }
+    },
+    {
+      "findingType": "sandbox_detection",
+      "task": "baseline_sandbox_detector",
+      "description": "Container/wrapper runtime",
+      "value": "firejail"
+    },
+    {
+      "findingType": "sandbox_detection",
+      "task": "baseline_sandbox_detector",
+      "description": "Active kernel enforcement mechanism",
+      "value": "seccomp-filter"
+    },
+    {
+      "findingType": "sandbox_detection",
+      "task": "baseline_sandbox_detector",
+      "description": "Active kernel enforcement mechanism",
+      "value": "no-new-privs"
+    },
+    {
+      "findingType": "mounted_volumes_detections",
+      "task": "baseline_mount_scanner",
+      "description": "Host-mounted volumes",
+      "value": [
+        "/dev/root -> / (ext4)",
+        "/dev/sda16 -> /boot (ext4)",
+        "/dev/sda15 -> /boot/efi (vfat)",
+        "/dev/root -> /run/firejail/lib (ext4)",
+        "/dev/root -> /etc (ext4)",
+        "/dev/root -> /etc (ext4)",
+        "/dev/root -> /var (ext4)",
+        "/dev/root -> /var (ext4)",
+        "/dev/root -> /usr (ext4)",
+        "/dev/root -> /home/runner (ext4)",
+        "/dev/root -> /home/runner/.bash_logout (ext4)",
+        "/dev/root -> /home/runner/.bash_profile (ext4)",
+        "/dev/root -> /home/runner/.bashrc (ext4)",
+        "/dev/root -> /home/runner/.profile (ext4)",
+        "/dev/root -> /home/runner/.ssh/config (ext4)",
+        "/dev/root -> /home/runner/.cargo/env (ext4)",
+        "/dev/root -> /home/runner/.npmrc (ext4)",
+        "/dev/root -> /home/runner/.cargo/bin (ext4)",
+        "/dev/root -> /home/runner/.gem (ext4)",
+        "/dev/root -> /home/runner/.nvm (ext4)",
+        "/dev/root -> /home/runner/.rustup (ext4)"
+      ]
+    }
+  ]
+}

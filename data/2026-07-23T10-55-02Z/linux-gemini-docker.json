@@ -1,0 +1,436 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2026-07-23T10:51:24.511082308Z",
+  "probeBinary": {
+    "goVersion": "go1.25.6",
+    "os": "linux",
+    "arch": "amd64",
+    "binaryVersion": "unknown",
+    "commit": "unknown",
+    "buildDate": "unknown"
+  },
+  "metadata": {
+    "tags": [
+      "runner=ubuntu-latest",
+      "harness=gemini",
+      "sandbox=docker",
+      "gemini=0.52.0",
+      "docker=28.0.4",
+      "mode=via-gemini-stub"
+    ]
+  },
+  "findings": [
+    {
+      "findingType": "writeable_paths",
+      "task": "baseline_filesystem_enumerator",
+      "description": "Writeable paths",
+      "value": []
+    },
+    {
+      "findingType": "sensitive_readable_paths",
+      "task": "baseline_filesystem_enumerator",
+      "description": "Readable sensitive paths",
+      "value": [
+        "/etc/passwd",
+        "/etc/group",
+        "/etc/hostname",
+        "/etc/hosts",
+        "/etc/resolv.conf",
+        "/proc/self/cgroup",
+        "/proc/self/mountinfo",
+        "/proc/self/status",
+        "/proc/1/cgroup",
+        "/.dockerenv"
+      ]
+    },
+    {
+      "findingType": "external_host_dns_resolution",
+      "task": "baseline_network_scanner",
+      "description": "External host DNS resolution",
+      "value": [
+        "142.251.214.110",
+        "2607:f8b0:4007:808::200e"
+      ]
+    },
+    {
+      "findingType": "external_host_connectivity",
+      "task": "baseline_network_scanner",
+      "description": "External host connectivity",
+      "value": [
+        "google.com"
+      ]
+    },
+    {
+      "findingType": "proxy_detection",
+      "task": "baseline_proxy_detector",
+      "description": "Proxy configuration",
+      "value": {
+        "all_proxy": "",
+        "http_proxy": "",
+        "https_proxy": "",
+        "no_proxy": "",
+        "pac_url": "",
+        "socks_proxy": ""
+      }
+    },
+    {
+      "findingType": "unix_socket_detection",
+      "task": "baseline_socket_scanner",
+      "description": "Unix sockets detected",
+      "value": [
+        "/tmp/dotnet-diagnostic-2089-2778-socket",
+        "/tmp/dotnet-diagnostic-2111-2986-socket"
+      ]
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "/sbin/docker-init -- bash -c if command -v useradd >/dev/null 2>&1; then\n  (groupadd -g 1001 -o gemini 2>/dev/null || true) &&\n  (id 1001 >/dev/null 2>&1 || useradd -o -u 1001 -g 1001 -d /home/runner -s /bin/bash gemini 2>/dev/null || true) &&\n  USER_NAME=$(id -nu 1001 2>/dev/null);\n  if [ -n \"$USER_NAME\" ]; then\n    su -p \"$USER_NAME\" -c 'gemini --approval-mode\\=yolo --model gemini-2.5-flash --prompt '\\''Run the sandbox probe and then stop.'\\'' --sandbox';\n  else\n    echo \"Error: Failed to map host UID 1001 to a user in the container.\" >&2;\n    exit 1;\n  fi\nelse\n  echo \"Error: 'useradd' not found in container. UID/GID mapping is required for Linux distros like NixOS/Arch to avoid permission issues. Please use a container image that includes standard user management tools (like 'ubuntu' or 'debian').\" >&2;\n  exit 1;\nfi",
+        "namespaces": [],
+        "pid": 1,
+        "ppid": 0
+      }
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "bash -c if command -v useradd >/dev/null 2>&1; then\n  (groupadd -g 1001 -o gemini 2>/dev/null || true) &&\n  (id 1001 >/dev/null 2>&1 || useradd -o -u 1001 -g 1001 -d /home/runner -s /bin/bash gemini 2>/dev/null || true) &&\n  USER_NAME=$(id -nu 1001 2>/dev/null);\n  if [ -n \"$USER_NAME\" ]; then\n    su -p \"$USER_NAME\" -c 'gemini --approval-mode\\=yolo --model gemini-2.5-flash --prompt '\\''Run the sandbox probe and then stop.'\\'' --sandbox';\n  else\n    echo \"Error: Failed to map host UID 1001 to a user in the container.\" >&2;\n    exit 1;\n  fi\nelse\n  echo \"Error: 'useradd' not found in container. UID/GID mapping is required for Linux distros like NixOS/Arch to avoid permission issues. Please use a container image that includes standard user management tools (like 'ubuntu' or 'debian').\" >&2;\n  exit 1;\nfi",
+        "namespaces": [],
+        "pid": 7,
+        "ppid": 1
+      }
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "su -p gemini -c gemini --approval-mode\\=yolo --model gemini-2.5-flash --prompt 'Run the sandbox probe and then stop.' --sandbox",
+        "namespaces": [],
+        "pid": 26,
+        "ppid": 7
+      }
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "node /usr/local/share/npm-global/bin/gemini --approval-mode=yolo --model gemini-2.5-flash --prompt Run the sandbox probe and then stop. --sandbox",
+        "namespaces": [
+          {
+            "inode": 4026531837,
+            "type": "user"
+          },
+          {
+            "inode": 4026532272,
+            "type": "cgroup"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026532273,
+            "type": "net"
+          },
+          {
+            "inode": 4026532270,
+            "type": "ipc"
+          },
+          {
+            "inode": 4026532271,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532218,
+            "type": "mnt"
+          },
+          {
+            "inode": 4026532219,
+            "type": "uts"
+          },
+          {
+            "inode": 4026532271,
+            "type": "pid"
+          }
+        ],
+        "pid": 27,
+        "ppid": 26
+      }
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "/usr/bin/bash -c shopt -u promptvars nullglob extglob nocaseglob dotglob; _bgpids_file=/tmp/gemini-shell-NnoTFW/bgpids.tmp\n(\n  trap 'jobs -p > \"$_bgpids_file\"' EXIT\n./sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=gemini,sandbox=docker,gemini=0.52.0,docker=28.0.4,mode=via-gemini-stub --output_path reports/linux-gemini-docker.json\n)\n__code=$?\nexit $__code",
+        "namespaces": [
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026532219,
+            "type": "uts"
+          },
+          {
+            "inode": 4026532270,
+            "type": "ipc"
+          },
+          {
+            "inode": 4026532272,
+            "type": "cgroup"
+          },
+          {
+            "inode": 4026532273,
+            "type": "net"
+          },
+          {
+            "inode": 4026532271,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532271,
+            "type": "pid"
+          },
+          {
+            "inode": 4026531837,
+            "type": "user"
+          },
+          {
+            "inode": 4026532218,
+            "type": "mnt"
+          }
+        ],
+        "pid": 49,
+        "ppid": 27
+      }
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "/usr/bin/bash -c shopt -u promptvars nullglob extglob nocaseglob dotglob; _bgpids_file=/tmp/gemini-shell-NnoTFW/bgpids.tmp\n(\n  trap 'jobs -p > \"$_bgpids_file\"' EXIT\n./sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=gemini,sandbox=docker,gemini=0.52.0,docker=28.0.4,mode=via-gemini-stub --output_path reports/linux-gemini-docker.json\n)\n__code=$?\nexit $__code",
+        "namespaces": [
+          {
+            "inode": 4026532272,
+            "type": "cgroup"
+          },
+          {
+            "inode": 4026532273,
+            "type": "net"
+          },
+          {
+            "inode": 4026532270,
+            "type": "ipc"
+          },
+          {
+            "inode": 4026532271,
+            "type": "pid"
+          },
+          {
+            "inode": 4026531837,
+            "type": "user"
+          },
+          {
+            "inode": 4026532218,
+            "type": "mnt"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026532219,
+            "type": "uts"
+          },
+          {
+            "inode": 4026532271,
+            "type": "pid"
+          }
+        ],
+        "pid": 50,
+        "ppid": 49
+      }
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "./sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=gemini,sandbox=docker,gemini=0.52.0,docker=28.0.4,mode=via-gemini-stub --output_path reports/linux-gemini-docker.json",
+        "namespaces": [
+          {
+            "inode": 4026532271,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532272,
+            "type": "cgroup"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026532273,
+            "type": "net"
+          },
+          {
+            "inode": 4026532219,
+            "type": "uts"
+          },
+          {
+            "inode": 4026532270,
+            "type": "ipc"
+          },
+          {
+            "inode": 4026532271,
+            "type": "pid"
+          },
+          {
+            "inode": 4026531837,
+            "type": "user"
+          },
+          {
+            "inode": 4026532218,
+            "type": "mnt"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          }
+        ],
+        "pid": 51,
+        "ppid": 50
+      }
+    },
+    {
+      "findingType": "parent_process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Parent process",
+      "value": {
+        "command": "/usr/bin/bash -c shopt -u promptvars nullglob extglob nocaseglob dotglob; _bgpids_file=/tmp/gemini-shell-NnoTFW/bgpids.tmp\n(\n  trap 'jobs -p > \"$_bgpids_file\"' EXIT\n./sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=gemini,sandbox=docker,gemini=0.52.0,docker=28.0.4,mode=via-gemini-stub --output_path reports/linux-gemini-docker.json\n)\n__code=$?\nexit $__code",
+        "namespaces": [
+          {
+            "inode": 4026532219,
+            "type": "uts"
+          },
+          {
+            "inode": 4026532270,
+            "type": "ipc"
+          },
+          {
+            "inode": 4026532271,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532271,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532218,
+            "type": "mnt"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026532273,
+            "type": "net"
+          },
+          {
+            "inode": 4026531837,
+            "type": "user"
+          },
+          {
+            "inode": 4026532272,
+            "type": "cgroup"
+          }
+        ],
+        "pid": 50,
+        "ppid": 49
+      }
+    },
+    {
+      "findingType": "user_context_detection",
+      "task": "baseline_user_context",
+      "description": "User context information",
+      "value": {
+        "egid": 1001,
+        "euid": 1001,
+        "gid": 1001,
+        "groups": [
+          1001
+        ],
+        "uid": 1001
+      }
+    },
+    {
+      "findingType": "hostname_detection",
+      "task": "baseline_hostname",
+      "description": "Hostname",
+      "value": "sandbox-0.52.0-cb5ec13ccbff"
+    },
+    {
+      "findingType": "environment_detection",
+      "task": "baseline_environment",
+      "description": "Host kernel and OS release",
+      "value": {
+        "kernel_release": "6.17.0-1020-azure",
+        "kernel_version": "Linux version 6.17.0-1020-azure (buildd@lcy02-amd64-093) (x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #20~24.04.1-Ubuntu SMP Fri Jun 19 20:09:14 UTC 2026",
+        "os_release": "Debian GNU/Linux 12 (bookworm)"
+      }
+    },
+    {
+      "findingType": "sandbox_detection",
+      "task": "baseline_sandbox_detector",
+      "description": "Container/wrapper runtime",
+      "value": "docker"
+    },
+    {
+      "findingType": "sandbox_detection",
+      "task": "baseline_sandbox_detector",
+      "description": "Active kernel enforcement mechanism",
+      "value": "seccomp-filter"
+    },
+    {
+      "findingType": "mounted_volumes_detections",
+      "task": "baseline_mount_scanner",
+      "description": "Host-mounted volumes",
+      "value": [
+        "/dev/root -> /usr/sbin/docker-init (ext4)",
+        "/dev/root -> /tmp (ext4)",
+        "/dev/root -> /etc/resolv.conf (ext4)",
+        "/dev/root -> /etc/hostname (ext4)",
+        "/dev/root -> /etc/hosts (ext4)",
+        "/dev/root -> /home/runner/.gemini (ext4)",
+        "/dev/root -> /home/node/.gemini (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe (ext4)"
+      ]
+    }
+  ]
+}
