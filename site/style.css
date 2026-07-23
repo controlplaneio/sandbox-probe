@@ -1,40 +1,118 @@
-/* Functional placeholder styling only. A design system replaces this later —
-   keep selectors semantic and structural, not decorative. */
-* { box-sizing: border-box; }
-body { font: 14px/1.5 system-ui, sans-serif; margin: 0; color: #1a1a1a; background: #fff; }
-header, section { padding: 16px 24px; }
-header { border-bottom: 1px solid #ddd; }
-h1 { margin: 0 0 4px; font-size: 20px; }
-h2 { font-size: 16px; margin: 0 0 8px; }
-h3 { font-size: 14px; margin: 0; }
-.tagline { max-width: 70ch; color: #444; margin: 4px 0; }
-.meta { color: #666; font-size: 12px; margin-top: 8px; }
-.hint { color: #666; font-size: 12px; margin: 0 0 8px; }
-.section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
-section { border-bottom: 1px solid #eee; }
+/* ControlPlane design system tokens, hand-ported from the CP Design System
+   project (styles.css / _ds_bundle.css) — see guidelines/README.md there.
+   No build step here (ADR 0001: vanilla JS/CSS, no framework), so tokens are
+   copied rather than @imported from the DS bundle. */
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap");
 
-/* matrix */
-table { border-collapse: collapse; font-size: 13px; }
-th, td { border: 1px solid #e2e2e2; padding: 5px 8px; text-align: center; }
-th { background: #f6f6f6; font-weight: 600; white-space: nowrap; }
-td.id { text-align: left; white-space: nowrap; font-family: ui-monospace, monospace; }
-td.exp { font-weight: 700; }
+:root {
+  --cp-blue: #1c64f2;
+  --cp-blue-text: #4c82f5;
+  --cp-dark: #0f0f0f;
+  --cp-darker: #0a0a0a;
+  --cp-card: #17181a;
+  --cp-surface-card: #141414;
+  --cp-neutral-1: #fafcff;
+  --cp-neutral-4: #b2bac2;
+  --cp-neutral-5: #969da3;
+  --cp-neutral-6: #71767a;
+  --cp-neutral-8: #262729;
+  --cp-text-body: #d7dce0;
+  --cp-text-heading: #fafcff;
+  --cp-text-muted: #969da3;
+  --cp-pill-bg: #1f1f1f;
+  --cp-pill-bg-hover: #323232;
+  --cp-pill-text: #a3a3a3;
+  --cp-border: #262729;
+  --cp-border-hover: #71767a;
+  --cp-font-display: "Bebas Neue", sans-serif;
+  --cp-font-sans: "Montserrat", system-ui, sans-serif;
+  --cp-radius-pill: 9999px;
+  --cp-radius-card: 0.5rem;
+
+  /* Status semantics: not part of the CP palette (the system reserves colour
+     for --cp-blue only) but needed here as a functional affordance, same
+     reasoning the DS gives for blue's focus-ring use. Muted to sit on dark. */
+  --status-leaked: #f06a6e;
+  --status-leaked-bg: rgba(240, 106, 110, 0.12);
+  --status-leaked-border: rgba(240, 106, 110, 0.35);
+  --status-blocked: #52c77e;
+  --status-blocked-bg: rgba(82, 199, 126, 0.12);
+  --status-blocked-border: rgba(82, 199, 126, 0.35);
+  --status-unprovable: #e2a03f;
+  --status-unprovable-bg: rgba(226, 160, 63, 0.12);
+}
+
+* { box-sizing: border-box; }
+body {
+  font: 14px/1.5 var(--cp-font-sans);
+  margin: 0;
+  color: var(--cp-text-body);
+  background: var(--cp-dark);
+}
+header, section { padding: 16px 24px; }
+header {
+  border-bottom: 1px solid var(--cp-border);
+  background: var(--cp-darker);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.logo { height: 36px; width: auto; filter: invert(1); flex-shrink: 0; }
+.header-copy { min-width: 0; }
+h1 {
+  margin: 0 0 4px;
+  font: 32px/1 var(--cp-font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--cp-text-heading);
+}
+h2 {
+  font: 22px/1 var(--cp-font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--cp-text-heading);
+  margin: 0 0 8px;
+}
+h3 { font: 700 13px var(--cp-font-sans); text-transform: uppercase; letter-spacing: 0.04em; color: var(--cp-text-muted); margin: 0; }
+.tagline { max-width: 70ch; color: var(--cp-text-muted); margin: 4px 0; }
+.meta { color: var(--cp-neutral-6); font-size: 12px; margin-top: 8px; }
+.hint { color: var(--cp-text-muted); font-size: 12px; margin: 0 0 8px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+section { border-bottom: 1px solid var(--cp-neutral-8); }
+
+/* matrix — hairline-bordered card, not filled, per the DS's card rule */
+table { border-collapse: collapse; font-size: 13px; width: 100%; }
+th, td { border: 1px solid var(--cp-border); padding: 5px 8px; text-align: center; }
+th { background: var(--cp-card); color: var(--cp-text-heading); font-weight: 600; white-space: nowrap; }
+td { color: var(--cp-text-body); }
+td.id { text-align: left; white-space: nowrap; font-family: ui-monospace, monospace; color: var(--cp-text-heading); }
+td.exp { font-weight: 700; color: var(--cp-text-heading); }
 .cell { cursor: pointer; font-size: 15px; }
-.cell.leaked { background: #fbe4e0; color: #c0392b; }
-.cell.blocked { background: #e3f1e5; color: #2e7d32; }
-.cell.na { background: #f2f2f2; color: #aaa; }
-.cell.unprovable { background: #fff6e0; color: #b8860b; }
-.baseline-row { opacity: 0.55; }
-.tag { display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 3px; background: #eee; color: #555; vertical-align: middle; }
-.tag.enf { background: #e6eef7; color: #2d5f9e; }
-.tag.root { background: #fdeaea; color: #c0392b; }
-.up { color: #c0392b; font-size: 10px; }
-.down { color: #2e7d32; font-size: 10px; }
+.cell.leaked { background: var(--status-leaked-bg); color: var(--status-leaked); }
+.cell.blocked { background: var(--status-blocked-bg); color: var(--status-blocked); }
+.cell.na { background: var(--cp-pill-bg); color: var(--cp-neutral-6); }
+.cell.unprovable { background: var(--status-unprovable-bg); color: var(--status-unprovable); }
+.baseline-row { opacity: 0.6; }
+
+/* pills — CP's TagPill: rounded-full, filled dark, sparse colour */
+.tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: var(--cp-radius-pill);
+  background: var(--cp-pill-bg);
+  color: var(--cp-pill-text);
+  vertical-align: middle;
+}
+.tag.enf { background: var(--cp-pill-bg); color: var(--cp-neutral-4); }
+.tag.root { background: var(--status-leaked-bg); color: var(--status-leaked); }
+.up { color: var(--status-leaked); font-size: 10px; }
+.down { color: var(--status-blocked); font-size: 10px; }
 
 /* key glyphs in tagline */
-.k-leaked { color: #c0392b; font-weight: 600; }
-.k-blocked { color: #2e7d32; font-weight: 600; }
-.k-na { color: #999; font-weight: 600; }
+.k-leaked { color: var(--status-leaked); font-weight: 600; }
+.k-blocked { color: var(--status-blocked); font-weight: 600; }
+.k-na { color: var(--cp-neutral-6); font-weight: 600; }
 
 /* charts */
 .chart { width: 100%; height: 320px; }
@@ -42,20 +120,35 @@ td.exp { font-weight: 700; }
 
 /* flips */
 .flip-list { list-style: none; padding: 0; margin: 0; }
-.flip-list li { padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
-.badge { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-right: 6px; }
-.deg .badge { background: #fbe4e0; color: #c0392b; }
-.imp .badge { background: #e3f1e5; color: #2e7d32; }
-.muted { color: #888; }
-code { background: #f4f4f4; padding: 0 3px; border-radius: 3px; }
+.flip-list li { padding: 4px 0; border-bottom: 1px solid var(--cp-neutral-8); }
+.badge { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: var(--cp-radius-pill); margin-right: 6px; }
+.deg .badge { background: var(--status-leaked-bg); color: var(--status-leaked); }
+.imp .badge { background: var(--status-blocked-bg); color: var(--status-blocked); }
+.muted { color: var(--cp-text-muted); }
+code { background: var(--cp-pill-bg); color: var(--cp-text-body); padding: 0 3px; border-radius: 3px; }
 
-/* drill panel */
-.drill { position: fixed; right: 0; top: 0; width: 340px; height: 100%; background: #fff; border-left: 1px solid #ccc; box-shadow: -2px 0 8px rgba(0,0,0,.08); padding: 16px; overflow: auto; }
+/* drill panel — CP card: hairline border, surface-card fill, no shadow-heavy look */
+.drill {
+  position: fixed; right: 0; top: 0; width: 340px; height: 100%;
+  background: var(--cp-surface-card);
+  border-left: 1px solid var(--cp-border);
+  padding: 16px; overflow: auto;
+}
 .drill.hidden { display: none; }
-.drill-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.drill-head button { border: none; background: none; font-size: 22px; cursor: pointer; line-height: 1; }
-.drill .fp { font-size: 11px; color: #777; margin-bottom: 8px; font-family: ui-monospace, monospace; }
+.drill-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: var(--cp-text-heading); }
+.drill-head button { border: none; background: none; font-size: 22px; cursor: pointer; line-height: 1; color: var(--cp-text-muted); }
+.drill .fp { font-size: 11px; color: var(--cp-text-muted); margin-bottom: 8px; font-family: ui-monospace, monospace; }
 .drill ul { padding-left: 18px; margin: 0; }
 .drill li { font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; }
-label { font-size: 12px; color: #555; }
-select { font: inherit; padding: 2px 4px; }
+label { font-size: 12px; color: var(--cp-text-muted); }
+select {
+  font: inherit; padding: 2px 4px;
+  background: var(--cp-pill-bg); color: var(--cp-text-body);
+  border: 1px solid var(--cp-border); border-radius: 4px;
+}
+
+/* CP's blue focus ring is a functional affordance, not decoration — keep it here too */
+a:focus-visible, button:focus-visible, select:focus-visible, .cell:focus-visible {
+  outline: 2px solid var(--cp-blue);
+  outline-offset: 2px;
+}

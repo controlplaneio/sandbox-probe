@@ -144,6 +144,17 @@ function flips(identities) {
 const GLYPH = { leaked: "●", blocked: "●", na: "—", unprovable: "?" };
 let MODEL, OSFILTER = "";
 
+// Chart colors follow the same CSS custom properties as the rest of the page
+// (style.css), so the dark ControlPlane theme and the charts never drift apart.
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const CHART_TEXT = () => cssVar("--cp-text-muted");
+const CHART_BORDER = () => cssVar("--cp-neutral-8");
+const CHART_AXIS = {
+  axisLabel: { color: CHART_TEXT() },
+  axisLine: { lineStyle: { color: CHART_BORDER() } },
+  splitLine: { lineStyle: { color: CHART_BORDER() } },
+};
+
 function renderMeta(rows) {
   const runs = new Set(rows.map((r) => r.runTimestamp));
   const harnesses = new Set(rows.map((r) => r.harness).filter((h) => h !== "direct"));
@@ -217,13 +228,15 @@ function renderCharts() {
       if (pts[i].harnessVersion && pts[i].harnessVersion !== pts[i - 1].harnessVersion)
         versionMarks.push({ xAxis: pts[i].ts, label: { formatter: `${id.split("/")[1]} ${pts[i].harnessVersion}`, rotate: 90, fontSize: 9 } });
   }
-  if (series.length) series[0].markLine = { symbol: "none", silent: true, lineStyle: { type: "dashed", color: "#999" }, data: versionMarks };
+  if (series.length) series[0].markLine = { symbol: "none", silent: true, lineStyle: { type: "dashed", color: CHART_BORDER() }, data: versionMarks };
   ex.setOption({
-    tooltip: { trigger: "axis" },
-    legend: { type: "scroll", top: 0 },
+    backgroundColor: "transparent",
+    textStyle: { color: CHART_TEXT() },
+    tooltip: { trigger: "axis", backgroundColor: cssVar("--cp-card"), borderColor: CHART_BORDER(), textStyle: { color: cssVar("--cp-text-heading") } },
+    legend: { type: "scroll", top: 0, textStyle: { color: CHART_TEXT() } },
     grid: { top: 40, left: 40, right: 20, bottom: 30 },
-    xAxis: { type: "time" },
-    yAxis: { type: "value", name: "leaked cats", min: 0, max: 8, minInterval: 1 },
+    xAxis: { type: "time", ...CHART_AXIS },
+    yAxis: { type: "value", name: "leaked cats", min: 0, max: 8, minInterval: 1, ...CHART_AXIS },
     series,
   });
 
@@ -240,13 +253,23 @@ function renderHeatmap() {
   const data = [];
   pts.forEach((p, x) => CATEGORIES.forEach((c, y) => data.push([x, y, val[p.states[c.key]] ?? 0])));
   HM.setOption({
-    tooltip: { formatter: (o) => `${CATEGORIES[o.value[1]].label} @ ${pts[o.value[0]].ts.slice(0, 10)}: ${["n/a", "blocked", "leaked"][o.value[2]]}` },
+    backgroundColor: "transparent",
+    textStyle: { color: CHART_TEXT() },
+    tooltip: {
+      formatter: (o) => `${CATEGORIES[o.value[1]].label} @ ${pts[o.value[0]].ts.slice(0, 10)}: ${["n/a", "blocked", "leaked"][o.value[2]]}`,
+      backgroundColor: cssVar("--cp-card"), borderColor: CHART_BORDER(), textStyle: { color: cssVar("--cp-text-heading") },
+    },
     grid: { top: 10, left: 90, right: 20, bottom: 60 },
-    xAxis: { type: "category", data: pts.map((p) => p.ts.slice(5, 10)), axisLabel: { rotate: 45 } },
-    yAxis: { type: "category", data: CATEGORIES.map((c) => c.label) },
+    xAxis: { type: "category", data: pts.map((p) => p.ts.slice(5, 10)), axisLabel: { rotate: 45, color: CHART_TEXT() }, axisLine: CHART_AXIS.axisLine },
+    yAxis: { type: "category", data: CATEGORIES.map((c) => c.label), axisLabel: { color: CHART_TEXT() }, axisLine: CHART_AXIS.axisLine },
     visualMap: {
       type: "piecewise", show: true, orient: "horizontal", bottom: 0, left: "center",
-      pieces: [{ value: 0, label: "n/a", color: "#d9d9d9" }, { value: 1, label: "blocked", color: "#3f8f4f" }, { value: 2, label: "leaked", color: "#c0392b" }],
+      textStyle: { color: CHART_TEXT() },
+      pieces: [
+        { value: 0, label: "n/a", color: cssVar("--cp-pill-bg") },
+        { value: 1, label: "blocked", color: cssVar("--status-blocked") },
+        { value: 2, label: "leaked", color: cssVar("--status-leaked") },
+      ],
     },
     series: [{ type: "heatmap", data, label: { show: false } }],
   }, true);
