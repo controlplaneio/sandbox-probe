@@ -1,0 +1,369 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2026-07-23T10:50:51.596889951Z",
+  "probeBinary": {
+    "goVersion": "go1.25.6",
+    "os": "linux",
+    "arch": "amd64",
+    "binaryVersion": "unknown",
+    "commit": "unknown",
+    "buildDate": "unknown"
+  },
+  "metadata": {
+    "tags": [
+      "runner=ubuntu-latest",
+      "harness=codex",
+      "sandbox=on",
+      "codex=0.145.0",
+      "bwrap=0.9.0",
+      "mode=via-codex-stub"
+    ]
+  },
+  "findings": [
+    {
+      "findingType": "writeable_paths",
+      "task": "baseline_filesystem_enumerator",
+      "description": "Writeable paths",
+      "value": [
+        "/dev"
+      ]
+    },
+    {
+      "findingType": "sensitive_readable_paths",
+      "task": "baseline_filesystem_enumerator",
+      "description": "Readable sensitive paths",
+      "value": [
+        "/etc/passwd",
+        "/etc/group",
+        "/etc/hostname",
+        "/etc/hosts",
+        "/etc/resolv.conf",
+        "/etc/ssh/sshd_config",
+        "/proc/self/cgroup",
+        "/proc/self/mountinfo",
+        "/proc/self/status",
+        "/proc/1/cgroup",
+        "/proc/1/environ",
+        "/home/runner/.ssh/id_rsa",
+        "/home/runner/.ssh/id_ed25519",
+        "/home/runner/.ssh/id_ecdsa",
+        "/home/runner/.ssh/config",
+        "/home/runner/.ssh/authorized_keys",
+        "/home/runner/.aws/credentials",
+        "/home/runner/.aws/config",
+        "/home/runner/.gcloud/credentials.db",
+        "/home/runner/.gcloud/access_tokens.db",
+        "/home/runner/.azure/credentials",
+        "/home/runner/.azure/msal_token_cache.json",
+        "/home/runner/.kube/config",
+        "/home/runner/.docker/config.json",
+        "/home/runner/.git-credentials",
+        "/home/runner/.netrc",
+        "/home/runner/.vault-token",
+        "/home/runner/.terraform.d/credentials.tfrc.json",
+        "/home/runner/.config/gh/hosts.yml",
+        "/home/runner/.config/doctl/config.yaml",
+        "/home/runner/.fly/config.yml",
+        "/home/runner/.npmrc",
+        "/home/runner/.pypirc",
+        "/home/runner/.gem/credentials",
+        "/home/runner/.cargo/credentials.toml",
+        "/home/runner/.m2/settings.xml",
+        "/home/runner/.gradle/gradle.properties"
+      ]
+    },
+    {
+      "findingType": "external_host_dns_resolution",
+      "task": "baseline_network_scanner",
+      "description": "External host DNS resolution",
+      "value": []
+    },
+    {
+      "findingType": "external_host_connectivity",
+      "task": "baseline_network_scanner",
+      "description": "External host connectivity",
+      "value": []
+    },
+    {
+      "findingType": "proxy_detection",
+      "task": "baseline_proxy_detector",
+      "description": "Proxy configuration",
+      "value": {
+        "all_proxy": "",
+        "http_proxy": "",
+        "https_proxy": "",
+        "no_proxy": "",
+        "pac_url": "",
+        "socks_proxy": ""
+      }
+    },
+    {
+      "findingType": "unix_socket_detection",
+      "task": "baseline_socket_scanner",
+      "description": "Unix sockets detected",
+      "value": [
+        "/run/docker.sock",
+        "/run/lxd-installer.socket",
+        "/run/snapd-snap.socket",
+        "/run/snapd.socket",
+        "/run/dhcpcd/eth0-4.sock",
+        "/run/dhcpcd/eth0-4.unpriv.sock",
+        "/run/dbus/system_bus_socket",
+        "/run/uuidd/request",
+        "/run/udev/control",
+        "/run/systemd/coredump",
+        "/run/systemd/fsck.progress",
+        "/run/systemd/io.systemd.ManagedOOM",
+        "/run/systemd/io.systemd.sysext",
+        "/run/systemd/notify",
+        "/run/systemd/private",
+        "/run/systemd/userdb/io.systemd.DynamicUser",
+        "/run/systemd/journal/dev-log",
+        "/run/systemd/journal/io.systemd.journal",
+        "/run/systemd/journal/socket",
+        "/run/systemd/journal/stdout",
+        "/run/systemd/journal/syslog",
+        "/run/systemd/inaccessible/sock",
+        "/run/user/1001/bus",
+        "/run/systemd/resolve/io.systemd.Resolve",
+        "/run/systemd/resolve/io.systemd.Resolve.Monitor",
+        "/run/user/1001/pk-debconf-socket",
+        "/run/user/1001/snapd-session-agent.socket",
+        "/run/php/php8.3-fpm.sock",
+        "/run/user/1001/systemd/notify",
+        "/run/user/1001/systemd/private",
+        "/run/user/1001/gnupg/S.dirmngr",
+        "/run/user/1001/gnupg/S.gpg-agent",
+        "/run/user/1001/gnupg/S.gpg-agent.browser",
+        "/run/user/1001/gnupg/S.gpg-agent.extra",
+        "/run/user/1001/gnupg/S.gpg-agent.ssh",
+        "/run/user/1001/gnupg/S.keyboxd",
+        "/run/user/1001/systemd/inaccessible/sock",
+        "/tmp/dotnet-diagnostic-2094-8791-socket",
+        "/tmp/dotnet-diagnostic-2112-9008-socket"
+      ]
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "bwrap --new-session --die-with-parent --ro-bind / / --dev /dev --bind /tmp /tmp --perms 555 --tmpfs /tmp/.git --remount-ro /tmp/.git --perms 555 --tmpfs /tmp/.agents --remount-ro /tmp/.agents --perms 555 --tmpfs /tmp/.codex --remount-ro /tmp/.codex --bind /home/runner/work/sandbox-probe/sandbox-probe /home/runner/work/sandbox-probe/sandbox-probe --ro-bind /home/runner/work/sandbox-probe/sandbox-probe/.git /home/runner/work/sandbox-probe/sandbox-probe/.git --perms 555 --tmpfs /home/runner/work/sandbox-probe/sandbox-probe/.agents --remount-ro /home/runner/work/sandbox-probe/sandbox-probe/.agents --perms 555 --tmpfs /home/runner/work/sandbox-probe/sandbox-probe/.codex --remount-ro /home/runner/work/sandbox-probe/sandbox-probe/.codex --unshare-user --unshare-pid --unshare-net --proc /proc --argv0 codex-linux-sandbox -- /opt/hostedtoolcache/node/22.23.1/x64/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex --sandbox-policy-cwd /home/runner/work/sandbox-probe/sandbox-probe --command-cwd /home/runner/work/sandbox-probe/sandbox-probe --permission-profile {\"type\":\"managed\",\"file_system\":{\"type\":\"restricted\",\"entries\":[{\"path\":{\"type\":\"special\",\"value\":{\"kind\":\"root\"}},\"access\":\"read\"},{\"path\":{\"type\":\"path\",\"path\":\"/home/runner/work/sandbox-probe/sandbox-probe\"},\"access\":\"write\"},{\"path\":{\"type\":\"special\",\"value\":{\"kind\":\"slash_tmp\"}},\"access\":\"write\"},{\"path\":{\"type\":\"special\",\"value\":{\"kind\":\"tmpdir\"}},\"access\":\"write\"},{\"path\":{\"type\":\"path\",\"path\":\"/home/runner/work/sandbox-probe/sandbox-probe/.git\"},\"access\":\"read\"},{\"path\":{\"type\":\"path\",\"path\":\"/home/runner/work/sandbox-probe/sandbox-probe/.agents\"},\"access\":\"read\"},{\"path\":{\"type\":\"path\",\"path\":\"/home/runner/work/sandbox-probe/sandbox-probe/.codex\"},\"access\":\"read\"}]},\"network\":\"restricted\"} --apply-seccomp-then-exec -- /bin/bash -lc ./sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=codex,sandbox=on,codex=0.145.0,bwrap=0.9.0,mode=via-codex-stub --output_path reports/linux-codex-sandbox.json",
+        "namespaces": [
+          {
+            "inode": 4026532330,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532270,
+            "type": "user"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026531839,
+            "type": "ipc"
+          },
+          {
+            "inode": 4026532330,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532328,
+            "type": "mnt"
+          },
+          {
+            "inode": 4026531835,
+            "type": "cgroup"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026532331,
+            "type": "net"
+          },
+          {
+            "inode": 4026531838,
+            "type": "uts"
+          }
+        ],
+        "pid": 1,
+        "ppid": 0
+      }
+    },
+    {
+      "findingType": "process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Running processes",
+      "value": {
+        "command": "./sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=codex,sandbox=on,codex=0.145.0,bwrap=0.9.0,mode=via-codex-stub --output_path reports/linux-codex-sandbox.json",
+        "namespaces": [
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026531838,
+            "type": "uts"
+          },
+          {
+            "inode": 4026532328,
+            "type": "mnt"
+          },
+          {
+            "inode": 4026531835,
+            "type": "cgroup"
+          },
+          {
+            "inode": 4026532331,
+            "type": "net"
+          },
+          {
+            "inode": 4026531839,
+            "type": "ipc"
+          },
+          {
+            "inode": 4026532330,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532330,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532270,
+            "type": "user"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          }
+        ],
+        "pid": 2,
+        "ppid": 1
+      }
+    },
+    {
+      "findingType": "parent_process_detection",
+      "task": "baseline_process_scanner",
+      "description": "Parent process",
+      "value": {
+        "command": "bwrap --new-session --die-with-parent --ro-bind / / --dev /dev --bind /tmp /tmp --perms 555 --tmpfs /tmp/.git --remount-ro /tmp/.git --perms 555 --tmpfs /tmp/.agents --remount-ro /tmp/.agents --perms 555 --tmpfs /tmp/.codex --remount-ro /tmp/.codex --bind /home/runner/work/sandbox-probe/sandbox-probe /home/runner/work/sandbox-probe/sandbox-probe --ro-bind /home/runner/work/sandbox-probe/sandbox-probe/.git /home/runner/work/sandbox-probe/sandbox-probe/.git --perms 555 --tmpfs /home/runner/work/sandbox-probe/sandbox-probe/.agents --remount-ro /home/runner/work/sandbox-probe/sandbox-probe/.agents --perms 555 --tmpfs /home/runner/work/sandbox-probe/sandbox-probe/.codex --remount-ro /home/runner/work/sandbox-probe/sandbox-probe/.codex --unshare-user --unshare-pid --unshare-net --proc /proc --argv0 codex-linux-sandbox -- /opt/hostedtoolcache/node/22.23.1/x64/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex --sandbox-policy-cwd /home/runner/work/sandbox-probe/sandbox-probe --command-cwd /home/runner/work/sandbox-probe/sandbox-probe --permission-profile {\"type\":\"managed\",\"file_system\":{\"type\":\"restricted\",\"entries\":[{\"path\":{\"type\":\"special\",\"value\":{\"kind\":\"root\"}},\"access\":\"read\"},{\"path\":{\"type\":\"path\",\"path\":\"/home/runner/work/sandbox-probe/sandbox-probe\"},\"access\":\"write\"},{\"path\":{\"type\":\"special\",\"value\":{\"kind\":\"slash_tmp\"}},\"access\":\"write\"},{\"path\":{\"type\":\"special\",\"value\":{\"kind\":\"tmpdir\"}},\"access\":\"write\"},{\"path\":{\"type\":\"path\",\"path\":\"/home/runner/work/sandbox-probe/sandbox-probe/.git\"},\"access\":\"read\"},{\"path\":{\"type\":\"path\",\"path\":\"/home/runner/work/sandbox-probe/sandbox-probe/.agents\"},\"access\":\"read\"},{\"path\":{\"type\":\"path\",\"path\":\"/home/runner/work/sandbox-probe/sandbox-probe/.codex\"},\"access\":\"read\"}]},\"network\":\"restricted\"} --apply-seccomp-then-exec -- /bin/bash -lc ./sandbox-probe scan --tasksets baseline --tags runner=ubuntu-latest,harness=codex,sandbox=on,codex=0.145.0,bwrap=0.9.0,mode=via-codex-stub --output_path reports/linux-codex-sandbox.json",
+        "namespaces": [
+          {
+            "inode": 4026532331,
+            "type": "net"
+          },
+          {
+            "inode": 4026531838,
+            "type": "uts"
+          },
+          {
+            "inode": 4026532330,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532330,
+            "type": "pid"
+          },
+          {
+            "inode": 4026532328,
+            "type": "mnt"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          },
+          {
+            "inode": 4026531839,
+            "type": "ipc"
+          },
+          {
+            "inode": 4026532270,
+            "type": "user"
+          },
+          {
+            "inode": 4026531835,
+            "type": "cgroup"
+          },
+          {
+            "inode": 4026531834,
+            "type": "time"
+          }
+        ],
+        "pid": 1,
+        "ppid": 0
+      }
+    },
+    {
+      "findingType": "user_context_detection",
+      "task": "baseline_user_context",
+      "description": "User context information",
+      "value": {
+        "egid": 1001,
+        "euid": 1001,
+        "gid": 1001,
+        "groups": [
+          65534,
+          65534,
+          65534,
+          65534,
+          1001
+        ],
+        "uid": 1001
+      }
+    },
+    {
+      "findingType": "hostname_detection",
+      "task": "baseline_hostname",
+      "description": "Hostname",
+      "value": "runnervm3jd5f"
+    },
+    {
+      "findingType": "environment_detection",
+      "task": "baseline_environment",
+      "description": "Host kernel and OS release",
+      "value": {
+        "kernel_release": "6.17.0-1020-azure",
+        "kernel_version": "Linux version 6.17.0-1020-azure (buildd@lcy02-amd64-093) (x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #20~24.04.1-Ubuntu SMP Fri Jun 19 20:09:14 UTC 2026",
+        "os_release": "Ubuntu 24.04.4 LTS"
+      }
+    },
+    {
+      "findingType": "sandbox_detection",
+      "task": "baseline_sandbox_detector",
+      "description": "Container/wrapper runtime",
+      "value": "bubblewrap"
+    },
+    {
+      "findingType": "sandbox_detection",
+      "task": "baseline_sandbox_detector",
+      "description": "Active kernel enforcement mechanism",
+      "value": "seccomp-filter"
+    },
+    {
+      "findingType": "sandbox_detection",
+      "task": "baseline_sandbox_detector",
+      "description": "Active kernel enforcement mechanism",
+      "value": "no-new-privs"
+    },
+    {
+      "findingType": "mounted_volumes_detections",
+      "task": "baseline_mount_scanner",
+      "description": "Host-mounted volumes",
+      "value": [
+        "/dev/root -> / (ext4)",
+        "fusectl -> /sys/fs/fuse/connections (fusectl)",
+        "/dev/sda16 -> /boot (ext4)",
+        "/dev/sda15 -> /boot/efi (vfat)",
+        "/dev/root -> /tmp (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe (ext4)",
+        "/dev/root -> /home/runner/work/sandbox-probe/sandbox-probe/.git (ext4)"
+      ]
+    }
+  ]
+}

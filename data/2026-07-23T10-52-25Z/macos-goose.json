@@ -1,0 +1,170 @@
+{
+  "version":  "1.0.0",
+  "timestamp":  "2026-07-23T10:51:26.350282Z",
+  "probeBinary":  {
+    "goVersion":  "go1.25.6",
+    "os":  "darwin",
+    "arch":  "arm64",
+    "binaryVersion":  "unknown",
+    "commit":  "unknown",
+    "buildDate":  "unknown"
+  },
+  "metadata":  {
+    "tags":  [
+      "runner=macos-latest",
+      "harness=goose",
+      "goose=1.43.0",
+      "mode=via-goose-stub"
+    ]
+  },
+  "findings":  [
+    {
+      "findingType":  "writeable_paths",
+      "task":  "baseline_filesystem_enumerator",
+      "description":  "Writeable paths",
+      "value":  []
+    },
+    {
+      "findingType":  "sensitive_readable_paths",
+      "task":  "baseline_filesystem_enumerator",
+      "description":  "Readable sensitive paths",
+      "value":  [
+        "/etc/passwd",
+        "/etc/group",
+        "/etc/hosts",
+        "/etc/resolv.conf",
+        "/etc/ssh/sshd_config",
+        "/Users/runner/.ssh/id_rsa",
+        "/Users/runner/.ssh/id_ed25519",
+        "/Users/runner/.ssh/id_ecdsa",
+        "/Users/runner/.ssh/config",
+        "/Users/runner/.ssh/authorized_keys",
+        "/Users/runner/.aws/credentials",
+        "/Users/runner/.aws/config",
+        "/Users/runner/.gcloud/credentials.db",
+        "/Users/runner/.gcloud/access_tokens.db",
+        "/Users/runner/.azure/credentials",
+        "/Users/runner/.azure/msal_token_cache.json",
+        "/Users/runner/.kube/config",
+        "/Users/runner/.docker/config.json",
+        "/Users/runner/.git-credentials",
+        "/Users/runner/.netrc",
+        "/Users/runner/.vault-token",
+        "/Users/runner/.terraform.d/credentials.tfrc.json",
+        "/Users/runner/.config/gh/hosts.yml",
+        "/Users/runner/.config/doctl/config.yaml",
+        "/Users/runner/.fly/config.yml",
+        "/Users/runner/.npmrc",
+        "/Users/runner/.pypirc",
+        "/Users/runner/.gem/credentials",
+        "/Users/runner/.cargo/credentials.toml",
+        "/Users/runner/.m2/settings.xml",
+        "/Users/runner/.gradle/gradle.properties"
+      ]
+    },
+    {
+      "findingType":  "external_host_dns_resolution",
+      "task":  "baseline_network_scanner",
+      "description":  "External host DNS resolution",
+      "value":  [
+        "142.251.218.174",
+        "2607:f8b0:4005:80a::200e"
+      ]
+    },
+    {
+      "findingType":  "external_host_connectivity",
+      "task":  "baseline_network_scanner",
+      "description":  "External host connectivity",
+      "value":  [
+        "google.com"
+      ]
+    },
+    {
+      "findingType":  "tcp_ports_open",
+      "task":  "baseline_network_scanner",
+      "description":  "Open TCP ports",
+      "value":  [
+        22
+      ]
+    },
+    {
+      "findingType":  "proxy_detection",
+      "task":  "baseline_proxy_detector",
+      "description":  "Proxy configuration",
+      "value":  {
+        "all_proxy":  "",
+        "http_proxy":  "",
+        "https_proxy":  "",
+        "no_proxy":  "",
+        "pac_url":  "",
+        "socks_proxy":  ""
+      }
+    },
+    {
+      "findingType":  "unix_socket_detection",
+      "task":  "baseline_socket_scanner",
+      "description":  "Unix sockets detected",
+      "value":  [
+        "/private/var/run/.sim_diagnosticd_socket",
+        "/private/var/run/anka",
+        "/private/var/run/cupsd",
+        "/private/var/run/filesystemui.socket",
+        "/private/var/run/mDNSResponder",
+        "/private/var/run/portmap.socket",
+        "/private/var/run/pppconfd",
+        "/private/var/run/syslog",
+        "/private/var/run/systemkeychaincheck.socket",
+        "/private/var/run/usbmuxd",
+        "/private/var/run/vpncontrol.sock",
+        "/private/var/run/com.apple.launchd.iD9GiCeVZm/Listeners",
+        "/private/var/folders/8j/sfr9qqcj73j4p6nhwcfpr0th0000gn/T/dotnet-diagnostic-1841-1784803854-socket",
+        "/private/var/folders/8j/sfr9qqcj73j4p6nhwcfpr0th0000gn/T/dotnet-diagnostic-1844-1784803857-socket"
+      ]
+    },
+    {
+      "findingType":  "user_context_detection",
+      "task":  "baseline_user_context",
+      "description":  "User context information",
+      "value":  {
+        "egid":  20,
+        "euid":  501,
+        "gid":  20,
+        "groups":  [
+          20,
+          12,
+          61,
+          79,
+          80,
+          81,
+          264,
+          33,
+          98,
+          100,
+          204,
+          250,
+          395,
+          398,
+          399,
+          400
+        ],
+        "uid":  501
+      }
+    },
+    {
+      "findingType":  "hostname_detection",
+      "task":  "baseline_hostname",
+      "description":  "Hostname",
+      "value":  "sjc22-be104-74154dad-38c3-4bc6-8132-7a6bd6b9ff28-7EC145D10F44.local"
+    },
+    {
+      "findingType":  "environment_detection",
+      "task":  "baseline_environment",
+      "description":  "Host kernel and OS release",
+      "value":  {
+        "kernel_release":  "25.4.0",
+        "kernel_version":  "Darwin Kernel Version 25.4.0: Thu Mar 19 19:29:33 PDT 2026; root:xnu-12377.101.15~1/RELEASE_ARM64_VMAPPLE",
+        "os_release":  "macOS 26.4"
+      }
+    }
+  ]
+}
