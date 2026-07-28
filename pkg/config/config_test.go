@@ -126,6 +126,7 @@ func TestIsAbsolutePath(t *testing.T) {
 		{path: "/home/bob/.ssh", want: true},
 		{path: `C:\Users\bob\.ssh`, want: true},
 		{path: `D:/Users/bob/.ssh`, want: true},
+		{path: `\\server\share\bob\.ssh`, want: true},
 		{path: "relative/path", want: false},
 		{path: `C:relative\path`, want: false},
 	} {

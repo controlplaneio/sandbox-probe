@@ -204,6 +204,9 @@ func isAbsolutePath(path string) bool {
 	if path[0] == '/' {
 		return true
 	}
+	if len(path) >= 2 && path[0] == '\\' && path[1] == '\\' {
+		return true
+	}
 	return len(path) >= 3 && ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) && path[1] == ':' && (path[2] == '\\' || path[2] == '/')
 }
 
