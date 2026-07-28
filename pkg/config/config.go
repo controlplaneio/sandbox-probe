@@ -152,7 +152,7 @@ func validateEntries(category string, entries []PathEntry, severityRequired bool
 		if e.Path == "" {
 			return fmt.Errorf("%s path entry with label %q has empty path", category, e.Label)
 		}
-		if !filepath.IsAbs(e.Path) {
+		if !isAbsolutePath(e.Path) {
 			return fmt.Errorf("%s path %q must be absolute", category, e.Path)
 		}
 		for _, op := range e.CheckOps {
@@ -192,6 +192,19 @@ func isKnownCheckOp(op CheckOp) bool {
 	default:
 		return false
 	}
+}
+
+// isAbsolutePath accepts absolute paths for the host platform as well as the
+// standard POSIX and Windows forms. Config files are commonly authored on one
+// platform and validated in CI on another.
+func isAbsolutePath(path string) bool {
+	if filepath.IsAbs(path) || len(path) == 0 {
+		return filepath.IsAbs(path)
+	}
+	if path[0] == '/' {
+		return true
+	}
+	return len(path) >= 3 && ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) && path[1] == ':' && (path[2] == '\\' || path[2] == '/')
 }
 
 // HasOp returns true when the entry has no CheckOps override (all ops apply)

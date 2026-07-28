@@ -118,6 +118,21 @@ custom_paths:
 	assert.Error(t, err)
 }
 
+func TestIsAbsolutePath(t *testing.T) {
+	for _, tc := range []struct {
+		path string
+		want bool
+	}{
+		{path: "/home/bob/.ssh", want: true},
+		{path: `C:\Users\bob\.ssh`, want: true},
+		{path: `D:/Users/bob/.ssh`, want: true},
+		{path: "relative/path", want: false},
+		{path: `C:relative\path`, want: false},
+	} {
+		assert.Equal(t, tc.want, isAbsolutePath(tc.path), tc.path)
+	}
+}
+
 func TestLoadConfig_requiresSeverityForExpectations(t *testing.T) {
 	path := writeConfig(t, `
 custom_paths:
