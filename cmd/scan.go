@@ -101,11 +101,16 @@ func scan() error {
 		return err
 	}
 
-	if err := p.Run(); err != nil {
-		return err
+	runErr := p.Run()
+	if runErr != nil {
+		log.Warn().Err(runErr).Msg("Probe completed with failed checks")
 	}
 
-	log.Info().Msg("Probe execution completed successfully")
+	if runErr == nil {
+		log.Info().Msg("Probe execution completed successfully")
+	} else {
+		log.Warn().Msg("Probe execution completed with failed checks")
+	}
 	log.Info().Msg("Creating the report")
 
 	// Create the report
@@ -148,5 +153,5 @@ func scan() error {
 	log.Info().Str("file", viper.GetString("output_path")).Msg("Report written successfully")
 	log.Info().Msg("Sandbox probe completed")
 
-	return nil
+	return runErr
 }

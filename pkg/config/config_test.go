@@ -36,6 +36,100 @@ func TestLoadConfig_invalid_yaml(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestLoadConfig_rejectsUnknownFields(t *testing.T) {
+	path := writeConfig(t, `
+custom_paths:
+  must_blocks:
+    - path: /home/bob/.ssh
+      label: ssh_keys
+      severity: critical
+`)
+
+	_, err := LoadConfig(path)
+	assert.Error(t, err)
+}
+
+func TestLoadConfig_requiresAtLeastOneCustomPath(t *testing.T) {
+	path := writeConfig(t, `
+identity:
+  sandbox_user: alice
+custom_paths: {}
+`)
+
+	_, err := LoadConfig(path)
+	assert.Error(t, err)
+}
+
+func TestLoadConfig_rejectsMultipleDocuments(t *testing.T) {
+	path := writeConfig(t, `
+custom_paths:
+  audit:
+    - path: /tmp
+      label: temporary
+---
+custom_paths:
+  audit:
+    - path: /var/tmp
+      label: other
+`)
+
+	_, err := LoadConfig(path)
+	assert.Error(t, err)
+}
+
+func TestLoadConfig_rejectsCheckOpsUnsupportedByCategory(t *testing.T) {
+	path := writeConfig(t, `
+custom_paths:
+  must_read:
+    - path: /tmp
+      label: temporary
+      severity: error
+      check_ops: [write]
+`)
+
+	_, err := LoadConfig(path)
+	assert.Error(t, err)
+}
+
+func TestLoadConfig_rejectsEscapingCheckFiles(t *testing.T) {
+	path := writeConfig(t, `
+custom_paths:
+  must_block:
+    - path: /tmp
+      label: temporary
+      severity: critical
+      check_files: [../outside]
+`)
+
+	_, err := LoadConfig(path)
+	assert.Error(t, err)
+}
+
+func TestLoadConfig_rejectsRelativePaths(t *testing.T) {
+	path := writeConfig(t, `
+custom_paths:
+  must_block:
+    - path: ../host/.ssh
+      label: ssh
+      severity: critical
+`)
+
+	_, err := LoadConfig(path)
+	assert.Error(t, err)
+}
+
+func TestLoadConfig_requiresSeverityForExpectations(t *testing.T) {
+	path := writeConfig(t, `
+custom_paths:
+  must_block:
+    - path: /tmp
+      label: temporary
+`)
+
+	_, err := LoadConfig(path)
+	assert.Error(t, err)
+}
+
 func TestLoadConfig_minimal(t *testing.T) {
 	path := writeConfig(t, `
 identity:
@@ -76,10 +170,12 @@ custom_paths:
   must_read:
     - path: /usr/bin
       label: usr_bin
+      severity: error
       reason: binaries
   must_readwrite:
     - path: /tmp/workspace
       label: workspace
+      severity: error
       reason: cwd
   audit:
     - path: /home/bob

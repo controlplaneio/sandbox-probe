@@ -38,7 +38,7 @@ func list() error {
 	}
 
 	if len(tsks) != len(tasksNames) {
-		fmt.Errorf("Mismatch between task names and tasks")
+		return fmt.Errorf("mismatch between task names and tasks")
 	}
 
 	// Find max task name length for alignment

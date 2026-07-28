@@ -6,10 +6,9 @@
 #   alice — AI agent user (runs sandbox-probe)
 #   bob   — host operator whose credentials are planted but should be blocked
 #
-# NOTE: Docker provides no Landlock/MAC enforcement, so must_block violations
-# WILL appear (alice can read bob's files via standard DAC). This is expected.
-# The example demonstrates the config format and reporting, not enforcement.
-# For real enforcement, run sandbox-probe inside a nono/Landlock sandbox.
+# NOTE: Docker is not a substitute for Landlock/MAC enforcement. This fixture
+# uses Unix DAC permissions, so the must_block checks should pass; real
+# sandboxing must still be verified with a nono/Landlock policy.
 #
 # Usage: bash tests/example/run.sh
 #        make docker-test
@@ -50,17 +49,16 @@ docker run --rm sandbox-probe-example
 PROBE_EXIT=$?
 
 echo ""
-echo -e "${YELLOW}${BOLD}NOTE:${RESET} In Docker without Landlock enforcement, alice can read bob's files"
-echo "  via standard Unix DAC — so must_block violations are expected here."
-echo "  For real enforcement, run sandbox-probe inside a nono/Landlock sandbox."
+echo -e "${YELLOW}${BOLD}NOTE:${RESET} This Docker fixture demonstrates Unix DAC permissions only."
+echo "  For real sandbox enforcement, run sandbox-probe inside a nono/Landlock sandbox."
 echo ""
 
 if [[ "${PROBE_EXIT}" -eq 0 ]]; then
-  echo -e "${GREEN}${BOLD}✅ PASS — sandbox-probe ran successfully (all paths resolved)${RESET}"
-else
-  echo -e "${YELLOW}${BOLD}⚠️  VIOLATIONS REPORTED (expected without Landlock)${RESET}"
-  echo "  Exit code: ${PROBE_EXIT}"
-  echo "  This is correct behaviour — the config file is valid and the tool works."
+	echo -e "${GREEN}${BOLD}✅ PASS — sandbox-probe verified the fixture boundaries${RESET}"
+	else
+	echo -e "${RED}${BOLD}❌ FAIL — sandbox-probe reported boundary violations${RESET}"
+	echo "  Exit code: ${PROBE_EXIT}"
+	exit "${PROBE_EXIT}"
 fi
 
 echo ""

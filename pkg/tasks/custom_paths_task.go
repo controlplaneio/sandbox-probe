@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	reportv1 "github.com/controlplaneio/sandbox-probe/api/gen/proto/report/v1"
@@ -41,6 +42,7 @@ func (t *CustomPathsTask) Run(_ context.Context, _ Inputs) ([]*reportv1.Finding,
 	results := baselineTasks.CheckCustomPaths(t.cfg)
 
 	var findings []*reportv1.Finding
+	var failures []error
 	for _, r := range results {
 		if r.Category == "audit" {
 			f, err := auditFinding(r)
@@ -64,6 +66,9 @@ func (t *CustomPathsTask) Run(_ context.Context, _ Inputs) ([]*reportv1.Finding,
 				continue
 			}
 			findings = append(findings, f)
+			if v.Severity == config.SeverityCritical || v.Severity == config.SeverityError {
+				failures = append(failures, fmt.Errorf("[%s] %s", v.Severity, v.Message))
+			}
 		}
 	}
 
@@ -73,6 +78,9 @@ func (t *CustomPathsTask) Run(_ context.Context, _ Inputs) ([]*reportv1.Finding,
 		Int("findings", len(findings)).
 		Msg("Custom path checks complete")
 
+	if len(failures) > 0 {
+		return findings, NewScanFailure(fmt.Errorf("custom path expectations failed: %w", errors.Join(failures...)))
+	}
 	return findings, nil
 }
 
@@ -101,14 +109,14 @@ func violationFinding(r baselineTasks.CheckResult, v baselineTasks.Violation) (*
 
 func auditFinding(r baselineTasks.CheckResult) (*reportv1.Finding, error) {
 	detail := map[string]interface{}{
-		"path":      r.Entry.Path,
-		"label":     r.Entry.Label,
-		"category":  "audit",
-		"stat":      r.StatOK,
-		"readdir":   r.ReaddirOK,
-		"open":      r.OpenOK,
-		"write":     r.WriteOK,
-		"note":      r.Entry.Note,
+		"path":     r.Entry.Path,
+		"label":    r.Entry.Label,
+		"category": "audit",
+		"stat":     r.StatOK,
+		"readdir":  r.ReaddirOK,
+		"open":     r.OpenOK,
+		"write":    r.WriteOK,
+		"note":     r.Entry.Note,
 	}
 	val, err := structpb.NewValue(detail)
 	if err != nil {

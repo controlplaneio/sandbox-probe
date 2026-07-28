@@ -104,16 +104,34 @@ func TestBuildSensitivePathsForHome_includesSystemPaths(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		// On Windows the Unix absolute paths are absent by design; assert
 		// Windows-specific credential stores are present instead.
-		windowsPaths := []string{
-			// These expand from %APPDATA% / %LOCALAPPDATA% on a real runner;
-			// since the test passes a synthetic home we just confirm the
-			// Windows Credential Manager and gcloud entries are included.
-			// The APPDATA-based entries are present when the env vars are set
-			// (they are on any real Windows host/CI runner).
+
+		// Positive assertions: APPDATA-based entries are present when the env
+		// vars are set (they always are on a real Windows host or CI runner).
+		if appData := os.Getenv("APPDATA"); appData != "" {
+			windowsPaths := []string{
+				filepath.Join(appData, "Microsoft", "Credentials"),
+				filepath.Join(appData, "Microsoft", "Protect"),
+				filepath.Join(appData, "gcloud"),
+			}
+			for _, want := range windowsPaths {
+				assert.Contains(t, got, want, "windows APPDATA path %q should be in list", want)
+			}
+		} else {
+			t.Log("APPDATA not set — skipping Windows APPDATA positive assertions")
 		}
-		for _, want := range windowsPaths {
-			assert.Contains(t, got, want, "windows path %q should be in list", want)
+
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			windowsLocalPaths := []string{
+				filepath.Join(localAppData, "Google", "Cloud SDK", "application_default_credentials.json"),
+				filepath.Join(localAppData, "1Password"),
+			}
+			for _, want := range windowsLocalPaths {
+				assert.Contains(t, got, want, "windows LOCALAPPDATA path %q should be in list", want)
+			}
+		} else {
+			t.Log("LOCALAPPDATA not set — skipping Windows LOCALAPPDATA positive assertions")
 		}
+
 		// Confirm Unix-only paths are correctly absent.
 		for _, absent := range []string{"/etc/passwd", "/var/run/docker.sock", "/run/secrets"} {
 			assert.NotContains(t, got, absent, "unix path %q must not appear on Windows", absent)

@@ -22,14 +22,20 @@ func isReadable(path string) bool {
 }
 
 func isWritable(path string) bool {
-	if err := unix.Access(path, unix.W_OK); err != nil {
-		return false
-	}
-	// Directories cannot be opened with O_WRONLY; unix.Access is sufficient.
 	info, err := os.Stat(path)
 	if err != nil {
 		return false
 	}
+	accessMode := uint32(unix.W_OK)
+	if info.IsDir() {
+		// POSIX requires write and search permission to create or remove a
+		// directory entry; W_OK alone is not sufficient for a usable workspace.
+		accessMode |= unix.X_OK
+	}
+	if err := unix.Access(path, accessMode); err != nil {
+		return false
+	}
+	// Directories cannot be opened with O_WRONLY; Access above is sufficient.
 	if info.IsDir() {
 		return true
 	}

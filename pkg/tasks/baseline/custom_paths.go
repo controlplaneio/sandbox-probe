@@ -1,7 +1,9 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -39,7 +41,9 @@ func CheckCustomPaths(cfg *config.Config) []CheckResult {
 
 	for _, e := range cfg.CustomPaths.MustBlock {
 		results = append(results, checkMustBlock(e))
-		// Per-file checks inside the directory
+		// Per-file checks inside the directory.
+		// CheckOps is propagated so that a user-specified check_ops override on
+		// the parent directory entry is respected for the per-file open checks too.
 		for _, fname := range e.CheckFiles {
 			filePath := filepath.Join(e.Path, fname)
 			fileEntry := config.PathEntry{
@@ -47,6 +51,7 @@ func CheckCustomPaths(cfg *config.Config) []CheckResult {
 				Label:    e.Label + "/" + fname,
 				Severity: e.Severity,
 				Reason:   e.Reason,
+				CheckOps: e.CheckOps,
 			}
 			results = append(results, checkMustBlockFile(fileEntry))
 		}
@@ -72,11 +77,11 @@ func CheckCustomPaths(cfg *config.Config) []CheckResult {
 func checkMustBlock(e config.PathEntry) CheckResult {
 	r := CheckResult{Entry: e, Category: "must_block"}
 	r.StatOK = canStat(e.Path)
-	r.ReaddirOK = e.HasOp(config.OpReaddir) && canReaddir(e.Path)
-	r.OpenOK = e.HasOp(config.OpOpen) && canOpen(e.Path)
-	r.WriteOK = e.HasOp(config.OpWrite) && canWrite(e.Path)
+	r.ReaddirOK = shouldCheck(e, config.OpReaddir, config.OpReaddir, config.OpOpen, config.OpWrite) && canReaddir(e.Path)
+	r.OpenOK = shouldCheck(e, config.OpOpen, config.OpReaddir, config.OpOpen, config.OpWrite) && canOpen(e.Path)
+	r.WriteOK = shouldCheck(e, config.OpWrite, config.OpReaddir, config.OpOpen, config.OpWrite) && canWrite(e.Path)
 
-	if e.HasOp(config.OpReaddir) && r.ReaddirOK {
+	if shouldCheck(e, config.OpReaddir, config.OpReaddir, config.OpOpen, config.OpWrite) && r.ReaddirOK {
 		r.Violations = append(r.Violations, Violation{
 			Op:       config.OpReaddir,
 			Expected: false,
@@ -85,7 +90,7 @@ func checkMustBlock(e config.PathEntry) CheckResult {
 			Message:  fmt.Sprintf("readdir() ALLOWED on %s — %s", e.Label, e.Reason),
 		})
 	}
-	if e.HasOp(config.OpOpen) && r.OpenOK {
+	if shouldCheck(e, config.OpOpen, config.OpReaddir, config.OpOpen, config.OpWrite) && r.OpenOK {
 		r.Violations = append(r.Violations, Violation{
 			Op:       config.OpOpen,
 			Expected: false,
@@ -94,7 +99,7 @@ func checkMustBlock(e config.PathEntry) CheckResult {
 			Message:  fmt.Sprintf("open() ALLOWED on %s — %s", e.Label, e.Reason),
 		})
 	}
-	if e.HasOp(config.OpWrite) && r.WriteOK {
+	if shouldCheck(e, config.OpWrite, config.OpReaddir, config.OpOpen, config.OpWrite) && r.WriteOK {
 		r.Violations = append(r.Violations, Violation{
 			Op:       config.OpWrite,
 			Expected: false,
@@ -108,12 +113,14 @@ func checkMustBlock(e config.PathEntry) CheckResult {
 
 // checkMustBlockFile: individual file inside a must_block dir.
 // Only checks open() (readdir is already covered by the parent dir check).
+// Respects CheckOps: if the parent entry explicitly excluded OpOpen via
+// check_ops, no open violation is raised for per-file entries either.
 func checkMustBlockFile(e config.PathEntry) CheckResult {
 	r := CheckResult{Entry: e, Category: "must_block_file"}
 	r.StatOK = canStat(e.Path)
-	r.OpenOK = canOpen(e.Path)
+	r.OpenOK = shouldCheck(e, config.OpOpen, config.OpOpen) && canOpen(e.Path)
 
-	if r.OpenOK {
+	if shouldCheck(e, config.OpOpen, config.OpOpen) && r.OpenOK {
 		r.Violations = append(r.Violations, Violation{
 			Op:       config.OpOpen,
 			Expected: false,
@@ -125,49 +132,36 @@ func checkMustBlockFile(e config.PathEntry) CheckResult {
 	return r
 }
 
-// checkMustRead: readdir=ok required.
+// checkMustRead verifies the configured read operations. By default it checks
+// readdir; check_ops can select stat, readdir, or open explicitly.
 func checkMustRead(e config.PathEntry) CheckResult {
 	r := CheckResult{Entry: e, Category: "must_read"}
 	r.StatOK = canStat(e.Path)
-	r.ReaddirOK = canReaddir(e.Path)
 
-	if !r.ReaddirOK {
-		r.Violations = append(r.Violations, Violation{
-			Op:       config.OpReaddir,
-			Expected: true,
-			Got:      false,
-			Severity: e.Severity,
-			Message:  fmt.Sprintf("readdir() DENIED on %s — expected readable: %s", e.Label, e.Reason),
-		})
+	if statMayFail(e) {
+		return r
 	}
+
+	r.ReaddirOK = shouldCheck(e, config.OpReaddir, config.OpReaddir) && canReaddir(e.Path)
+	r.OpenOK = shouldCheck(e, config.OpOpen, config.OpReaddir) && canOpen(e.Path)
+	appendAccessibilityViolations(&r, e, config.OpStat, r.StatOK, config.OpReaddir, r.ReaddirOK, config.OpOpen, r.OpenOK)
 	return r
 }
 
-// checkMustReadWrite: readdir=ok AND write=ok required.
+// checkMustReadWrite verifies the configured read-write operations. By default
+// it checks readdir and write; check_ops can select individual operations.
 func checkMustReadWrite(e config.PathEntry) CheckResult {
 	r := CheckResult{Entry: e, Category: "must_readwrite"}
 	r.StatOK = canStat(e.Path)
-	r.ReaddirOK = canReaddir(e.Path)
-	r.WriteOK = canWrite(e.Path)
 
-	if !r.ReaddirOK {
-		r.Violations = append(r.Violations, Violation{
-			Op:       config.OpReaddir,
-			Expected: true,
-			Got:      false,
-			Severity: e.Severity,
-			Message:  fmt.Sprintf("readdir() DENIED on %s — expected readable: %s", e.Label, e.Reason),
-		})
+	if statMayFail(e) {
+		return r
 	}
-	if !r.WriteOK {
-		r.Violations = append(r.Violations, Violation{
-			Op:       config.OpWrite,
-			Expected: true,
-			Got:      false,
-			Severity: e.Severity,
-			Message:  fmt.Sprintf("write() DENIED on %s — expected writable: %s", e.Label, e.Reason),
-		})
-	}
+
+	r.ReaddirOK = shouldCheck(e, config.OpReaddir, config.OpReaddir, config.OpWrite) && canReaddir(e.Path)
+	r.OpenOK = shouldCheck(e, config.OpOpen, config.OpReaddir, config.OpWrite) && canOpen(e.Path)
+	r.WriteOK = shouldCheck(e, config.OpWrite, config.OpReaddir, config.OpWrite) && canWrite(e.Path)
+	appendAccessibilityViolations(&r, e, config.OpStat, r.StatOK, config.OpReaddir, r.ReaddirOK, config.OpOpen, r.OpenOK, config.OpWrite, r.WriteOK)
 	return r
 }
 
@@ -176,10 +170,10 @@ func auditPath(e config.PathEntry) CheckResult {
 	return CheckResult{
 		Entry:     e,
 		Category:  "audit",
-		StatOK:    canStat(e.Path),
-		ReaddirOK: canReaddir(e.Path),
-		OpenOK:    canOpen(e.Path),
-		WriteOK:   canWrite(e.Path),
+		StatOK:    shouldCheck(e, config.OpStat, config.OpStat, config.OpReaddir, config.OpOpen, config.OpWrite) && canStat(e.Path),
+		ReaddirOK: shouldCheck(e, config.OpReaddir, config.OpStat, config.OpReaddir, config.OpOpen, config.OpWrite) && canReaddir(e.Path),
+		OpenOK:    shouldCheck(e, config.OpOpen, config.OpStat, config.OpReaddir, config.OpOpen, config.OpWrite) && canOpen(e.Path),
+		WriteOK:   shouldCheck(e, config.OpWrite, config.OpStat, config.OpReaddir, config.OpOpen, config.OpWrite) && canWrite(e.Path),
 		// Violations intentionally empty — audit has no pass/fail
 	}
 }
@@ -191,6 +185,54 @@ func auditPath(e config.PathEntry) CheckResult {
 func canStat(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+func statMayFail(e config.PathEntry) bool {
+	if !e.StatMayFail {
+		return false
+	}
+	_, err := os.Stat(e.Path)
+	return errors.Is(err, fs.ErrNotExist)
+}
+
+func shouldCheck(e config.PathEntry, op config.CheckOp, defaults ...config.CheckOp) bool {
+	if len(e.CheckOps) > 0 {
+		return e.HasOp(op)
+	}
+	for _, defaultOp := range defaults {
+		if op == defaultOp {
+			return true
+		}
+	}
+	return false
+}
+
+func appendAccessibilityViolations(r *CheckResult, e config.PathEntry, operations ...interface{}) {
+	for i := 0; i < len(operations); i += 2 {
+		op := operations[i].(config.CheckOp)
+		got := operations[i+1].(bool)
+		if !shouldCheck(e, op, defaultOpsFor(r.Category)...) || got {
+			continue
+		}
+		r.Violations = append(r.Violations, Violation{
+			Op:       op,
+			Expected: true,
+			Got:      false,
+			Severity: e.Severity,
+			Message:  fmt.Sprintf("%s() DENIED on %s — expected accessible: %s", op, e.Label, e.Reason),
+		})
+	}
+}
+
+func defaultOpsFor(category string) []config.CheckOp {
+	switch category {
+	case "must_read":
+		return []config.CheckOp{config.OpReaddir}
+	case "must_readwrite":
+		return []config.CheckOp{config.OpReaddir, config.OpWrite}
+	default:
+		return nil
+	}
 }
 
 func canReaddir(path string) bool {

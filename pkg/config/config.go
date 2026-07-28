@@ -17,8 +17,11 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
@@ -75,12 +78,12 @@ type CustomPaths struct {
 
 // Identity describes the sandbox identity context (informational).
 type Identity struct {
-	SandboxUser  string `yaml:"sandbox_user"`
-	SandboxUID   int    `yaml:"sandbox_uid"`
-	HostUser     string `yaml:"host_user"`
-	HostUID      int    `yaml:"host_uid"`
-	SharedGID    int    `yaml:"shared_gid"`
-	NonoProfile  string `yaml:"nono_profile"`
+	SandboxUser string `yaml:"sandbox_user"`
+	SandboxUID  int    `yaml:"sandbox_uid"`
+	HostUser    string `yaml:"host_user"`
+	HostUID     int    `yaml:"host_uid"`
+	SharedGID   int    `yaml:"shared_gid"`
+	NonoProfile string `yaml:"nono_profile"`
 }
 
 // Config is the top-level config file structure.
@@ -102,7 +105,15 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&cfg); err != nil {
+		return nil, fmt.Errorf("parsing config %q: %w", path, err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		if err == nil {
+			return nil, fmt.Errorf("parsing config %q: multiple YAML documents are not supported", path)
+		}
 		return nil, fmt.Errorf("parsing config %q: %w", path, err)
 	}
 
@@ -115,32 +126,72 @@ func LoadConfig(path string) (*Config, error) {
 
 // validate performs basic sanity checks on the loaded config.
 func (c *Config) validate() error {
-	allEntries := append(append(append(
-		c.CustomPaths.MustBlock,
-		c.CustomPaths.MustRead...),
-		c.CustomPaths.MustReadWrite...),
-		c.CustomPaths.Audit...)
+	paths := c.CustomPaths
+	if len(paths.MustBlock)+len(paths.MustRead)+len(paths.MustReadWrite)+len(paths.Audit) == 0 {
+		return fmt.Errorf("custom_paths must contain at least one path entry")
+	}
+	if err := validateEntries("must_block", paths.MustBlock, true, OpReaddir, OpOpen, OpWrite); err != nil {
+		return err
+	}
+	if err := validateEntries("must_read", paths.MustRead, true, OpStat, OpReaddir, OpOpen); err != nil {
+		return err
+	}
+	if err := validateEntries("must_readwrite", paths.MustReadWrite, true, OpStat, OpReaddir, OpOpen, OpWrite); err != nil {
+		return err
+	}
+	return validateEntries("audit", paths.Audit, false, OpStat, OpReaddir, OpOpen, OpWrite)
+}
 
-	for _, e := range allEntries {
+func validateEntries(category string, entries []PathEntry, severityRequired bool, allowedOps ...CheckOp) error {
+	allowed := make(map[CheckOp]struct{}, len(allowedOps))
+	for _, op := range allowedOps {
+		allowed[op] = struct{}{}
+	}
+
+	for _, e := range entries {
 		if e.Path == "" {
-			return fmt.Errorf("path entry with label %q has empty path", e.Label)
+			return fmt.Errorf("%s path entry with label %q has empty path", category, e.Label)
+		}
+		if !filepath.IsAbs(e.Path) {
+			return fmt.Errorf("%s path %q must be absolute", category, e.Path)
 		}
 		for _, op := range e.CheckOps {
-			switch op {
-			case OpStat, OpReaddir, OpOpen, OpWrite:
-				// valid
-			default:
+			if !isKnownCheckOp(op) {
 				return fmt.Errorf("path %q has unknown check_op %q", e.Path, op)
+			}
+			if _, ok := allowed[op]; !ok {
+				return fmt.Errorf("%s path %q does not support check_op %q", category, e.Path, op)
+			}
+		}
+		if category != "must_block" && len(e.CheckFiles) > 0 {
+			return fmt.Errorf("%s path %q cannot use check_files", category, e.Path)
+		}
+		for _, file := range e.CheckFiles {
+			if file == "" || file == "." || filepath.IsAbs(file) || filepath.Base(file) != file {
+				return fmt.Errorf("must_block path %q has invalid check_file %q", e.Path, file)
 			}
 		}
 		switch e.Severity {
-		case SeverityCritical, SeverityError, SeverityWarn, "":
-			// valid (audit entries have no severity)
+		case SeverityCritical, SeverityError, SeverityWarn:
+			// valid
+		case "":
+			if severityRequired {
+				return fmt.Errorf("%s path %q is missing severity", category, e.Path)
+			}
 		default:
 			return fmt.Errorf("path %q has unknown severity %q", e.Path, e.Severity)
 		}
 	}
 	return nil
+}
+
+func isKnownCheckOp(op CheckOp) bool {
+	switch op {
+	case OpStat, OpReaddir, OpOpen, OpWrite:
+		return true
+	default:
+		return false
+	}
 }
 
 // HasOp returns true when the entry has no CheckOps override (all ops apply)

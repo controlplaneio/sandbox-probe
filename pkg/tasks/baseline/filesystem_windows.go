@@ -74,14 +74,18 @@ func isWritable(path string) bool {
 // platformDefaultHome returns the fallback home directory when os.UserHomeDir fails.
 func platformDefaultHome() string {
 	// On Windows, C:\Users\Default is the closest equivalent to /root.
-	return filepath.Join(os.Getenv("SystemDrive"), "Users", "Default")
+	sd := os.Getenv("SystemDrive")
+	if sd == "" {
+		sd = "C:"
+	}
+	return filepath.Join(sd, "Users", "Default")
 }
 
 // platformSensitivePaths returns Windows-specific absolute paths to check.
 // These are credential stores and sensitive locations that exist on Windows
 // but have no Unix equivalent (and vice versa for the Unix list).
 func platformSensitivePaths(home string) []SensitivePath {
-	appData := os.Getenv("APPDATA")         // C:\Users\<name>\AppData\Roaming
+	appData := os.Getenv("APPDATA")           // C:\Users\<name>\AppData\Roaming
 	localAppData := os.Getenv("LOCALAPPDATA") // C:\Users\<name>\AppData\Local
 
 	var paths []SensitivePath
