@@ -1,23 +1,60 @@
 ---
 name: Release
 on:
-  # https://github.com/actions/runner/issues/1007
   push:
-    tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
 
 jobs:
-  release:
-    name: Release on GitHub
+  version:
+    name: Generate version
     runs-on: ubuntu-latest
+    outputs:
+      semver: ${{ steps.version.outputs.semantic_version }}
     steps:
       - name: Check out code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Generate version
+        id: version
+        uses: lukaszraczylo/semver-generator@7b6c46dcb80756cb12e60995207ccd13ca6d70ca # v1
+        with:
+          config_file: semver.yaml
+          repository_local: true
+          strict: true
+
+  release:
+    name: Release on GitHub
+    needs: version
+    # darwin/arm64 builds natively and darwin/amd64 cross-compiles via
+    # Xcode's clang here; linux targets cross-compile fine too since nothing
+    # in the linux build path uses cgo. A Linux runner cannot produce a
+    # working darwin build at all (no Apple SDK/frameworks), which is why
+    # both prior release attempts failed at darwin_amd64_v1.
+    runs-on: macos-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+
+      - name: Tag release
+        run: |
+          git tag "v${{ needs.version.outputs.semver }}"
+          git push origin "v${{ needs.version.outputs.semver }}"
 
       - name: Launch goreleaser
         uses: goreleaser/goreleaser-action@v7

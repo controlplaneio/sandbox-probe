@@ -7,6 +7,11 @@ before:
 builds:
   - main: "."
     binary: sandbox-probe
+    # darwin needs cgo (seatbelt_darwin.go wraps Apple's private sandbox_check
+    # API); linux has no cgo files and no cross C toolchain on the macOS
+    # runner, so it must stay disabled there.
+    env:
+      - CGO_ENABLED={{ if eq .Os "darwin" }}1{{ else }}0{{ end }}
     goos:
       - darwin
       - linux
