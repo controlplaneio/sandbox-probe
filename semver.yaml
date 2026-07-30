@@ -1,0 +1,22 @@
+version: 1
+force:
+  major: 0
+  minor: 1
+  patch: 0
+wording:
+  patch:
+    - fix
+    - update
+    - pin
+    - relax
+    - revert
+  minor:
+    - add
+    - implement
+    - include
+    - change
+    - improve
+    - feature
+  major:
+    - breaking
+    - major
