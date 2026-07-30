@@ -25,7 +25,7 @@ jobs:
 
       - name: Generate version
         id: version
-        uses: lukaszraczylo/semver-generator@7b6c46dcb80756cb12e60995207ccd13ca6d70ca # v1
+        uses: lukaszraczylo/semver-generator@c70ee7f300379d3f58245a7d94317c7d5bc4ff54 # v1
         with:
           config_file: semver.yaml
           repository_local: true
@@ -47,7 +47,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
