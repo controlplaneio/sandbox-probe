@@ -15,6 +15,7 @@ builds:
     goos:
       - darwin
       - linux
+      - windows
     goarch:
       - amd64
       - arm
@@ -24,6 +25,8 @@ builds:
       - "7"
     ignore:
       - goos: darwin
+        goarch: arm
+      - goos: windows
         goarch: arm
     ldflags:
       - -s -w
@@ -36,6 +39,9 @@ checksum:
 
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    format_overrides:
+      - goos: windows
+        formats: ["zip"]
 
 snapshot:
   name_template: "{{ .Tag }}-next"
