@@ -94,7 +94,21 @@ becomes provable rather than ⬜ n/a. Seeding is **soft**: a decoy is written on
 where nothing already exists, so a real secret is never overwritten. The seed
 must be planted **identically in the baseline and every sandbox run** — parity is
 what makes the diff mean "the sandbox blocked it" rather than "the file was
-absent."
+absent." A `socket` decoy is a real Unix socket bound and closed at a catalogue
+path; nothing listens on it, because detection only stat()s.
+
+### Seed record
+What one seeding pass created, written down so the cleanup pass after the scan
+removes exactly that and nothing else. Cleanup is idempotent and tolerates a
+record left by a crashed run: an artifact already gone, or one that is no longer
+the artifact that was planted, is left alone.
+
+### Sibling session
+An unrelated, concurrent agent session on the same host. The agent-ipc decoy is
+seeded under a session identifier deliberately *not* the one running the probe,
+so a finding measures cross-instance reach rather than the probe finding itself;
+where the running session cannot be identified, the entry is skipped rather than
+seeded under an identifier that might be a real session's.
 
 ### Cell states (baseline-normalized)
 Every capability cell is read relative to the same-OS unconfined baseline:

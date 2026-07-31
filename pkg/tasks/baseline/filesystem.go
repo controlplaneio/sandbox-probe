@@ -177,7 +177,8 @@ func (t Target) appliesTo(goos string) bool {
 // from what is actually probed, and never attempts a target belonging to
 // another operating system.
 func ListTargets() []Target {
-	return targetsForOS(listTargetsForHome(homeOrRoot()), runtime.GOOS)
+	home := homeOrRoot()
+	return targetsForOS(listTargetsForHome(home, siblingSessionSocket(claudeDaemonDir())), runtime.GOOS)
 }
 
 // targetsForOS is the testable core of the OS filter.
@@ -199,8 +200,10 @@ func homeOrRoot() string {
 	return home
 }
 
-// listTargetsForHome is the testable core.
-func listTargetsForHome(home string) []Target {
+// listTargetsForHome is the testable core: the probe's own sensitive-path
+// check list, plus the IPC socket catalogue (see socketTargets for what
+// siblingSock carries).
+func listTargetsForHome(home, siblingSock string) []Target {
 	out := make([]Target, 0, len(buildSensitivePathsForHome(home)))
 	for _, s := range buildSensitivePathsForHome(home) {
 		kind := "file"
@@ -223,7 +226,7 @@ func listTargetsForHome(home string) []Target {
 			Seedable: scope == "home" && kind == "file" && s.contains == "",
 		})
 	}
-	return out
+	return append(out, socketTargets(home, siblingSock)...)
 }
 
 // System directories to check for write permissions (should typically be read-only)
