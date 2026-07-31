@@ -201,8 +201,8 @@ func homeOrRoot() string {
 }
 
 // listTargetsForHome is the testable core: the probe's own sensitive-path
-// check list, plus the IPC socket catalogue (see socketTargets for what
-// siblingSock carries).
+// check list, plus the IPC socket and process catalogues (see socketTargets for
+// what siblingSock carries).
 func listTargetsForHome(home, siblingSock string) []Target {
 	out := make([]Target, 0, len(buildSensitivePathsForHome(home)))
 	for _, s := range buildSensitivePathsForHome(home) {
@@ -226,7 +226,8 @@ func listTargetsForHome(home, siblingSock string) []Target {
 			Seedable: scope == "home" && kind == "file" && s.contains == "",
 		})
 	}
-	return append(out, socketTargets(home, siblingSock)...)
+	out = append(out, socketTargets(home, siblingSock)...)
+	return append(out, processTargets()...)
 }
 
 // System directories to check for write permissions (should typically be read-only)

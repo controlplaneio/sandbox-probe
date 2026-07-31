@@ -35,6 +35,9 @@ while IFS= read -r path; do
   else
     skipped=$((skipped + 1))          # unwritable (e.g. permission) — not fatal
   fi
-done < <("$PROBE" list-targets | jq -r '.[] | select(.seedable) | .path')
+# File targets only: a socket or a process decoy is not something bash can
+# create, and a regular file written at one would shadow the target the probe's
+# own "seed" command plants there.
+done < <("$PROBE" list-targets | jq -r '.[] | select(.seedable and .kind == "file") | .path')
 
 echo "seed-decoys: planted ${planted}, skipped ${skipped} (already present / unwritable)"

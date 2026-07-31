@@ -1,13 +1,16 @@
 package tasks
 
 import (
+	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // scratchDir gives a short /tmp base: macOS caps Unix socket bind paths at ~104
@@ -41,6 +44,197 @@ func scanned(t *testing.T, root, path string) bool {
 
 func socketTarget(path string) Target {
 	return Target{Path: path, Kind: "socket", Seedable: true, Category: "container-runtime", Evidence: "empirical-own-machine"}
+}
+
+func processTarget(name string) Target {
+	return Target{Path: name, Kind: "process", Seedable: true, Category: "container-runtime", Evidence: "empirical-own-machine"}
+}
+
+// testDecoyName is a command name this test invented: distinctive enough that
+// nothing else on the machine can hold it, and never one of the catalogue's, so
+// a test never signals or counts a real process.
+func testDecoyName(t *testing.T) string {
+	t.Helper()
+	return fmt.Sprintf("sandbox-probe-test-decoy-%s-%d", t.Name(), os.Getpid())
+}
+
+// shortLifetime cuts the self-timeout down for the duration of one test, so no
+// decoy a test spawns can outlive it by more than d even if the test fails.
+func shortLifetime(t *testing.T, d time.Duration) {
+	t.Helper()
+	prev := decoyProcessLifetime
+	decoyProcessLifetime = d
+	t.Cleanup(func() { decoyProcessLifetime = prev })
+}
+
+// processScanned reports whether the probe's own process scan sees a process
+// running under name.
+func processScanned(t *testing.T, name string) bool {
+	t.Helper()
+	procs, err := GetRunningProcesses()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range procs {
+		if strings.Contains(p.Command, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// The process round trip, the same shape as the socket one: the probe's own
+// process scan does not report the decoy before seeding, does after it, and
+// does not again once cleanup has terminated it.
+func TestSeedScanCleanupProcessRoundTrip(t *testing.T) {
+	dir := scratchDir(t)
+	if procs, err := GetRunningProcesses(); err != nil || len(procs) == 0 {
+		t.Skipf("the probe has no process scan on %s", runtime.GOOS)
+	}
+	record := filepath.Join(dir, "record.json")
+	name := testDecoyName(t)
+	shortLifetime(t, 30*time.Second)
+	t.Cleanup(func() { _, _ = CleanupSeeded(record) })
+
+	if processScanned(t, name) {
+		t.Fatal("the decoy is reported before seeding")
+	}
+
+	res, err := SeedTargets([]Target{processTarget(name)}, record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Planted != 1 || res.Skipped != 0 {
+		t.Fatalf("seed = planted %d skipped %d, want 1/0", res.Planted, res.Skipped)
+	}
+	// The decoy is a process of its own, so give the scan a moment to catch it.
+	for deadline := time.Now().Add(5 * time.Second); !processScanned(t, name); {
+		if time.Now().After(deadline) {
+			t.Fatal("the decoy is not reported after seeding")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	removed, err := CleanupSeeded(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if removed != 1 {
+		t.Errorf("cleanup removed %d, want 1", removed)
+	}
+	if processScanned(t, name) {
+		t.Fatal("the decoy is still reported after cleanup")
+	}
+}
+
+// The belt: a decoy dies on its own, so a cleanup that never runs — a crashed
+// scan, a machine losing power — is not a permanent leak. No cleanup step runs
+// in this test at all.
+func TestSeededProcessExpiresWithNoCleanup(t *testing.T) {
+	if decoyProcessLifetime < 5*time.Minute {
+		t.Errorf("the default decoy lifetime %s is not comfortably longer than a scan", decoyProcessLifetime)
+	}
+	dir := scratchDir(t)
+	record := filepath.Join(dir, "record.json")
+	shortLifetime(t, time.Second)
+	name := testDecoyName(t)
+
+	if res, err := SeedTargets([]Target{processTarget(name)}, record); err != nil || res.Planted != 1 {
+		t.Fatalf("seed = %+v, %v; want 1 planted", res, err)
+	}
+	rec, err := readRecord(record)
+	if err != nil || len(rec.Processes) != 1 {
+		t.Fatalf("record = %+v, %v; want one seeded process", rec, err)
+	}
+	pid := rec.Processes[0].PID
+	if !strings.Contains(processCommand(pid), name) {
+		t.Fatalf("the decoy is not running under %q as pid %d", name, pid)
+	}
+
+	deadline := time.Now().Add(30 * time.Second)
+	for strings.Contains(processCommand(pid), name) {
+		if time.Now().After(deadline) {
+			t.Fatal("the decoy outlived its self-timeout")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// The suspenders must never fire at the wrong target: a recorded pid that some
+// unrelated process now holds gets no signal at all, and a second cleanup pass
+// is a no-op rather than an error.
+func TestCleanupSignalsOnlyTheProcessItSpawned(t *testing.T) {
+	dir := scratchDir(t)
+	record := filepath.Join(dir, "record.json")
+
+	// Stands in for whatever inherited a recorded pid after the seeded decoy
+	// exited — this run did not spawn it, so it must not be touched.
+	other := exec.Command("sleep", "30")
+	if err := other.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = other.Process.Kill()
+		_, _ = other.Process.Wait()
+	})
+
+	// A pid that is gone for good: this one has already exited and been reaped.
+	dead := exec.Command("sleep", "30")
+	if err := dead.Start(); err != nil {
+		t.Fatal(err)
+	}
+	deadPID := dead.Process.Pid
+	if err := dead.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dead.Process.Wait(); err != nil {
+		t.Fatal(err)
+	}
+
+	stale := seedRecord{Processes: []seededProcess{
+		{PID: other.Process.Pid, Command: "dockerd-" + decoyTag},
+		{PID: deadPID, Command: "ssh-agent-" + decoyTag},
+	}}
+	if err := writeRecord(record, stale); err != nil {
+		t.Fatal(err)
+	}
+
+	removed, err := CleanupSeeded(record)
+	if err != nil {
+		t.Fatalf("cleanup of a stale record errored: %v", err)
+	}
+	if removed != 0 {
+		t.Errorf("cleanup removed %d processes from a stale record, want 0", removed)
+	}
+	if !strings.Contains(processCommand(other.Process.Pid), "sleep") {
+		t.Error("cleanup signalled a process it did not spawn")
+	}
+	if removed, err := CleanupSeeded(record); err != nil || removed != 0 {
+		t.Errorf("second cleanup = %d removed, %v; want 0, no error", removed, err)
+	}
+}
+
+// A decoy that cannot be started is one skipped entry, not a failed run: the
+// entries after it — of any kind — are still planted.
+func TestProcessSpawnFailureIsSkippedNotFatal(t *testing.T) {
+	dir := scratchDir(t)
+	record := filepath.Join(dir, "record.json")
+	shortLifetime(t, 5*time.Second)
+	t.Cleanup(func() { _, _ = CleanupSeeded(record) })
+	// Nothing to exec: no decoy can start.
+	t.Setenv("PATH", filepath.Join(dir, "no-such-bin"))
+
+	sock := filepath.Join(dir, "after.sock")
+	res, err := SeedTargets([]Target{processTarget(testDecoyName(t)), socketTarget(sock)}, record)
+	if err != nil {
+		t.Fatalf("a decoy that would not start aborted the run: %v", err)
+	}
+	if res.Planted != 1 || res.Skipped != 1 {
+		t.Fatalf("seed = planted %d skipped %d, want 1/1", res.Planted, res.Skipped)
+	}
+	if !scanned(t, dir, sock) {
+		t.Error("the entry after the failing one was not planted")
+	}
 }
 
 // The round trip the whole capability rests on: a scan before seeding does not

@@ -86,6 +86,38 @@ func socketTargets(home, siblingSock string) []Target {
 	return out
 }
 
+// procDecoy builds a process catalogue entry. A process target's Path is the
+// command name its decoy runs under, not a filesystem path: the tool class it
+// stands in for plus decoyTag, so a decoy is never mistaken for the real daemon
+// by a human reading a report, and cleanup can confirm a recorded pid is still
+// the process seeding started.
+func procDecoy(name, category, evidence string) Target {
+	return Target{
+		Path:     name + "-" + decoyTag,
+		Kind:     "process",
+		Scope:    "system",
+		Seedable: true,
+		Category: category,
+		Evidence: evidence,
+		OS:       []string{"linux"},
+	}
+}
+
+// processTargets is the v1 process catalogue from ADR 0002 — the daemons whose
+// presence on the host a sandbox either can or cannot see, from the same
+// research as the socket entries.
+//
+// Linux only: the probe's process scan is procfs-based, so a decoy on any other
+// OS would be planted somewhere the probe never looks. The entries join the
+// other operating systems when their scan does.
+func processTargets() []Target {
+	return []Target{
+		procDecoy("dockerd", "container-runtime", "empirical-own-machine"),
+		procDecoy("ssh-agent", "credential-agent", "empirical-own-machine"),
+		procDecoy("gpg-agent", "credential-agent", "empirical-own-machine"),
+	}
+}
+
 // claudeDaemonDir holds one directory per Claude Code session, each with that
 // session's daemon sockets in it:
 // /private/tmp/cc-daemon-<uid>/<session-id>/control.sock (observed on macOS,

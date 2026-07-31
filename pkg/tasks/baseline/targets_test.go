@@ -171,7 +171,7 @@ func TestEverySeedableTargetIsScanned(t *testing.T) {
 	}
 	roots := socketRootsForHome(home)
 
-	sockets := 0
+	sockets, processes := 0, 0
 	for _, tg := range listTargetsForHome(home, "/private/tmp/cc-daemon-1/decoy/control.sock") {
 		if !tg.Seedable {
 			continue
@@ -186,12 +186,27 @@ func TestEverySeedableTargetIsScanned(t *testing.T) {
 			if !underAnyRoot(tg.Path, roots) {
 				t.Errorf("seedable socket target %q is under none of the scanned socket roots %v", tg.Path, roots)
 			}
+		case "process":
+			processes++
+			// The process scan enumerates everything running, so the coupling here is
+			// the other way round: the decoy is only emitted where that scan exists,
+			// and carries the marker that tells it from the daemon it stands in for —
+			// which is what cleanup verifies a recorded pid against.
+			if !strings.Contains(tg.Path, decoyTag) {
+				t.Errorf("seedable process target %q carries no decoy marker, so cleanup cannot tell it from a real process", tg.Path)
+			}
+			if !slices.Equal(tg.OS, []string{"linux"}) {
+				t.Errorf("process target %q is emitted on %v, where the probe has no process scan", tg.Path, tg.OS)
+			}
 		default:
 			t.Errorf("target %q has seedable kind %q with no scan to back it", tg.Path, tg.Kind)
 		}
 	}
 	if sockets == 0 {
 		t.Fatal("expected at least one seedable socket target")
+	}
+	if processes == 0 {
+		t.Fatal("expected at least one seedable process target")
 	}
 	if !underAnyRoot(home+"/.local/share/code-server/code-server-ipc.sock", roots) {
 		t.Error("the Linux editor-ipc socket location is outside every scanned socket root")

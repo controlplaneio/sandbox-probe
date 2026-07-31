@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/rs/zerolog/log"
 )
@@ -22,9 +26,25 @@ type SeedResult struct {
 // seedRecord is what a run planted. Cleanup acts only on this, so it can never
 // remove an artifact the probe did not create.
 type seedRecord struct {
-	Sockets []string `json:"sockets"`
-	Dirs    []string `json:"dirs"` // parent dirs seeding had to create, outermost first
+	Sockets   []string        `json:"sockets"`
+	Processes []seededProcess `json:"processes"`
+	Dirs      []string        `json:"dirs"` // parent dirs seeding had to create, outermost first
 }
+
+// seededProcess is a live decoy's recorded identity. The command name is what
+// cleanup checks the pid still holds before signalling it, so a pid reused
+// since the record was written can never cost an unrelated process.
+type seededProcess struct {
+	PID     int    `json:"pid"`
+	Command string `json:"command"`
+}
+
+// decoyProcessLifetime is the belt of the live-artifact lifecycle: a seeded
+// process exits on its own after this long, comfortably longer than a scan, so
+// a cleanup that never runs — a crashed run, a machine losing power — is not a
+// permanent leak. The suspenders are CleanupSeeded, which is the normal path. A
+// var, not a const, only so tests need not wait it out.
+var decoyProcessLifetime = 10 * time.Minute
 
 // DefaultSeedRecordPath is where a seeding pass records what it created, for
 // the cleanup pass that follows the scan.
@@ -35,27 +55,42 @@ func DefaultSeedRecordPath() string {
 // errOccupied is the soft-plant rule firing: something already owns the target.
 var errOccupied = errors.New("target already exists")
 
-// SeedTargets soft-plants a decoy at every seedable socket target, recording
-// what it created at recordPath so cleanup can remove exactly that. Soft in
-// every case: a target something already owns is left untouched and counted as
-// skipped, never shadowed. A per-entry failure (unwritable path, over-long
-// path) is skipped too, not fatal — one bad entry must not cost the rest.
+// SeedTargets soft-plants a decoy at every seedable socket and process target,
+// recording what it created at recordPath so cleanup can remove exactly that.
+// Soft in every case: a target something already owns is left untouched and
+// counted as skipped, never shadowed, and no process the seeder did not start
+// is ever adopted. A per-entry failure (unwritable path, over-long path, a
+// decoy that would not start) is skipped too, not fatal — one bad entry must
+// not cost the rest.
 func SeedTargets(targets []Target, recordPath string) (SeedResult, error) {
 	// A record from a crashed run is still ours to clean up: merge, don't drop.
 	rec, _ := readRecord(recordPath)
 	var res SeedResult
 	for _, t := range targets {
-		if !t.Seedable || t.Kind != "socket" {
+		if !t.Seedable {
 			continue
 		}
-		dirs, err := seedSocket(t.Path)
-		rec.Dirs = append(rec.Dirs, dirs...)
-		if err != nil {
-			log.Debug().Err(err).Str("path", t.Path).Msg("Socket decoy skipped")
-			res.Skipped++
+		switch t.Kind {
+		case "socket":
+			dirs, err := seedSocket(t.Path)
+			rec.Dirs = append(rec.Dirs, dirs...)
+			if err != nil {
+				log.Debug().Err(err).Str("path", t.Path).Msg("Socket decoy skipped")
+				res.Skipped++
+				continue
+			}
+			rec.Sockets = append(rec.Sockets, t.Path)
+		case "process":
+			pid, err := seedProcess(t.Path)
+			if err != nil {
+				log.Debug().Err(err).Str("command", t.Path).Msg("Process decoy skipped")
+				res.Skipped++
+				continue
+			}
+			rec.Processes = append(rec.Processes, seededProcess{PID: pid, Command: t.Path})
+		default:
 			continue
 		}
-		rec.Sockets = append(rec.Sockets, t.Path)
 		res.Planted++
 	}
 	return res, writeRecord(recordPath, rec)
@@ -88,6 +123,36 @@ func seedSocket(path string) ([]string, error) {
 	return dirs, l.Close()
 }
 
+// seedProcess starts a decoy under the target's distinctive command name and
+// returns its pid. Nothing already running is adopted: unlike a path, a process
+// is not somewhere a decoy can be planted on top of something else, so the soft
+// rule here is that the seeder only ever counts — and only ever signals — a
+// process it started itself.
+//
+// The decoy is a plain sleep under a replaced argv0, which is what the process
+// scan reports, and which gives the self-timeout for free.
+func seedProcess(name string) (int, error) {
+	cmd := exec.Command("sleep", strconv.FormatFloat(decoyProcessLifetime.Seconds(), 'f', -1, 64))
+	cmd.Args[0] = name
+	if err := cmd.Start(); err != nil {
+		return 0, err
+	}
+	return cmd.Process.Pid, nil
+}
+
+// processCommand returns the command line pid is running now, or "" if it is
+// gone or cannot be read. ps is the one lookup that works the same on every
+// POSIX host without a build tag — the procfs reader beside it is Linux-only —
+// and a failure here is read as "not ours", so it can only ever cost a signal
+// that was not sent.
+func processCommand(pid int) string {
+	out, err := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "args=").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
 // makeDirs creates dir and every missing parent, returning what it created
 // (outermost first) so cleanup removes exactly what seeding added and nothing
 // that was already there.
@@ -117,7 +182,9 @@ func makeDirs(dir string) ([]string, error) {
 // itself, and reports how many artifacts it removed. It is idempotent: a
 // missing record, an artifact already gone, or a record left behind by a
 // crashed run are all no-ops rather than errors. A recorded path that is no
-// longer a socket is left alone — by then it belongs to something else.
+// longer a socket, and a recorded pid that no longer holds the command name it
+// was seeded under, are both left alone — by then they belong to something
+// else, so no signal is sent.
 func CleanupSeeded(recordPath string) (int, error) {
 	rec, err := readRecord(recordPath)
 	if err != nil {
@@ -139,6 +206,24 @@ func CleanupSeeded(recordPath string) (int, error) {
 		if err := os.Remove(p); err == nil {
 			removed++
 		}
+	}
+	for _, p := range rec.Processes {
+		if !strings.Contains(processCommand(p.PID), p.Command) {
+			log.Debug().Int("pid", p.PID).Str("command", p.Command).
+				Msg("Recorded process decoy is gone or is no longer ours; sending no signal")
+			continue
+		}
+		proc, err := os.FindProcess(p.PID)
+		if err != nil {
+			continue
+		}
+		if err := proc.Kill(); err != nil {
+			continue
+		}
+		// Reaps the decoy when this process is the one that spawned it; harmless
+		// when the seeding run has since exited and init owns it.
+		_, _ = proc.Wait()
+		removed++
 	}
 	// Innermost first, and os.Remove only takes an empty dir — so a dir that
 	// gained real content since seeding survives.
