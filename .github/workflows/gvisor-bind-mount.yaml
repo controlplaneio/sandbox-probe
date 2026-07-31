@@ -1,0 +1,34 @@
+---
+# GATED (#42): runs the probe inside a real gVisor sandbox with a known bind mount and fails unless
+# the mount finding names it — the one check that catches the pinned mount-table fixtures drifting
+# from what the kernel actually reports. It needs root and a gVisor installation, so it is
+# workflow_dispatch only: never on push, never on a pull request, so the per-push suite's duration
+# is unchanged and a contributor without root or runsc is unaffected.
+name: gvisor bind mount (gated)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gvisor-bind-mount:
+    name: gVisor bind mount is enumerated
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: install gvisor (runsc)
+        run: |
+          curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | sudo tee /etc/apt/sources.list.d/gvisor.list >/dev/null
+          sudo apt-get update || true; sudo apt-get install -y runsc
+          runsc --version
+
+      - run: make e2etest-gvisor-bind

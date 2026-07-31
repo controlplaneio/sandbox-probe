@@ -11,6 +11,9 @@
 #   gvisor   — runsc run, systrap platform, no KVM (Linux; needs ROOTFS)
 #
 # Required env: PROBE, OUT, RUNTIME. Optional: RUNNER, PORT (unused), SCAN_ARGS, ROOTFS.
+# gvisor also takes: HOSTBIND (a host directory to bind read-only at /hostbind inside the sandbox,
+# used by tests/gated/gvisor_bind_mount.sh) and RUNSC_FLAGS (extra runsc flags — inside a privileged
+# container runsc needs --ignore-cgroups, which a bare host does not).
 set -eo pipefail
 
 : "${PROBE:?PROBE (probe binary path) is required}"
@@ -109,14 +112,21 @@ JSON
     BUNDLE="$(mktemp -d)"
     ( cd "$BUNDLE" && runsc spec )
     ARGS_JSON="$(printf '%s\n' /probe $SCAN_ARGS --tags "$TAGS" --output_path "$OUT_ABS" | jq -R . | jq -s .)"
+    # HOSTBIND, when set, adds one read-only bind of a host directory at /hostbind — a known host
+    # mount the probe's enumerator must report (tests/gated/gvisor_bind_mount.sh).
+    BIND_JSON='[]'
+    if [ -n "$HOSTBIND" ]; then
+      BIND_JSON="$(jq -n --arg src "$HOSTBIND" \
+        '[{"destination":"/hostbind","source":$src,"type":"bind","options":["bind","ro"]}]')"
+    fi
     TMPCFG="$(mktemp)"
-    jq --arg root "$ROOTFS" --arg out "$OUTDIR" --argjson args "$ARGS_JSON" \
+    jq --arg root "$ROOTFS" --arg out "$OUTDIR" --argjson args "$ARGS_JSON" --argjson bind "$BIND_JSON" \
       '.root.path=$root | .process.args=$args | .process.terminal=false
-       | .mounts += [{"destination":$out,"source":$out,"type":"bind","options":["bind","rw"]}]' \
+       | .mounts += [{"destination":$out,"source":$out,"type":"bind","options":["bind","rw"]}] + $bind' \
       "$BUNDLE/config.json" > "$TMPCFG" && mv "$TMPCFG" "$BUNDLE/config.json"
     # gVisor maps the container root to an unprivileged host uid; make the report dir writable to it.
     chmod 0777 "$OUTDIR"
-    sudo runsc --network=none run -bundle "$BUNDLE" gvisor-probe </dev/null || true
+    sudo runsc $RUNSC_FLAGS --network=none run -bundle "$BUNDLE" gvisor-probe </dev/null || true
     sudo rm -rf "$BUNDLE"
     ;;
   *)

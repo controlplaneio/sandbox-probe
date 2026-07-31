@@ -64,6 +64,10 @@ e2etests: ## Run the probe's own sandbox-fingerprint e2e tests (no agent CLI, no
 	done
 	@echo "All fingerprint e2e tests completed successfully!"
 
+.PHONY: e2etest-gvisor-bind
+e2etest-gvisor-bind: ## GATED: run the probe under real gVisor and assert a known bind mount is reported (needs root + runsc)
+	@bash tests/gated/gvisor_bind_mount.sh
+
 .PHONY: e2etests-agents
 e2etests-agents: ## Run the agent-driven fingerprint checks (requires the relevant agent CLI/node/nono)
 	@echo "Building sandbox-probe binary..."
