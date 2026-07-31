@@ -1,5 +1,20 @@
 Type: research
-Status: resolved
+Status: resolved (finding #1 corrected — see below; ticket #50)
+
+## Correction (2026-07-31, ticket #50)
+
+Finding #1 below (and the identical claim in ADR 0002 and on branch
+`research/windows-named-pipes`) is **wrong** — it was reasoned from
+Sysinternals' `PipeList` docs, not tested against the actual API pair.
+Ticket #11 tested it directly: on a real Windows 11 VM, as a genuinely
+standard unelevated local user (`ADMIN=False`), a plain Win32
+`FindFirstFileW("\\.\pipe\*")`/`FindNextFileW` loop enumerated the pipe
+namespace, returning 57 pipe names and terminating with
+`GetLastError()=18` (`ERROR_NO_MORE_FILES`) — normal end of enumeration.
+**No Win32-API gap exists; no `golang.org/x/sys/windows` dependency or
+`NtQueryDirectoryFile`/ntdll call is required.** Full evidence: ticket #11's
+first comment. The original "Answer" below is kept unedited, as the
+reasoning that was superseded, not deleted.
 
 ## Question
 
