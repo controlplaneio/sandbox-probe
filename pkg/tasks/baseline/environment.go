@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/controlplaneio/sandbox-probe/pkg/models"
@@ -403,20 +404,19 @@ func readProcSelfStatus() (map[string]string, error) {
 	return result, nil
 }
 
-func GetHostMounts() ([]Mount, error) {
-	fs, err := procfs.NewFS("/proc")
-	if err != nil {
-		return []Mount{}, err
-	}
+// procMountInfo is the kernel's mount table. Read through readFile, like the runtime-detection
+// chain, so the enumerator can be driven from a captured mount table instead of the host's own.
+const procMountInfo = "/proc/self/mountinfo"
 
-	mounts, err := fs.GetMounts()
+func GetHostMounts() ([]Mount, error) {
+	data, err := readFile(procMountInfo)
 	if err != nil {
 		return []Mount{}, err
 	}
 
 	var res []Mount
 
-	for _, m := range mounts {
+	for _, m := range parseMountInfo(data) {
 		if isLikelyHostMount(m) {
 			res = append(res, Mount{
 				Source: m.Source,
@@ -427,6 +427,29 @@ func GetHostMounts() ([]Mount, error) {
 	}
 
 	return res, nil
+}
+
+// parseMountInfo parses /proc/self/mountinfo. Each line is fixed up to the mount options, then a
+// variable-length list of optional fields terminated by "-", after which come the filesystem type,
+// the source and the super options. Lines that do not carry that separator are skipped.
+func parseMountInfo(data []byte) []*procfs.MountInfo {
+	var res []*procfs.MountInfo
+
+	for _, line := range strings.Split(string(data), "\n") {
+		f := strings.Fields(line)
+		sep := slices.Index(f, "-")
+		if sep < 6 || len(f) < sep+3 {
+			continue
+		}
+		res = append(res, &procfs.MountInfo{
+			Root:       f[3],
+			MountPoint: f[4],
+			FSType:     f[sep+1],
+			Source:     f[sep+2],
+		})
+	}
+
+	return res
 }
 
 func isLikelyHostMount(m *procfs.MountInfo) bool {
