@@ -66,7 +66,26 @@ version change in the harness or its supporting technology. The inverse
 ### Target registry
 The probe's own list of things it checks (sensitive paths, and later network /
 socket targets). The probe is the single source of truth and exposes it
-(`list-targets`) so the seeder cannot drift from what is actually probed.
+(`list-targets`) so the seeder cannot drift from what is actually probed. The
+listing is OS-scoped: a target applicable only to another operating system is
+not emitted, so the seeder never attempts a Windows pipe on Linux.
+
+### Kind
+*How* a target is seeded — one of `file`, `dir`, `socket`, `pipe`, `process`.
+The seeder dispatches on it.
+
+### Category
+*Why* an IPC target (`socket` / `pipe` / `process`) is on the list: the
+real-world tool class it stands in for — one of `container-runtime`,
+`credential-agent`, `editor-ipc`, `agent-ipc`, `chat-client`, `browser`,
+`password-manager`, `desktop-bus`. Filesystem targets carry none: they are the
+probe's own check list, not a tool catalogue.
+
+### Evidence
+How strongly an IPC target is attested — one of `empirical-own-machine`,
+`empirical-contributed` (names its source), `documented-not-verified`,
+`reasoned-by-analogy`. Keeps a reasoned-by-analogy path from passing as an
+observed one when the catalogue is extended by contribution.
 
 ### Seed / Decoy
 A harmless stand-in planted at a real canonical path (a fake `~/.aws/credentials`,
@@ -75,7 +94,33 @@ becomes provable rather than ⬜ n/a. Seeding is **soft**: a decoy is written on
 where nothing already exists, so a real secret is never overwritten. The seed
 must be planted **identically in the baseline and every sandbox run** — parity is
 what makes the diff mean "the sandbox blocked it" rather than "the file was
-absent."
+absent." A `socket` decoy is a real Unix socket bound and closed at a catalogue
+path; nothing listens on it, because detection only stat()s. A `process` decoy
+is a live process the seeder started itself under a distinctive command name —
+never an adopted one — so the process scan has something of the host's to find.
+
+### Belt and suspenders
+The lifecycle of a decoy that has to stay alive during the scan (a `process`,
+and later a Windows `pipe`). The **belt** is a fixed self-timeout, comfortably
+longer than a scan, so the artifact dies on its own even if nothing cleans up
+after a crashed run. The **suspenders** are the cleanup pass, which is the
+normal path and never waits the timeout out.
+
+### Seed record
+What one seeding pass created, written down so the cleanup pass after the scan
+removes exactly that and nothing else. Cleanup is idempotent and tolerates a
+record left by a crashed run: an artifact already gone, or one that is no longer
+the artifact that was planted, is left alone. For a live artifact the record
+carries an identity as well as a location — the process id and the command name
+it was seeded under — and no signal is sent unless the pid still holds that
+name, so a reused pid can never cost an unrelated process.
+
+### Sibling session
+An unrelated, concurrent agent session on the same host. The agent-ipc decoy is
+seeded under a session identifier deliberately *not* the one running the probe,
+so a finding measures cross-instance reach rather than the probe finding itself;
+where the running session cannot be identified, the entry is skipped rather than
+seeded under an identifier that might be a real session's.
 
 ### Cell states (baseline-normalized)
 Every capability cell is read relative to the same-OS unconfined baseline:

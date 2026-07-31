@@ -3,6 +3,7 @@ package tasks
 import (
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 )
 
@@ -127,19 +128,69 @@ func buildSensitivePathsForHome(home string) []SensitivePath {
 	}
 }
 
+// Fixed vocabularies published by ADR 0002 and CONTEXT.md. An entry outside
+// them is a bug the registry's own tests reject, so the seeder can dispatch on
+// kind and a reviewer can read an entry's provenance without asking the author.
+var (
+	// targetKinds is *how* an entry is seeded.
+	targetKinds = map[string]bool{
+		"file": true, "dir": true, "socket": true, "pipe": true, "process": true,
+	}
+	// targetCategories is the real-world tool class an IPC entry stands in for —
+	// *why* it is on the list.
+	targetCategories = map[string]bool{
+		"container-runtime": true, "credential-agent": true, "editor-ipc": true,
+		"agent-ipc": true, "chat-client": true, "browser": true,
+		"password-manager": true, "desktop-bus": true,
+	}
+	// evidenceTiers is how strong the evidence for an entry is.
+	evidenceTiers = map[string]bool{
+		"empirical-own-machine": true, "empirical-contributed": true,
+		"documented-not-verified": true, "reasoned-by-analogy": true,
+	}
+)
+
 // Target is one probe check target exposed by `list-targets`, carrying the
 // classification a seeder needs to plant decoys safely.
 type Target struct {
 	Path     string `json:"path"`
-	Kind     string `json:"kind"`     // "file" | "dir"
+	Kind     string `json:"kind"`     // targetKinds: file | dir | socket | pipe | process
 	Scope    string `json:"scope"`    // "home" | "system"
 	Seedable bool   `json:"seedable"` // safe to soft-plant a decoy: home-scoped regular files only
+	// Provenance, carried by IPC entries (socket / pipe / process) only — the
+	// filesystem entries are the probe's own check list, not a tool catalogue.
+	Category string `json:"category,omitempty"` // targetCategories
+	Evidence string `json:"evidence,omitempty"` // evidenceTiers
+	// OS applicability as GOOS values. Empty means every OS, which is every
+	// filesystem entry — their applicability is unchanged by this field.
+	OS []string `json:"os,omitempty"`
 }
 
-// ListTargets returns the probe's sensitive-path registry as Targets. It is the
-// single source of truth for the seeder — a decoy is only ever planted where a
-// target is Seedable, so the seeder cannot drift from what is actually probed.
-func ListTargets() []Target { return listTargetsForHome(homeOrRoot()) }
+// appliesTo reports whether the target exists on the given GOOS.
+func (t Target) appliesTo(goos string) bool {
+	return len(t.OS) == 0 || slices.Contains(t.OS, goos)
+}
+
+// ListTargets returns the probe's sensitive-path registry as Targets, filtered
+// to the running OS. It is the single source of truth for the seeder — a decoy
+// is only ever planted where a target is Seedable, so the seeder cannot drift
+// from what is actually probed, and never attempts a target belonging to
+// another operating system.
+func ListTargets() []Target {
+	home := homeOrRoot()
+	return targetsForOS(listTargetsForHome(home, siblingSessionSocket(claudeDaemonDir())), runtime.GOOS)
+}
+
+// targetsForOS is the testable core of the OS filter.
+func targetsForOS(all []Target, goos string) []Target {
+	out := make([]Target, 0, len(all))
+	for _, t := range all {
+		if t.appliesTo(goos) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
 
 func homeOrRoot() string {
 	home, err := os.UserHomeDir()
@@ -149,8 +200,10 @@ func homeOrRoot() string {
 	return home
 }
 
-// listTargetsForHome is the testable core.
-func listTargetsForHome(home string) []Target {
+// listTargetsForHome is the testable core: the probe's own sensitive-path
+// check list, plus the IPC socket and process catalogues (see socketTargets for
+// what siblingSock carries).
+func listTargetsForHome(home, siblingSock string) []Target {
 	out := make([]Target, 0, len(buildSensitivePathsForHome(home)))
 	for _, s := range buildSensitivePathsForHome(home) {
 		kind := "file"
@@ -173,7 +226,8 @@ func listTargetsForHome(home string) []Target {
 			Seedable: scope == "home" && kind == "file" && s.contains == "",
 		})
 	}
-	return out
+	out = append(out, socketTargets(home, siblingSock)...)
+	return append(out, processTargets()...)
 }
 
 // System directories to check for write permissions (should typically be read-only)

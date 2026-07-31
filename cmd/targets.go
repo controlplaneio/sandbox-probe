@@ -14,9 +14,11 @@ import (
 var listTargetsCmd = &cobra.Command{
 	Use:   "list-targets",
 	Short: "List the sensitive-path targets the probe checks (JSON)",
-	Long: `Emit the probe's target registry as JSON. Each entry is classified so a
-seeder knows what is safe to soft-plant: only home-scoped regular files are
-marked "seedable": true. Consumed by scripts/seed-decoys.sh.`,
+	Long: `Emit the probe's target registry as JSON, scoped to the running OS. Each
+entry is classified so a seeder knows what to do with it: "kind" says how it is
+seeded, and only home-scoped regular files are marked "seedable": true. IPC
+entries also carry "category" and "evidence" — why they are on the list.
+Consumed by scripts/seed-decoys.sh.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		b, err := json.MarshalIndent(tasks.ListTargets(), "", "  ")
 		if err != nil {
