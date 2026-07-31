@@ -3,6 +3,7 @@ package tasks
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -161,6 +162,14 @@ func TestSocketTargetsWithinUnixPathLimit(t *testing.T) {
 // socket root — which is what pulls Linux's editor-ipc socket, outside every
 // FHS runtime dir, into a root of its own.
 func TestEverySeedableTargetIsScanned(t *testing.T) {
+	// The socket half of this asserts a POSIX property — catalogue paths sitting under
+	// DefaultSocketRoots — against a synthetic Unix home. On Windows filepath flips the
+	// separators and os.TempDir() resolves to a Windows path, so the comparison compares
+	// nothing. Production is unaffected: ListTargets filters to the running OS and every
+	// socket entry is darwin/linux-scoped, so a Windows scan never sees one.
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket roots and path separators are POSIX-only")
+	}
 	home := "/home/tester"
 	t.Setenv("TMPDIR", "/tmp/probe-tmpdir")
 	t.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
