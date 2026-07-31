@@ -22,6 +22,17 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
+# Read the registry FIRST, into a variable, so a failure is fatal. Piping straight into the loop
+# below via `< <(...)` hides it: process-substitution exit status is invisible to both set -e and
+# pipefail, so an unreadable registry "succeeded" with `planted 0` — and every downstream comparison
+# silently became "nothing was there to read", which is the exact n/a-vs-blocked confusion seeding
+# exists to remove. An empty seedable set is the same failure wearing a different hat.
+targets=$("$PROBE" list-targets | jq -r '.[] | select(.seedable) | .path')
+if [ -z "$targets" ]; then
+  echo "seed-decoys: $PROBE list-targets returned no seedable targets" >&2
+  exit 1
+fi
+
 planted=0 skipped=0
 while IFS= read -r path; do
   [ -n "$path" ] || continue
@@ -35,6 +46,6 @@ while IFS= read -r path; do
   else
     skipped=$((skipped + 1))          # unwritable (e.g. permission) — not fatal
   fi
-done < <("$PROBE" list-targets | jq -r '.[] | select(.seedable) | .path')
+done <<<"$targets"
 
 echo "seed-decoys: planted ${planted}, skipped ${skipped} (already present / unwritable)"
