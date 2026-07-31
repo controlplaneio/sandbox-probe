@@ -74,7 +74,7 @@ the pack has side effects independent of whether the sandboxed command
 ever runs. The agent caught this, ran `nono remove nolabs-ai/codex`, and
 confirmed both the config block and plugin directories were removed. No
 sandboxed command was ever actually executed (only `--dry-run`/`--help`).
-**Consequence for [the prototype/verify work](../sandbox-canary-nesting/issues/09-prototype-verify-nesting.md)-equivalent
+**Consequence for [the prototype/verify work](https://github.com/chrisns/sandbox-probe-reports/blob/main/.scratch/sandbox-canary-nesting/issues/09-prototype-verify-nesting.md)-equivalent
 in this map**: pack *installation* itself is not side-effect-free, even in
 dry-run mode — any future empirical testing of nono profiles on a real
 (non-disposable) machine needs `nono remove` as an explicit, verified
@@ -82,4 +82,4 @@ cleanup step, not an assumption.
 
 **All 3 research tickets on this map now resolved (01, 02, 03).** Frontier
 is now just the two grilling tickets: [04](04-repo-split-scope.md) and
-[05](05-nono-row-profile-switch.md).
+[05](https://github.com/chrisns/sandbox-probe-reports/blob/main/.scratch/profile-attestation/issues/05-nono-row-profile-switch.md).

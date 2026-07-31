@@ -18,7 +18,10 @@ var listTargetsCmd = &cobra.Command{
 entry is classified so a seeder knows what to do with it: "kind" says how it is
 seeded, and only home-scoped regular files are marked "seedable": true. IPC
 entries also carry "category" and "evidence" — why they are on the list.
-Consumed by scripts/seed-decoys.sh.`,
+
+This is the probe's public registry interface: the comparison harness in
+sandbox-probe-reports reads it to plant decoys at exactly the paths the probe
+checks, so seeding cannot drift from what is measured.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		b, err := json.MarshalIndent(tasks.ListTargets(), "", "  ")
 		if err != nil {
