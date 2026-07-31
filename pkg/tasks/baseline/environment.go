@@ -260,8 +260,10 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return RuntimeLandlock
 	}
 
-	// bwrap creates a user namespace mapping uid 0 inside to the real uid outside;
-	// this is detectable even when the ancestor /proc entries are hidden by PID namespace.
+	// A non-identity uid_map means a restricted user namespace, which is detectable even when the
+	// ancestor /proc entries are hidden by a PID namespace. The namespace itself is proven; naming
+	// bwrap is an inference, so this is the last resort before the generic no-new-privs fallback —
+	// every more specific detector above has already had its chance to claim the run.
 	if isUserNamespaceWithUIDMap() {
 		return RuntimeBubblewrap
 	}
@@ -347,6 +349,13 @@ func GetBubbleWrap(pid int) (bool, error) {
 // no-new-privs without any namespace isolation.
 func ActiveMechanisms() []string {
 	var mechanisms []string
+
+	// User namespace: proven directly by the uid_map, independent of whether the wrapper name
+	// could be resolved (bubblewrap or otherwise). Kept separate from the wrapper inference above —
+	// see isUserNamespaceWithUIDMap's doc comment for why the ID map shape doesn't gate this.
+	if isUserNamespaceWithUIDMap() {
+		mechanisms = append(mechanisms, "user-namespace")
+	}
 
 	// /proc/self/status fields (all kernels that have the feature export it here)
 	if s, err := readProcSelfStatus(); err == nil {

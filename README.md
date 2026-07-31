@@ -87,7 +87,7 @@ Each row below is a `finding_type` string you will see in `report.json`, what it
 | `user_context_detection` | UID, GID, EUID, EGID | "Is the agent running as a privileged user?" |
 | `hostname_detection` | system hostname | "Does the sandbox leak the host identity?" |
 | `environment_detection` | host kernel release/version + OS release | "Which kernel/OS produced this result?" (so reports stay comparable across upgrades) |
-| `sandbox_detection` | detected runtime (Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, systemd-nspawn, WSL, OpenVZ, Seatbelt, Landlock, AppArmor, chroot) | "Is there *any* enforcement at all, and what kind?" |
+| `sandbox_detection` | one **wrapper name** — an inferred best guess at the tool (Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, systemd-nspawn, WSL, OpenVZ, Seatbelt, Landlock, AppArmor, chroot) — plus zero or more kernel-attested **mechanisms** (`seccomp-filter`, `seccomp-notify`, `seccomp-strict`, `no-new-privs`, `landlock`, `user-namespace`) | "Is there *any* enforcement at all, and what kind?" |
 
 ## Reading a report
 
