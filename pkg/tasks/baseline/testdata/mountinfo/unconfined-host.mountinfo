@@ -1,0 +1,58 @@
+24 30 254:16 / /oldroot ro,relatime - erofs /dev/root ro,user_xattr,acl,cache_strategy=readaround
+25 24 0:6 / /oldroot/dev rw,relatime - devtmpfs devtmpfs rw,size=26682212k,nr_inodes=6670553,mode=755
+26 24 0:23 / /oldroot/proc rw,nosuid,nodev,noexec,relatime - proc proc rw
+27 24 0:24 / /oldroot/run rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5336660k,mode=755
+30 1 0:25 / / rw,relatime - overlay overlay rw,lowerdir=/,upperdir=/run/rootfs.upper,workdir=/run/rootfs.workdir,uuid=on
+31 30 0:6 / /dev rw,nosuid,noexec,relatime - devtmpfs devtmpfs rw,size=26682212k,nr_inodes=6670553,mode=755
+32 30 0:28 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
+33 30 0:29 / /run rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5336660k,mode=755
+34 30 0:30 / /var rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,mode=755
+35 30 0:31 / /host_mnt rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5336660k,mode=755
+36 30 0:32 / /tmp rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5336660k
+37 31 0:22 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw
+38 31 0:33 / /dev/shm rw,nosuid,nodev,noexec,relatime - tmpfs shm rw
+39 31 0:34 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,mode=620,ptmxmode=666
+40 30 0:35 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw
+41 40 0:7 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw
+42 40 0:8 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime - debugfs debugfs rw
+43 40 0:36 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime - configfs configfs rw
+44 40 0:37 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime - fusectl fusectl rw
+45 40 0:38 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime - pstore pstore rw
+46 40 0:39 / /sys/fs/bpf rw,nodev,relatime - bpf bpffs rw
+47 40 0:40 /../.. /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - cgroup2 cgroup2 rw
+48 33 0:4 net:[4026532335] /run/netns/services rw - nsfs nsfs rw
+49 33 0:41 / /run/rpc_pipefs rw,relatime - rpc_pipefs rpc_pipefs rw
+50 32 0:42 / /proc/sys/fs/binfmt_misc rw,relatime - binfmt_misc binfmt_misc rw
+51 33 0:43 / /run/host_virtiofs/Users rw,nosuid,nodev,relatime - virtiofs.virtiofs0 virtiofs0 rw,entry_timeout=3600,attr_timeout=3600,ignore_atime,no_xattr
+52 33 0:44 / /run/host_mark/Users rw,nosuid,nodev,relatime - fakeowner /run/host_virtiofs/Users rw,mark,fakeowner
+53 35 0:45 / /host_mnt/Users rw,nosuid,nodev,relatime - fakeowner /run/host_mark/Users rw,fakeowner
+54 33 0:46 / /run/host_virtiofs/Volumes rw,nosuid,nodev,relatime - virtiofs.virtiofs1 virtiofs1 rw,entry_timeout=3600,attr_timeout=3600,ignore_atime,no_xattr
+55 33 0:47 / /run/host_mark/Volumes rw,nosuid,nodev,relatime - fakeowner /run/host_virtiofs/Volumes rw,mark,fakeowner
+56 35 0:48 / /host_mnt/Volumes rw,nosuid,nodev,relatime - fakeowner /run/host_mark/Volumes rw,fakeowner
+57 33 0:49 / /run/host_virtiofs/private rw,nosuid,nodev,relatime - virtiofs.virtiofs2 virtiofs2 rw,entry_timeout=3600,attr_timeout=3600,ignore_atime,no_xattr
+58 33 0:50 / /run/host_mark/private rw,nosuid,nodev,relatime - fakeowner /run/host_virtiofs/private rw,mark,fakeowner
+59 35 0:51 / /host_mnt/private rw,nosuid,nodev,relatime - fakeowner /run/host_mark/private rw,fakeowner
+60 33 0:52 / /run/host_virtiofs/tmp rw,nosuid,nodev,relatime - virtiofs.virtiofs3 virtiofs3 rw,entry_timeout=3600,attr_timeout=3600,ignore_atime,no_xattr
+61 33 0:53 / /run/host_mark/tmp rw,nosuid,nodev,relatime - fakeowner /run/host_virtiofs/tmp rw,mark,fakeowner
+62 35 0:54 / /host_mnt/tmp rw,nosuid,nodev,relatime - fakeowner /run/host_mark/tmp rw,fakeowner
+63 33 0:55 / /run/host_virtiofs/var/folders rw,nosuid,nodev,relatime - virtiofs.virtiofs4 virtiofs4 rw,entry_timeout=3600,attr_timeout=3600,ignore_atime,no_xattr
+64 33 0:56 / /run/host_mark/var/folders rw,nosuid,nodev,relatime - fakeowner /run/host_virtiofs/var/folders rw,mark,fakeowner
+65 35 0:57 / /host_mnt/var/folders rw,nosuid,nodev,relatime - fakeowner /run/host_mark/var/folders rw,fakeowner
+66 33 0:58 / /run/rosetta.orig rw,relatime - virtiofs ROSETTA rw,negative_dentry_timeout=3600,entry_timeout=3600,attr_timeout=3600,ignore_atime,no_flush,keep_cache
+67 34 254:1 / /var/lib rw,relatime - ext4 /dev/vda1 rw,discard
+68 42 0:13 / /sys/kernel/debug/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw
+69 33 0:59 / /run/jfs rw,nosuid,nodev,relatime - fuse.rawBridge rawBridge rw,user_id=0,group_id=0,allow_other,max_read=131072
+70 33 0:60 / /run/mutagen-file-shares-mark rw,nosuid,nodev,relatime - selfowner /var/lib/mutagen/file-shares rw,mark
+71 33 0:61 / /run/mutagen-file-shares rw,nosuid,nodev,relatime - selfowner /run/mutagen-file-shares-mark rw
+72 33 0:62 / /run/rosetta rw,nosuid,nodev,relatime - fuse.rosetta-mount rosetta-mount rw,user_id=0,group_id=0,allow_other
+73 67 254:1 /docker /var/lib/docker rw,relatime shared:1 - ext4 /dev/vda1 rw,discard
+78 73 0:63 / /var/lib/docker/rootfs/overlayfs/62899e34e243848ccf609e29a8167f7f7582c8d560a1d321e6245169da79e92d rw,relatime shared:2 - overlay overlay rw,lowerdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/169/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/168/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/167/fs,upperdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/170/fs,workdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/170/work
+79 33 0:4 net:[4026532560] /run/docker/netns/9dd61e31fcc6 rw - nsfs nsfs rw
+912 73 0:306 / /var/lib/docker/rootfs/overlayfs/bb4dac5d8a88ecd7964095b8d82bf4becbe689d27518393f0678bac55532742e rw,relatime shared:87 - overlay overlay rw,lowerdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/284/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/10/fs,upperdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/286/fs,workdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/286/work
+913 33 0:4 net:[4026533963] /run/docker/netns/6fab8ccba149 rw - nsfs nsfs rw
+938 73 0:315 / /var/lib/docker/rootfs/overlayfs/6bacb8798411738535f8e306ce4cd6031cdef95280be837216076aaf766ca4e4 rw,relatime shared:88 - overlay overlay rw,lowerdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/289/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/288/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/287/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/283/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/281/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/6/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/5/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/4/fs,upperdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/290/fs,workdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/290/work
+939 33 0:4 net:[4026534099] /run/docker/netns/a42bf07b9646 rw - nsfs nsfs rw
+976 73 0:322 / /var/lib/docker/rootfs/overlayfs/971156221d61a0eaa614e1bcdafd3c6f33fc3ab54b3a6394addd0c47e07e2b33 rw,relatime shared:89 - overlay overlay rw,lowerdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/292/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/288/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/287/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/283/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/281/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/6/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/5/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/4/fs,upperdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/293/fs,workdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/293/work
+977 33 0:4 net:[4026534235] /run/docker/netns/b8d7fcbf5b9a rw - nsfs nsfs rw
+879 73 0:304 / /var/lib/docker/rootfs/overlayfs/a434543d72b0c1811856a600dc1179beeb3186dc7a999fd4962034647e4191a2 rw,relatime shared:86 - overlay overlay rw,lowerdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/299/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/175/fs,upperdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/300/fs,workdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/300/work
+907 33 0:4 net:[4026533826] /run/docker/netns/9d48450c83b4 rw - nsfs nsfs rw

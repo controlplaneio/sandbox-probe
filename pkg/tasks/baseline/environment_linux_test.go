@@ -6,15 +6,7 @@ package tasks
 import (
 	"fmt"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
-
-func Test_getHostMounts(t *testing.T) {
-	mounts, err := GetHostMounts()
-	t.Logf("Mounts found: %v", mounts)
-	assert.NoError(t, err)
-}
 
 // TestGetContainerRuntimeUIDMap drives the /proc/self/uid_map fallback through the same readFile
 // indirection as the AppArmor and systemd-container marker tables above it. Any map other than the
