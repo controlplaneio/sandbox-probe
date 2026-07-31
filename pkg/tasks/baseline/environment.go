@@ -409,15 +409,17 @@ func readProcSelfStatus() (map[string]string, error) {
 const procMountInfo = "/proc/self/mountinfo"
 
 func GetHostMounts() ([]Mount, error) {
+	// An unreadable mount table is a restricted environment, not a failure: report nothing rather
+	// than raise a finding about the probe's own confinement.
 	data, err := readFile(procMountInfo)
 	if err != nil {
-		return []Mount{}, err
+		return []Mount{}, nil
 	}
 
 	var res []Mount
 
 	for _, m := range parseMountInfo(data) {
-		if isLikelyHostMount(m) {
+		if !isKernelPseudoFilesystem(m.FSType) {
 			res = append(res, Mount{
 				Source: m.Source,
 				Target: m.MountPoint,
@@ -452,19 +454,27 @@ func parseMountInfo(data []byte) []*procfs.MountInfo {
 	return res
 }
 
-func isLikelyHostMount(m *procfs.MountInfo) bool {
-	// Ignore virtual/container-internal filesystems
-	switch m.FSType {
-	case "overlay", "tmpfs", "proc", "sysfs", "cgroup", "cgroup2", "devpts":
-		return false
-	}
-
-	// Heuristics for host/VM-mounted paths
-	if strings.HasPrefix(m.Source, "/") {
+// isKernelPseudoFilesystem reports whether fstype is one of the kernel's own virtual filesystems:
+// interfaces the kernel synthesises, which by construction cannot expose content from another
+// filesystem. Everything else is reported.
+//
+// The filter excludes rather than includes because the two lists behave differently as runtimes
+// are added. An inclusion list has to recognise how each new runtime spells a shared filesystem —
+// the previous one kept a mount only if its source began with a slash, which is why gVisor's
+// binds, whose source is always "none", were reported as absent. An exclusion list of
+// pseudo-filesystems is finite, named by the kernel and stable, so an unrecognised runtime
+// produces a noisy report rather than a silent pass. No decision here looks at a mount's source.
+//
+// Before adding an entry: the filesystem type must be a kernel interface that can never carry
+// content from another filesystem, whatever the runtime that mounted it. Being usually a
+// sandbox's own storage is not enough — overlay and tmpfs are both commonly that and are both
+// reported, because "usually" is a guess about intent rather than a fact about the mount, and a
+// missed mount is invisible where a spurious one is merely noise.
+func isKernelPseudoFilesystem(fstype string) bool {
+	switch fstype {
+	case "proc", "sysfs", "cgroup", "cgroup2", "devpts", "mqueue",
+		"debugfs", "tracefs", "securityfs", "bpf", "configfs", "nsfs", "pipefs":
 		return true
-	}
-	if strings.Contains(m.FSType, "fuse") {
-		return true // macOS Docker Desktop mounts
 	}
 
 	return false
