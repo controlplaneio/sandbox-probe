@@ -216,9 +216,10 @@ For tasks that wrap an external system command, use the generic command-based pr
 #### Running Tests
 
 ```bash
-make e2etests        # end-to-end tests
-make fmt             # format Go code
-cd api && buf generate    # regenerate Protocol Buffers
+make e2etests         # the probe's own fingerprint e2e tests — no agent CLI, node, or nono needed
+make e2etests-agents  # agent-driven fingerprint checks — needs the relevant agent CLI/node/nono
+make fmt              # format Go code
+cd api && buf generate     # regenerate Protocol Buffers
 ```
 
 ##### Known Working Tooling Versions
@@ -243,7 +244,7 @@ snapshot known to work:
 
 #### Trialling Against Agent Sandboxes
 
-The scripts under `./tests/` are the easiest way to run the probe inside a real agent sandbox. The README's
+The scripts under `./tests/agent-driven/` are the easiest way to run the probe inside a real agent sandbox. The README's
 [Testing an agent's sandbox](../README.md#testing-an-agents-sandbox) section covers running them; here we just call
 out what to keep in mind when adding or changing one:
 
@@ -292,9 +293,10 @@ Every report also carries an `environment_detection` finding with the host kerne
 OS release — captured by the probe on **every** run regardless of harness — so a change caused by a
 kernel or OS upgrade (seccomp/landlock/user-namespace/gVisor-systrap behaviour all track these) shows
 up as a diff rather than a mystery.
-- `tests/detect_{claude,codex,gemini}.sh` — `make e2etests` entry points asserting the probe reports
-  the expected `sandbox_detection` (`seatbelt` on macOS; `bubblewrap`/kernel-enforcement on Linux;
-  `docker` for gemini's container). Each skips gracefully when its CLI (or sandbox dep) is unavailable.
+- `tests/agent-driven/detect_{claude,codex,gemini}.sh` — `make e2etests-agents` entry points asserting
+  the probe reports the expected `sandbox_detection` (`seatbelt` on macOS; `bubblewrap`/kernel-enforcement
+  on Linux; `docker` for gemini's container). Each skips gracefully when its CLI (or sandbox dep) is
+  unavailable.
 
 The [`scan-matrix`](../.github/workflows/scan-matrix.yaml) workflow runs the probe across a **harness**
 axis — one matrix row per way of executing it. Each row sets `family` (which setup steps run), `harness`
