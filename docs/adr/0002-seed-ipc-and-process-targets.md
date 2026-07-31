@@ -6,6 +6,15 @@ Date: 2026-07-31
 
 Accepted
 
+> **Written before the repository split.** This ADR stays here because it
+> decides the probe's own registry shape, a new finding type, and a new
+> Windows detection path. The comparison-side artifacts it names —
+> `seed-decoys.sh`, `scan-matrix.yaml`, `site/app.js`,
+> `docs/reporting-site-plan.md`, `CONTEXT.md`'s capability-category table and
+> ADR 0001 — now live in
+> [`sandbox-probe-reports`](https://github.com/chrisns/sandbox-probe-reports).
+> The text below is left as it was written.
+
 ## Context
 
 `sandbox-probe`'s baseline-normalization methodology (ADR 0001) only proves
