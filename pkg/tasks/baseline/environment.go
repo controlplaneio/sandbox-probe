@@ -21,6 +21,10 @@ type Mount struct {
 	Source string
 	Target string
 	FSType string
+	// Root is the subtree of the source filesystem this mount exposes. A root of "/" means the
+	// whole filesystem; anything deeper names the specific host path a bind mount shares in — the
+	// evidence that tells a sandbox's own root filesystem apart from a bind of a host subtree.
+	Root string
 }
 
 const (
@@ -424,6 +428,7 @@ func GetHostMounts() ([]Mount, error) {
 				Source: m.Source,
 				Target: m.MountPoint,
 				FSType: m.FSType,
+				Root:   m.Root,
 			})
 		}
 	}

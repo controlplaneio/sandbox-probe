@@ -665,10 +665,14 @@ func (t *MountTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, er
 
 	log.Info().Int("mount_count", len(mounts)).Msg("Host mounts detected")
 
-	// Convert []Mount to []string for easier display
+	// Convert []Mount to []string for easier display. The mount root is included from this point
+	// on (ticket #41): it names the subtree of the source filesystem exposed, which is what tells
+	// a sandbox's own root filesystem apart from a bind of a host subtree. Reports captured before
+	// this change carry the old three-field string and must be read as that older shape, not as a
+	// rendering fault in a drill-down that expects a root.
 	mountStrings := make([]string, len(mounts))
 	for i, m := range mounts {
-		mountStrings[i] = fmt.Sprintf("%s -> %s (%s)", m.Source, m.Target, m.FSType)
+		mountStrings[i] = fmt.Sprintf("%s -> %s (%s, root=%s)", m.Source, m.Target, m.FSType, m.Root)
 	}
 
 	mountValue, err := structpb.NewValue(stringSliceToInterface(mountStrings))
