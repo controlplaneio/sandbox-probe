@@ -40,6 +40,7 @@ const (
 	HOSTNAMEDETECTION         = "hostname_detection"
 	SANDBOXDETECTION          = "sandbox_detection"
 	ENVIRONMENTDETECTION      = "environment_detection"
+	ENVSECRETDETECTION        = "env_secret_detection"
 )
 
 var expectedTypes = map[string]reflect.Type{
@@ -57,6 +58,7 @@ var expectedTypes = map[string]reflect.Type{
 	USERCONTEXTDETECTION:      reflect.TypeOf(&models.UserIdentity{}),
 	HOSTNAMEDETECTION:         reflect.TypeOf(""),
 	ENVIRONMENTDETECTION:      reflect.TypeOf(&models.HostEnvironment{}),
+	ENVSECRETDETECTION:        reflect.TypeOf(&models.EnvFinding{}),
 	SANDBOXDETECTION:          reflect.TypeOf(""),
 }
 
@@ -70,6 +72,7 @@ var taskRegistry = map[string]func() Task{
 	"baseline_user_context_task": func() Task { return NewUserContextTask() },
 	"baseline_hostname_task":     func() Task { return NewHostnameTask() },
 	"baseline_environment_task":  func() Task { return NewEnvironmentTask() },
+	"baseline_env_secret_task":   func() Task { return NewEnvSecretTask() },
 	"baseline_sandbox_task":      func() Task { return NewSandboxTask() },
 	"baseline_mount_task":        func() Task { return NewMountTask() },
 	"ps_all_task":                func() Task { return NewPSAllTask() },

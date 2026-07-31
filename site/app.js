@@ -28,7 +28,7 @@ const FT2CAT = {
 // context-only finding types (not counted); everything else unmapped -> "other" column.
 const CONTEXT_FT = new Set([
   "sandbox_detection", "user_context_detection", "hostname_detection",
-  "environment_detection", "proxy_detection",
+  "environment_detection", "proxy_detection", "env_secret_detection",
 ]);
 
 const find = (r, ft) => r.report.findings.find((f) => f.findingType === ft);

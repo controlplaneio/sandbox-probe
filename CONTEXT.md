@@ -101,7 +101,8 @@ execution) is absolute.
 
 Context (not counted): `sandbox_detection` (enforcement badge), `hostname_detection`,
 `environment_detection` (identity/kernel, feeds fingerprint), `proxy_detection`
-(drill-down). Unmapped future finding types → an **Other** column, uncounted.
+(drill-down), `env_secret_detection` (credentials the run was handed — what the
+process already had, not a door it opened, so it is context and the scale stays 0–8). Unmapped future finding types → an **Other** column, uncounted.
 
 ### Exposure
 The headline scalar the eye tracks over time: the count of leaked (🟥) capability
