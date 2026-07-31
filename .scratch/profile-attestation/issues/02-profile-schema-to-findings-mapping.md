@@ -71,7 +71,7 @@ function (gitleaks over env vars) — **but neither is wired to a
 `user_context_detection` have no nono equivalent — nono mediates via
 Landlock/Seatbelt, never a namespace/rootfs swap, so there's nothing for
 it to declare there by design (consistent with
-[the firejail/nono/srt flag audit](../sandbox-canary-nesting/issues/06-firejail-nono-srt-flag-audit.md)
+[the firejail/nono/srt flag audit](https://github.com/chrisns/sandbox-probe-reports/blob/main/.scratch/sandbox-canary-nesting/issues/06-firejail-nono-srt-flag-audit.md)
 in the sibling map).
 
 **Side finding, flagged not silently resolved**: nono's own checked-in

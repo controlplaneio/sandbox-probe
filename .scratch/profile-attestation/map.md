@@ -2,6 +2,13 @@
 
 wayfinder:map
 
+> **Split note.** The repo split this map decided has happened. Tickets 01–04
+> and 06 stay recorded here because they are about the probe and its own build;
+> ticket 05 onward, and the `sandbox-canary-nesting` and `seed-ipc-targets`
+> maps wholesale, now live in
+> [`sandbox-probe-reports`](https://github.com/chrisns/sandbox-probe-reports/tree/main/.scratch).
+> Links below point there. The text is otherwise as it was written.
+
 ## Destination
 
 Two coupled decisions, one map because the second motivates the first:
@@ -24,7 +31,7 @@ Two coupled decisions, one map because the second motivates the first:
 
 ## Why this map exists (how it was found)
 
-Working [sandbox-canary-nesting](../sandbox-canary-nesting/map.md)'s
+Working [sandbox-canary-nesting](https://github.com/chrisns/sandbox-probe-reports/blob/main/.scratch/sandbox-canary-nesting/map.md)'s
 ticket 08, Chris pushed back hard on the premise: for the 5 generic
 `sandbox`-family runtimes (`docker`/`podman`/`bwrap`/`nspawn`/`gvisor`,
 no agent driving them), *any* mount/sharing flags the project's own script
@@ -33,8 +40,8 @@ block what we chose to expose" is circular regardless of which flags get
 picked. The comparisons that are actually meaningful are the ones where
 *someone else* — an agent vendor (Claude Code choosing its own Seatbelt
 config, confirmed in
-[ticket 11](../sandbox-canary-nesting/issues/11-claude-sandbox-nesting.md)/
-[12](../sandbox-canary-nesting/issues/12-codex-sandbox-nesting.md)) or a
+[ticket 11](https://github.com/chrisns/sandbox-probe-reports/blob/main/.scratch/sandbox-canary-nesting/issues/11-claude-sandbox-nesting.md)/
+[12](https://github.com/chrisns/sandbox-probe-reports/blob/main/.scratch/sandbox-canary-nesting/issues/12-codex-sandbox-nesting.md)) or a
 declared policy — made the configuration decision, and we're observing it.
 
 That reframing surfaced two things:
@@ -55,7 +62,7 @@ That reframing surfaced two things:
   CLI flags (`--allow-cwd --allow <dir> --block-net`) the project chose
   itself, the exact same circularity as the docker/podman/bwrap rows, even
   though nono has a legitimate declared-profile mechanism sitting right
-  there unused. See [ticket 05](issues/05-nono-row-profile-switch.md).
+  there unused. See [ticket 05](https://github.com/chrisns/sandbox-probe-reports/blob/main/.scratch/profile-attestation/issues/05-nono-row-profile-switch.md).
 
 ## Notes
 
@@ -77,11 +84,11 @@ That reframing surfaced two things:
   `github.com/always-further/nono`; worth a quick check/update once this
   map's findings land, not urgent.
 - Relationship to sibling maps:
-  - [sandbox-canary-nesting](../sandbox-canary-nesting/map.md): its
+  - [sandbox-canary-nesting](https://github.com/chrisns/sandbox-probe-reports/blob/main/.scratch/sandbox-canary-nesting/map.md): its
     agent-driven tickets (11–14) stay valid untouched. Ticket 08's "fix
     the 5 generic runtimes' mount flags" is retired by this map's finding
     — see that map's own updated Notes.
-  - [seed-ipc-targets](../seed-ipc-targets/map.md): stays relevant
+  - [seed-ipc-targets](https://github.com/chrisns/sandbox-probe-reports/blob/main/.scratch/seed-ipc-targets/map.md): stays relevant
     regardless of methodology — sockets/pipes/processes still need
     seeding. Its mechanism-design ticket should account for serving *both*
     baseline-vs-sandbox and declared-vs-actual comparisons once this map's
@@ -89,7 +96,7 @@ That reframing surfaced two things:
 
 ## Decisions so far
 
-- [Nono row profile switch](issues/05-nono-row-profile-switch.md) — two new rows, not a switch: (1) `sandbox-probe` itself run under `nono run --profile nolabs-ai/codex`, diffed against declared grants — the flagship attestation capability; (2) real `codex` CLI run under the same profile (`codex-nono`), alongside `codex-sandbox`, using existing methodology unchanged. Existing generic `nono` row stays (legitimate hand-authored-policy pattern, not circular). Confirmation was hedged ("i think so") — flagged for revisiting once there's something concrete to react to.
+- [Nono row profile switch](https://github.com/chrisns/sandbox-probe-reports/blob/main/.scratch/profile-attestation/issues/05-nono-row-profile-switch.md) — two new rows, not a switch: (1) `sandbox-probe` itself run under `nono run --profile nolabs-ai/codex`, diffed against declared grants — the flagship attestation capability; (2) real `codex` CLI run under the same profile (`codex-nono`), alongside `codex-sandbox`, using existing methodology unchanged. Existing generic `nono` row stays (legitimate hand-authored-policy pattern, not circular). Confirmation was hedged ("i think so") — flagged for revisiting once there's something concrete to react to.
 - [Repo split scope](issues/04-repo-split-scope.md) — **fully resolved**: reuse dormant `controlplaneio/sandbox-probe-reports`; `list-targets` stays with the probe, everything comparison-side moves; fresh start, no history migration; `go.mod`-pinned dependency for automatic Dependabot bumps (checkout-pinned `ref:` would NOT get coverage); split happens first, before sibling-map fixes land, once the release pipeline (ticket 06) is fixed; sibling maps' `.scratch/` dirs move wholesale, this map splits at ticket 05.
 - [Release pipeline fixed](issues/06-fix-release-pipeline.md) — **resolved, verified, branch ready for review** (`fix/release-pipeline`, not pushed). Real root cause was more precise than first framed: not a missing cross-toolchain, but goreleaser itself forcing `CGO_ENABLED=0` for cross-compiled targets by default — fixed with a templated per-OS env, plus moving the release job to `macos-latest` (Linux still can't link Apple's private frameworks regardless). Reproduced the original failure locally, then reproduced full success end-to-end with real goreleaser. Release trigger switched to push-to-`main` + `lukaszraczylo/semver-generator`, matching `chrisns/MacWhisperAuto`.
 

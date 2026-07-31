@@ -24,8 +24,8 @@ decisions, not research):
 3. Versioning/release relationship: does the comparison repo pin a
    `sandbox-probe` release, or build against `main`?
 4. Does this split happen before or after the sibling maps
-   ([sandbox-canary-nesting](../sandbox-canary-nesting/map.md),
-   [seed-ipc-targets](../seed-ipc-targets/map.md)) finish landing their
+   ([sandbox-canary-nesting](https://github.com/chrisns/sandbox-probe-reports/blob/main/.scratch/sandbox-canary-nesting/map.md),
+   [seed-ipc-targets](https://github.com/chrisns/sandbox-probe-reports/blob/main/.scratch/seed-ipc-targets/map.md)) finish landing their
    fixes — i.e. land the fixes here first then migrate, or migrate first
    and land fixes in the new repo?
 5. What happens to the two sibling maps' `.scratch/` directories and

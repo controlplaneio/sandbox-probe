@@ -2,7 +2,9 @@
 
 "Do I trust this sandbox?" is a faith-based question — and faith is a rotten foundation for a threat model. Every AI coding agent ships with a story about what its sandbox can and cannot do: container policies, [Landlock](https://landlock.io/) rules, seccomp filters, "we only allow reads from the workspace". That story is the vendor's map. You are defending the territory: a developer's laptop, with dotfiles, an SSH agent, cloud credentials, and an agent that any sufficiently clever prompt injection might persuade to go for a wander.
 
-`sandbox-probe` is a single static Go binary you drop *inside* the sandbox — [Claude Code](https://code.claude.com/docs/en/overview), [Gemini CLI](https://geminicli.com/), [`nono`](https://github.com/always-further/nono), a container, whatever — and let it look around. Run it once on the bare host for a baseline, then again inside the agent. The diff between the two reports is the sandbox boundary, measured rather than assumed. If it shows the agent can read `~/.aws/credentials`, resolve arbitrary DNS, or reach `169.254.169.254`, tighten the policy before you ship another line of code through it.
+`sandbox-probe` is a single static Go binary you drop *inside* the sandbox — [Claude Code](https://code.claude.com/docs/en/overview), [Gemini CLI](https://geminicli.com/), [`nono`](https://github.com/nolabs-ai/nono), a container, whatever — and let it look around. It records what the kernel let it do and writes one JSON report. If that report shows it could read `~/.aws/credentials`, resolve arbitrary DNS, or reach `169.254.169.254`, tighten the policy before you ship another line of code through it.
+
+This repository is the probe and nothing else. The comparison harness built on top of it — the scan matrix, the seeder, the agent stubs, the baseline-normalised methodology and the published results — lives in [`sandbox-probe-reports`](https://github.com/chrisns/sandbox-probe-reports), and its site publishes at <https://chrisns.github.io/sandbox-probe-reports/>. (It was previously published from this repository; that is the new address.)
 
 ## Table of contents
 
@@ -11,10 +13,8 @@
 - [What it detects](#what-it-detects)
 - [Reading a report](#reading-a-report)
 - [Quick start](#quick-start)
-- [Testing an agent's sandbox](#testing-an-agents-sandbox)
 - [CLI reference](#cli-reference)
 - [Report format](#report-format)
-- [Supported code assistants](#supported-code-assistants)
 - [Installation](#installation)
 - [Development](#development)
 
@@ -23,28 +23,13 @@
 Four concrete scenarios `sandbox-probe` is built to answer:
 
 - **Assessing an AI coding agent's blast radius.** You let developers use Claude Code, Gemini CLI, or similar; you want a concrete inventory of what a compromised agent could read, write, or reach from inside its sandbox.
-- **Tuning a sandbox policy.** You're writing Landlock rules (via [`nono`](https://github.com/always-further/nono)), a seccomp profile, or a container policy and need before-and-after evidence that the rule you added actually closed the door you intended.
+- **Tuning a sandbox policy.** You're writing Landlock rules (via [`nono`](https://github.com/nolabs-ai/nono)), a seccomp profile, or a container policy and need before-and-after evidence that the rule you added actually closed the door you intended.
 - **Detecting sandbox regressions over time.** Run the probe in your agent's sandbox on every release of the agent (or your wrapper) and alert when the boundary widens — for example, a new agent version starts seeing `~/.aws/credentials`.
-- **Comparing sandboxes apples-to-apples.** Feed the same probe to Claude Code, Gemini, a `nono` policy, and a Docker container; the reports are directly comparable because the methodology is identical.
+- **Comparing sandboxes apples-to-apples.** The same probe, run under different sandboxes, produces directly comparable reports. Turning many such reports into a matrix is what [`sandbox-probe-reports`](https://github.com/chrisns/sandbox-probe-reports) does.
 
 ## How it works
 
-A scan is a single static Go binary that runs a registry of *tasks* — each task tries one class of action (read a sensitive path, scan ports, fingerprint the sandbox runtime, …) and records whatever the kernel let it do. Tasks are grouped into *tasksets* (`baseline`, `ps`, `all`). The output is a JSON report of findings.
-
-The intended workflow is comparison, not absolute measurement:
-
-```mermaid
-flowchart LR
-    Probe([sandbox-probe]) --> Host[Run unconfined<br/>on the host]
-    Probe --> Sandbox[Run inside<br/>the agent's sandbox]
-    Host --> BR[baseline.json]
-    Sandbox --> SR[sandbox.json]
-    BR --> Diff{diff}
-    SR --> Diff
-    Diff --> Out[Sandbox boundary<br/>= everything the<br/>sandbox blocked]
-```
-
-Inside a single scan, the orchestration looks like this:
+A scan runs a registry of *tasks* — each task tries one class of action (read a sensitive path, scan ports, fingerprint the sandbox runtime, …) and records whatever the kernel let it do. Tasks are grouped into *tasksets* (`baseline`, `ps`, `all`). The output is a JSON report of findings.
 
 ```mermaid
 flowchart TB
@@ -54,7 +39,7 @@ flowchart TB
     F --> Report[report.json<br/>+ logs/sandbox-probe-*.log]
 ```
 
-The 10 tasks in the `baseline` taskset:
+The 11 tasks in the `baseline` taskset:
 
 - `baseline_path_task`
 - `baseline_network_task`
@@ -64,10 +49,13 @@ The 10 tasks in the `baseline` taskset:
 - `baseline_user_context_task`
 - `baseline_hostname_task`
 - `baseline_environment_task`
+- `baseline_env_secret_task`
 - `baseline_sandbox_task`
 - `baseline_mount_task`
 
-The `ps` taskset adds `ps_all_task`, `ps_parent_task`, and `ps_single_task`. Tasks run sequentially and deterministically. Each returns zero or more `Finding` objects with a stable `finding_type` string, which is what makes baseline-vs-sandbox diffing meaningful.
+The `ps` taskset adds `ps_all_task`, `ps_parent_task`, and `ps_single_task`. Tasks run sequentially and deterministically. Each returns zero or more `Finding` objects with a stable `finding_type` string — stability is what makes two reports comparable at all.
+
+**A finding means the probe *could* do something.** Its absence means it could not. Fewer findings is a tighter sandbox. That inversion is worth holding on to while reading everything below.
 
 ## What it detects
 
@@ -91,6 +79,8 @@ Each row below is a `finding_type` string you will see in `report.json`, what it
 | `environment_detection` | host kernel release/version + OS release | "Which kernel/OS produced this result?" (so reports stay comparable across upgrades) |
 | `sandbox_detection` | one **wrapper name** — an inferred best guess at the tool (Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, systemd-nspawn, WSL, OpenVZ, Seatbelt, Landlock, AppArmor, chroot) — plus zero or more kernel-attested **mechanisms** (`seccomp-filter`, `seccomp-notify`, `seccomp-strict`, `no-new-privs`, `landlock`, `user-namespace`) | "Is there *any* enforcement at all, and what kind?" |
 
+The wrapper name is a hypothesis; a mechanism is read straight off a kernel interface and is a fact. See [`CONTEXT.md`](./CONTEXT.md) for the distinction and why it matters when adding a detector.
+
 ## Reading a report
 
 A finding looks like this:
@@ -109,11 +99,11 @@ A finding looks like this:
 
 Read it as a three-step chain: *this finding means X → which tells you Y → which suggests action Z.*
 
-- **`sensitive_readable_paths` includes `~/.aws/credentials`** → the agent's sandbox does not block reads of cloud credentials → tighten the sandbox policy (or accept the residual risk explicitly, in writing).
-- **`external_host_connectivity` includes `169.254.169.254`** → the agent can reach the cloud instance metadata service → if you're running on EC2/GCE, that's an IAM credential-theft path; block egress to link-local.
+- **`sensitive_readable_paths` includes `~/.aws/credentials`** → the sandbox does not block reads of cloud credentials → tighten the policy (or accept the residual risk explicitly, in writing).
+- **`external_host_connectivity` includes `169.254.169.254`** → the probe can reach the cloud instance metadata service → if you're running on EC2/GCE, that's an IAM credential-theft path; block egress to link-local.
 - **`sandbox_detection` is empty** → no enforcement was detected → either the runtime is one the probe doesn't fingerprint yet (file an issue) or there really is no sandbox.
 
-The point of diffing baseline against sandbox reports is to make these decisions evidence-based: every line of difference is one capability the sandbox actually denies.
+One caveat that decides how much a report is worth: **a finding's absence only proves the sandbox blocked something if the thing was there to find.** No `~/.aws/credentials` on the host means no finding either way, and reading that as "blocked" is wrong. `list-targets` and `seed` exist to close that gap — see [CLI reference](#cli-reference).
 
 ## Quick start
 
@@ -121,68 +111,18 @@ The point of diffing baseline against sandbox reports is to make these decisions
 # Build (Go 1.25+)
 make build
 
-# Run unconfined on this host to get a baseline
-./bin/sandbox-probe scan --output_path baseline.json
+# Run it and look around
+./bin/sandbox-probe scan --output_path report.json
 
 # Inspect findings
-jq '.findings | map({findingType, task})' baseline.json
+jq '.findings | map({findingType, task})' report.json
 ```
 
-Then run the same binary inside an agent's sandbox and diff the two reports — see [Testing an agent's sandbox](#testing-an-agents-sandbox).
-
-## Testing an agent's sandbox
-
-The [`tests/`](./tests) directory splits along the same line as the rest of this repository: the
-probe's own sandbox-fingerprinting checks versus the checks that drive a real agent CLI.
-
-`tests/fingerprint/` — the probe's own end-to-end checks. Each asserts `sandbox_detection` for a
-minimal sandbox runtime and invokes only that runtime's launcher script (no agent CLI, no model
-stub, no node). This is what `make e2etests` runs, and it completes on a Go-toolchain-plus-runtimes
-host alone:
-
-```
-tests/fingerprint/
-├── detect_docker.sh                  # probe runs inside Docker
-├── detect_podman.sh                  # probe runs inside Podman
-└── detect_bwrap.sh                   # probe runs inside Bubblewrap
-```
-
-`tests/agent-driven/` — checks that drive a real agent CLI (or `nono`), two parallel scripts per
-agent: one that runs the probe unconfined, one that runs it inside the agent's sandbox. Run these
-with `make e2etests-agents`; each needs the corresponding CLI installed and skips or fails
-accordingly (see the scripts for which).
-
-```
-tests/agent-driven/
-├── baseline_nono.sh                  # probe runs under a permissive nono policy
-├── baseline_claude.sh                # probe runs unconfined; Claude Code is just the runner
-├── baseline_gemini.sh                # ... same for Gemini
-├── sandbox_nono.sh                   # probe runs under a restrictive nono policy
-├── sandbox_claude.sh                 # Claude Code runs the probe inside its real sandbox
-├── sandbox_gemini.sh                 # ... same for Gemini
-├── detect_claude.sh                  # probe runs inside Claude Code's own sandbox (real binary, model stubbed — no LLM)
-├── detect_codex.sh                   # ... same for Codex
-└── detect_gemini.sh                  # ... same for Gemini
-```
-
-Reports land in `./reports/`. A typical diff workflow:
+Then run the same binary inside a sandbox and diff the two reports. Every line of difference is one capability that sandbox denies:
 
 ```bash
-./tests/agent-driven/baseline_claude.sh
-./tests/agent-driven/sandbox_claude.sh
-
-diff <(jq -S . reports/baseline-claude.json) \
-     <(jq -S . reports/sandbox-claude.json)
+diff <(jq -S . unconfined.json) <(jq -S . sandboxed.json)
 ```
-
-[`nono`](https://github.com/always-further/nono) plays two roles in this repo: it's a Landlock (Linux) / Seatbelt (macOS) wrapper that applies a sandbox policy to any binary, so we use it (a) as a *harness* to run the probe under a known policy and (b) as one of the *sandboxes whose enforcement we're characterising*. The two `nono` scripts demonstrate both modes.
-
-> [!IMPORTANT]
-> The `sandbox_claude.sh` and `sandbox_gemini.sh` scripts ask a real AI agent to execute the probe binary. Consider the risk that the agent could take other actions, especially on non-interactive/YOLO modes. Pure-sandbox runs (`sandbox_nono.sh`, `tests/fingerprint/detect_docker.sh`, etc.) don't involve an agent and don't carry this risk.
->
-> You can reduce the risk by using the interactive variants (`*_interactive.sh`), but the agent may still take autonomous action you don't expect.
-
-For more detail see [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md#trialling-against-agent-sandboxes).
 
 ## CLI reference
 
@@ -226,7 +166,29 @@ List every registered task with its description.
 ./bin/sandbox-probe tasks list
 ```
 
-The canonical task list (currently 13 tasks across two tasksets) is the output of this command.
+The canonical task list (currently 14 tasks across two tasksets) is the output of this command.
+
+### `list-targets`
+
+Emit the probe's target registry as JSON, scoped to the running OS.
+
+```bash
+./bin/sandbox-probe list-targets
+```
+
+Each entry says what the probe checks and how it could be seeded: `kind` (`file`, `dir`, `socket`, `pipe`, `process`), `seedable` (true only for home-scoped regular files), and — for IPC entries — `category` and `evidence`. This is the probe's public registry interface: anything that plants decoys reads it, so seeding cannot drift from what is actually probed.
+
+### `seed` / `cleanup`
+
+Plant, then remove, the decoys a shell script cannot create — a bound-and-closed Unix socket at a socket target, a live process under a distinctive command name at a process target.
+
+```bash
+./bin/sandbox-probe seed
+./bin/sandbox-probe scan --output_path report.json
+./bin/sandbox-probe cleanup
+```
+
+Seeding is **soft**: a target something already owns is left untouched and counted as skipped, so a real `docker.sock` is never shadowed and no running process is ever adopted. What was planted is recorded, and `cleanup` removes exactly that and nothing else — it is idempotent, safe after a crashed run, and never signals a pid that no longer holds the command name it was seeded under. A decoy process also exits on its own after a fixed timeout, so a cleanup that never runs is not a permanent leak. See [ADR 0002](./docs/adr/0002-seed-ipc-and-process-targets.md).
 
 ### `version`
 
@@ -295,25 +257,6 @@ Example report fragment:
 
 The console output during a scan is structured logs; the same data is also written to a timestamped log file under `logs/` (e.g. `logs/sandbox-probe-2026-05-16-15-30-45.log`).
 
-## Supported code assistants
-
-The included test scripts target:
-
-- **[Claude Code](https://code.claude.com/docs/en/overview)** — see `tests/agent-driven/baseline_claude.sh`, `tests/agent-driven/sandbox_claude.sh` (which drive a real, billed agent), and `tests/agent-driven/detect_claude.sh` (the deterministic, no-LLM path described below)
-- **[Gemini CLI](https://geminicli.com/)** — see `tests/agent-driven/baseline_gemini.sh`, `tests/agent-driven/sandbox_gemini.sh` (and `*_interactive.sh` variants)
-
-### Agent sandboxes with no LLM
-
-Driving a real agent to run the probe costs tokens and is non-deterministic. So we exercise each agent's **real** sandbox with **no model call, no API key, and no tokens**: one general mock ([`scripts/mock-agent-api.mjs`](./scripts/mock-agent-api.mjs)) speaks five wire protocols — Anthropic (`/v1/messages`), Gemini (`:streamGenerateContent`), OpenAI Responses (`/v1/responses`, streaming and non-streaming — Codex/trae), OpenAI Chat Completions (`/v1/chat/completions`, streaming and non-streaming — OpenCode/Goose/Pi/gptme/Cline) and Ollama (`/api/chat`, wired for a future native-Ollama agent; not yet exercised by a matrix row) — and returns a canned shell tool call that runs the probe (shaping the argument from each tool's own schema — e.g. Cline's `run_commands` takes a `commands` array). The real agent binary — pointed at the mock via its base-URL override — then executes it inside whatever OS sandbox it ships ([bubblewrap](https://github.com/containers/bubblewrap) on Linux, Seatbelt on macOS, a container for Gemini; OpenCode, Goose, Pi, gptme, Cline and trae ship none, so those rows run unconfined — trae also has an opt-in Docker execution mode). See `scripts/run-probe-via-{claude,gemini,codex,opencode,goose,pi,gptme,cline,trae}-stub.sh`.
-
-This is what CI runs. The [`scan-matrix`](./.github/workflows/scan-matrix.yaml) workflow builds the probe and runs it across a **harness** axis — one row per way of executing the probe:
-- `direct` (unconfined baseline, on linux/macos/windows), and each agent as-is vs its own sandbox: `claude`/`claude-sandbox`, `codex`/`codex-sandbox`, `gemini`/`gemini-docker`/`gemini-sandbox-exec`, the unconfined `opencode` (linux/macos/**windows**) / `goose` / `pi` / `gptme` / `cline`, and `trae` ([bytedance/trae-agent](https://github.com/bytedance/trae-agent), open-source; `trae` unconfined + best-effort `trae-docker` for its Docker mode).
-- keyless **sandbox runtimes** that wrap the probe directly (no agent, no model): `srt` ([Anthropic sandbox-runtime](https://github.com/anthropic-experimental/sandbox-runtime) — bubblewrap/Seatbelt + network proxy), `firejail` (SUID namespaces + seccomp), `nono` ([nono.sh](https://nono.sh) — Landlock/Seatbelt capability sandbox), `podman` / `docker` (OCI containers), `bwrap` (standalone bubblewrap — the invocation the probe fingerprints as `bubblewrap`, unlike Claude Code / srt; see [#38](https://github.com/controlplaneio/sandbox-probe/issues/38)), `nspawn` (systemd-nspawn container) and `gvisor` (userspace-kernel sandbox via `runsc run`, systrap platform). See `scripts/run-probe-in-sandbox.sh`.
-
-Every row is keyless. Diffing an agent against its `-sandbox` row is precisely what that sandbox blocks. Adding another harness (another agent, another runtime) is one matrix row plus a family-gated setup/run step.
-
-Any AI agent that will run an arbitrary binary works in principle — the probe doesn't depend on the agent. Contributions of test scripts for other agents are welcome.
-
 ## Installation
 
 ### Prerequisites
@@ -323,13 +266,10 @@ For building:
 - Go 1.25 or later
 - Protocol Buffer compiler (`buf`) — install via `make install-buf` (only required if you change the protobuf definitions)
 
-For end-to-end testing (depending on which sandboxes you want to exercise):
+For the fingerprint end-to-end checks:
 
 - `jq` — JSON processor for parsing reports
-- `docker` and/or `podman` — for containerised testing
-- `claude-code` — Claude Code CLI for Claude testing
-- `gemini-cli` — Gemini CLI for Gemini testing
-- [`nono`](https://github.com/always-further/nono) — a Landlock/Seatbelt wrapper for AI agents and other programs
+- `docker`, `podman` and/or `bubblewrap` — whichever runtimes you want to exercise
 
 ### Build from source
 
@@ -337,6 +277,12 @@ For end-to-end testing (depending on which sandboxes you want to exercise):
 git clone https://github.com/controlplaneio/sandbox-probe.git
 cd sandbox-probe
 make build
+```
+
+Released binaries are published on the [releases page](https://github.com/controlplaneio/sandbox-probe/releases); the module is also `go build`-able directly:
+
+```bash
+go build -o bin/sandbox-probe github.com/controlplaneio/sandbox-probe
 ```
 
 If you intend to run `sandbox-probe` inside a container, make sure it is built statically with standard library paths, or arrange for the relevant paths to be mounted in. This isn't usually an issue but can bite on non-glibc or non-FHS systems like Alpine, NixOS, or anything via Nix.
@@ -355,6 +301,7 @@ The full task list (also obtainable from `./bin/sandbox-probe tasks list`):
 | `baseline_user_context_task` | Detects user and group context information (UID, GID, EUID, EGID) |
 | `baseline_hostname_task` | Detects the system hostname |
 | `baseline_environment_task` | Records the host kernel release/version and OS release |
+| `baseline_env_secret_task` | Detects environment variables whose value is secret-shaped (names only, never values) |
 | `baseline_sandbox_task` | Detects container runtime and sandbox environments (Docker, Podman, LXC, etc.) |
 | `baseline_mount_task` | Detects host-mounted volumes and filesystem mounts |
 | `ps_all_task` | Lists all running processes using `ps` |
@@ -363,4 +310,25 @@ The full task list (also obtainable from `./bin/sandbox-probe tasks list`):
 
 Adding a new task is a matter of implementing the `Task` interface ([`pkg/tasks/tasks.go`](./pkg/tasks/tasks.go)) and registering it in `taskRegistry` (and, if appropriate, in a `taskSetRegistry` entry). Findings the new task returns must have a `finding_type` registered in `expectedTypes` for runtime validation to pass.
 
-See [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md) for the full contributor guide.
+### Tests
+
+```bash
+make tests      # Go unit tests
+make e2etests   # the probe's own sandbox-fingerprint checks
+make fmt        # format Go code
+```
+
+`tests/fingerprint/` holds the probe's own end-to-end checks. Each builds the binary, runs it inside one minimal sandbox runtime via that runtime's launcher under [`scripts/`](./scripts), and asserts `sandbox_detection` names the runtime:
+
+```
+tests/fingerprint/
+├── detect_docker.sh                  # probe runs inside Docker
+├── detect_podman.sh                  # probe runs inside Podman
+└── detect_bwrap.sh                   # probe runs inside Bubblewrap
+```
+
+No agent CLI, model access or API key is involved — a Go toolchain plus the runtimes you want to test is the whole requirement.
+
+Checks that drive a real agent CLI, and everything that compares one sandbox against another, live in [`sandbox-probe-reports`](https://github.com/chrisns/sandbox-probe-reports).
+
+See [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md) for the full contributor guide, and [`CONTEXT.md`](./CONTEXT.md) for the vocabulary.
