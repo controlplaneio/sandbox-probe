@@ -94,7 +94,7 @@ execution) is absolute.
 | Filesystem write | `writeable_paths` | baseline-diff |
 | Network egress | `external_host_dns_resolution`, `external_host_connectivity` (folded) | baseline-diff |
 | Local services | `tcp_ports_open`, `udp_ports_open` | baseline-diff |
-| IPC sockets | `unix_socket_detection` | baseline-diff |
+| IPC sockets | `unix_socket_detection`, `named_pipe_detection` (folded) | baseline-diff |
 | Process visibility | `process_detection`, `parent_process_detection` | baseline-diff |
 | Host mounts | `mounted_volumes_detections` | baseline-diff |
 | Privileged execution | `user_context_detection` | absolute: euid 0 = 🟥 |

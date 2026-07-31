@@ -19,9 +19,11 @@ Language and rationale: see [CONTEXT.md](../CONTEXT.md) and
 - [ ] Wire it into the stub plumbing (`scripts/stub-common.sh`) so it runs
       **identically before the baseline and every sandbox run**. Parity is
       load-bearing: seeding one side only produces false 🟩 wins.
-- [ ] (Fast-follow, deferred) network/socket decoys: a decoy listening port, a
-      fake `docker.sock`, a stub egress target — turns those categories from ⬜ to
-      provable. Needs per-runtime plumbing; not blocking.
+- [ ] IPC socket / named-pipe / process decoys — design closed, see
+      [ADR 0002](adr/0002-seed-ipc-and-process-targets.md). Implementation
+      (the `kind` field on `list-targets`, per-kind dispatch in
+      `seed-decoys.sh`, the Windows named-pipe detection task) not yet
+      built.
 
 ## Track 3 — publish pipeline (in scan-matrix.yaml)
 
