@@ -82,6 +82,7 @@ Each row below is a `finding_type` string you will see in `report.json`, what it
 | `tcp_ports_open` / `udp_ports_open` | locally reachable ports | "What local services is the agent exposed to?" |
 | `proxy_detection` | proxy configuration in environment variables | "Is traffic forced through a proxy the agent could subvert?" |
 | `unix_socket_detection` | Unix domain sockets visible from inside | "Can the agent talk to the Docker daemon, SSH agent, dbus, …?" |
+| `named_pipe_detection` | Windows named pipes visible from inside (Windows scans only) | "Can the agent see the host's IPC endpoints — the SSH agent, Docker's `docker_engine` pipe, …?" |
 | `process_detection` / `parent_process_detection` | visible processes and the launching parent | "What else is running in the same context, and who launched the agent?" |
 | `mounted_volumes_detections` | mounted filesystems visible from inside | "What of the host filesystem is exposed?" |
 | `user_context_detection` | UID, GID, EUID, EGID | "Is the agent running as a privileged user?" |

@@ -275,7 +275,7 @@ func (t *ProxyTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, er
 	}, nil
 }
 
-// SocketTask produces: UNIXSOCKETDETECTION
+// SocketTask produces: UNIXSOCKETDETECTION, and on Windows NAMEDPIPEDETECTION
 type SocketTask struct {
 	baseTask
 	startPaths []string
@@ -285,7 +285,7 @@ func NewSocketTask() *SocketTask {
 	return &SocketTask{
 		baseTask: baseTask{
 			name:        fmt.Sprintf("%s_socket_scanner", TaskPrefix),
-			description: "Scans runtime directories for Unix domain sockets",
+			description: "Scans runtime directories for Unix domain sockets, and the named-pipe namespace on Windows",
 		},
 		startPaths: baselineTasks.DefaultSocketRoots(),
 	}
@@ -308,15 +308,38 @@ func (t *SocketTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, e
 		return nil, err
 	}
 
-	log.Info().Str("task", t.GetName()).Msg("Unix socket scanning task completed successfully")
-	return []*reportv1.Finding{
+	findings := []*reportv1.Finding{
 		{
 			FindingType: UNIXSOCKETDETECTION,
 			Task:        t.GetName(),
 			Description: "Unix sockets detected",
 			Value:       socketsValue,
 		},
-	}, nil
+	}
+
+	// Named pipes are Windows-only: ListNamedPipes returns nil elsewhere, so no
+	// named_pipe_detection finding appears in a non-Windows report. An
+	// enumeration failure is not fatal to the socket scan either — no finding is
+	// exactly what "the sandbox blocked it" looks like.
+	if pipes, err := baselineTasks.ListNamedPipes(); err != nil {
+		log.Warn().Err(err).Msg("Named pipe enumeration failed; emitting no named_pipe_detection finding")
+	} else if pipes != nil {
+		log.Info().Int("pipe_count", len(pipes)).Msg("Named pipe scan completed")
+		pipesValue, err := structpb.NewValue(stringSliceToInterface(pipes))
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to convert named pipes to protobuf value")
+			return nil, err
+		}
+		findings = append(findings, &reportv1.Finding{
+			FindingType: NAMEDPIPEDETECTION,
+			Task:        t.GetName(),
+			Description: "Named pipes detected",
+			Value:       pipesValue,
+		})
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("Unix socket scanning task completed successfully")
+	return findings, nil
 }
 
 // ProcessTask produces: PROCESSDETECTION, PARENTPROCESSDETECTION

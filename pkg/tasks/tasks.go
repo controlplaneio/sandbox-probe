@@ -33,6 +33,7 @@ const (
 	TCPPORTSOPEN              = "tcp_ports_open"
 	PROXYDETECTION            = "proxy_detection"
 	UNIXSOCKETDETECTION       = "unix_socket_detection"
+	NAMEDPIPEDETECTION        = "named_pipe_detection"
 	PROCESSDETECTION          = "process_detection"
 	PARENTPROCESSDETECTION    = "parent_process_detection"
 	MOUNTEDVOLUMESDETECTION   = "mounted_volumes_detections"
@@ -52,6 +53,7 @@ var expectedTypes = map[string]reflect.Type{
 	TCPPORTSOPEN:              reflect.TypeOf([]int{}),
 	PROXYDETECTION:            reflect.TypeOf(&models.ProxyConfig{}),
 	UNIXSOCKETDETECTION:       reflect.TypeOf([]string{}),
+	NAMEDPIPEDETECTION:        reflect.TypeOf([]string{}),
 	PROCESSDETECTION:          reflect.TypeOf(&models.Process{}),
 	PARENTPROCESSDETECTION:    reflect.TypeOf(&models.Process{}),
 	MOUNTEDVOLUMESDETECTION:   reflect.TypeOf([]string{}),

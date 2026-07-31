@@ -461,3 +461,20 @@ func TestEnvironmentTaskEmitsFinding(t *testing.T) {
 		}
 	}
 }
+
+// named_pipe_detection is declared with the same list-of-strings value shape as
+// the socket finding it folds into, so a malformed value is rejected rather
+// than silently shipped in a report.
+func TestNamedPipeFindingValueShape(t *testing.T) {
+	if got, want := expectedTypes[NAMEDPIPEDETECTION], expectedTypes[UNIXSOCKETDETECTION]; got != want {
+		t.Errorf("%s declared as %v, want %v (same shape as %s)", NAMEDPIPEDETECTION, got, want, UNIXSOCKETDETECTION)
+	}
+
+	notAList, err := structpb.NewValue(`\\.\pipe\lsass`)
+	if err != nil {
+		t.Fatalf("structpb.NewValue: %v", err)
+	}
+	if err := Validate(&reportv1.Finding{FindingType: NAMEDPIPEDETECTION, Value: notAList}); err == nil {
+		t.Errorf("%s accepted a non-list value", NAMEDPIPEDETECTION)
+	}
+}

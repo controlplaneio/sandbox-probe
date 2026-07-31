@@ -151,12 +151,33 @@ the start, and now demonstrated directly by the contribution above.
 
 ## Consequences
 
-- Windows named-pipe detection is genuinely new Go code, not a thin
+- **Correction (2026-07-31, ticket #50)**: the bullet below, as originally
+  written, claimed no Win32 API exposes pipe enumeration at all and required
+  a new `golang.org/x/sys/windows` dependency plus raw `NtQueryDirectoryFile`
+  handling. That claim was **wrong** — it was reasoned from Sysinternals'
+  `PipeList` documentation, not tested. Ticket #11 tested it directly: on a
+  real Windows 11 VM, as a genuinely standard, unelevated local user (token
+  carries `BUILTIN\Users`, no Administrators entry — `ADMIN=False`), a plain
+  Win32 `FindFirstFileW("\\.\pipe\*")`/`FindNextFileW` loop enumerated the
+  pipe namespace and returned 57 pipe names, terminating with
+  `GetLastError()=18` (`ERROR_NO_MORE_FILES`) — normal end of enumeration,
+  not an access failure. That is the API pair Go's `syscall.FindFirstFile`/
+  `FindNextFile` already wraps. **No new dependency, no cgo, no ntdll
+  import, and no NTSTATUS handling are required for pipe enumeration.** The
+  struck-through text immediately below is kept, not deleted, so the
+  original (incorrect) reasoning stays legible: it was inferred from
+  Sysinternals' Win32-API silence on the topic, without an unelevated
+  empirical test on that specific API pair, and that inference turned out to
+  be wrong. Full evidence: ticket #11's first comment. This correction
+  changes only this bullet — the finding-type split and the catalogue above
+  are unaffected.
+- ~~Windows named-pipe detection is genuinely new Go code, not a thin
   platform shim: no Win32 API exposes pipe enumeration at all (confirmed
   against Microsoft's own Sysinternals docs); the real mechanism is the
   native `NtQueryDirectoryFile`, reachable via a new
   `golang.org/x/sys/windows` dependency (not currently in `go.mod`) —
-  implementation work this ADR scopes but does not perform.
+  implementation work this ADR scopes but does not perform.~~ *(superseded,
+  see correction above)*
 - `pkg/tasks/baseline`'s mount enumerator (`mounted_volumes_detections`)
   was found, incidentally, not to surface a real gVisor bind mount even
   though the file behind it was reachable — a separate probe bug, tracked
@@ -174,9 +195,12 @@ the start, and now demonstrated directly by the contribution above.
   true for the 5 generic runtimes (retired from this comparison
   entirely, not fixed).
 - Full research backing lives on local branches, not yet merged:
-  `research/windows-named-pipe-enumeration`, `research/linux-dev-footprint`,
+  `research/windows-named-pipes`, `research/linux-dev-footprint`,
   `research/namespace-parity`, `research/windows-dev-machine-footprint`,
-  each with cited primary sources and raw command output.
+  each with cited primary sources and raw command output. The pipe
+  enumeration branch's central finding is **superseded** by the correction
+  above — the doc itself is kept as-is (not rewritten) with the branch
+  marked corrected, per ticket #50, rather than silently edited.
 - This closes the deferred "network/socket decoys" bullet in
   `docs/reporting-site-plan.md`'s "Track 2 — seeder" section — updated to
   point here rather than restate the plan.

@@ -98,10 +98,14 @@ absent." A `socket` decoy is a real Unix socket bound and closed at a catalogue
 path; nothing listens on it, because detection only stat()s. A `process` decoy
 is a live process the seeder started itself under a distinctive command name —
 never an adopted one — so the process scan has something of the host's to find.
+A `pipe` decoy is a Windows named pipe served under its real catalogue name by a
+probe process the seeder spawned; a pipe exists only while a server holds it
+open, so the server is the decoy, and a name a real service already serves is
+skipped rather than shadowed.
 
 ### Belt and suspenders
-The lifecycle of a decoy that has to stay alive during the scan (a `process`,
-and later a Windows `pipe`). The **belt** is a fixed self-timeout, comfortably
+The lifecycle of a decoy that has to stay alive during the scan (a `process` or
+a Windows `pipe`). The **belt** is a fixed self-timeout, comfortably
 longer than a scan, so the artifact dies on its own even if nothing cleans up
 after a crashed run. The **suspenders** are the cleanup pass, which is the
 normal path and never waits the timeout out.
@@ -112,8 +116,9 @@ removes exactly that and nothing else. Cleanup is idempotent and tolerates a
 record left by a crashed run: an artifact already gone, or one that is no longer
 the artifact that was planted, is left alone. For a live artifact the record
 carries an identity as well as a location — the process id and the command name
-it was seeded under — and no signal is sent unless the pid still holds that
-name, so a reused pid can never cost an unrelated process.
+it was seeded under, or for a pipe server the process id and its creation time —
+and nothing is signalled or terminated unless the pid still matches, so a reused
+pid can never cost an unrelated process.
 
 ### Sibling session
 An unrelated, concurrent agent session on the same host. The agent-ipc decoy is

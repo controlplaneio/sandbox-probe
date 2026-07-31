@@ -227,6 +227,7 @@ func listTargetsForHome(home, siblingSock string) []Target {
 		})
 	}
 	out = append(out, socketTargets(home, siblingSock)...)
+	out = append(out, pipeTargets()...)
 	return append(out, processTargets()...)
 }
 

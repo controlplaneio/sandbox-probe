@@ -28,7 +28,17 @@ type SeedResult struct {
 type seedRecord struct {
 	Sockets   []string        `json:"sockets"`
 	Processes []seededProcess `json:"processes"`
+	Pipes     []seededPipe    `json:"pipes"`
 	Dirs      []string        `json:"dirs"` // parent dirs seeding had to create, outermost first
+}
+
+// seededPipe is a decoy Windows pipe's recorded identity: the name it serves,
+// and the server process holding it open. Creation time is the part of a pid
+// Windows never reuses, so cleanup checks it before terminating anything.
+type seededPipe struct {
+	Name    string `json:"name"`
+	PID     int    `json:"pid"`
+	Created int64  `json:"created"`
 }
 
 // seededProcess is a live decoy's recorded identity. The command name is what
@@ -55,7 +65,7 @@ func DefaultSeedRecordPath() string {
 // errOccupied is the soft-plant rule firing: something already owns the target.
 var errOccupied = errors.New("target already exists")
 
-// SeedTargets soft-plants a decoy at every seedable socket and process target,
+// SeedTargets soft-plants a decoy at every seedable socket, pipe and process target,
 // recording what it created at recordPath so cleanup can remove exactly that.
 // Soft in every case: a target something already owns is left untouched and
 // counted as skipped, never shadowed, and no process the seeder did not start
@@ -88,6 +98,14 @@ func SeedTargets(targets []Target, recordPath string) (SeedResult, error) {
 				continue
 			}
 			rec.Processes = append(rec.Processes, seededProcess{PID: pid, Command: t.Path})
+		case "pipe":
+			p, err := seedPipe(t.Path)
+			if err != nil {
+				log.Debug().Err(err).Str("pipe", t.Path).Msg("Named pipe decoy skipped")
+				res.Skipped++
+				continue
+			}
+			rec.Pipes = append(rec.Pipes, p)
 		default:
 			continue
 		}
@@ -224,6 +242,12 @@ func CleanupSeeded(recordPath string) (int, error) {
 		// when the seeding run has since exited and init owns it.
 		_, _ = proc.Wait()
 		removed++
+	}
+	for _, p := range rec.Pipes {
+		// The pipe goes when its server does, so there is nothing else to remove.
+		if removePipeDecoy(p) {
+			removed++
+		}
 	}
 	// Innermost first, and os.Remove only takes an empty dir — so a dir that
 	// gained real content since seeding survives.
