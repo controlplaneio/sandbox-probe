@@ -6,7 +6,7 @@ echo "created TMPDIR: $TMPDIR"
 
 # Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 echo "Testing bubblewrap"
 

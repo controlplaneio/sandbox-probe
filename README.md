@@ -130,19 +130,34 @@ Then run the same binary inside an agent's sandbox and diff the two reports — 
 
 ## Testing an agent's sandbox
 
-The core pattern lives in the [`tests/`](./tests) directory: two parallel scripts per agent, one that runs the probe unconfined, one that runs it inside the agent's sandbox.
+The [`tests/`](./tests) directory splits along the same line as the rest of this repository: the
+probe's own sandbox-fingerprinting checks versus the checks that drive a real agent CLI.
+
+`tests/fingerprint/` — the probe's own end-to-end checks. Each asserts `sandbox_detection` for a
+minimal sandbox runtime and invokes only that runtime's launcher script (no agent CLI, no model
+stub, no node). This is what `make e2etests` runs, and it completes on a Go-toolchain-plus-runtimes
+host alone:
 
 ```
-tests/
+tests/fingerprint/
+├── detect_docker.sh                  # probe runs inside Docker
+├── detect_podman.sh                  # probe runs inside Podman
+└── detect_bwrap.sh                   # probe runs inside Bubblewrap
+```
+
+`tests/agent-driven/` — checks that drive a real agent CLI (or `nono`), two parallel scripts per
+agent: one that runs the probe unconfined, one that runs it inside the agent's sandbox. Run these
+with `make e2etests-agents`; each needs the corresponding CLI installed and skips or fails
+accordingly (see the scripts for which).
+
+```
+tests/agent-driven/
 ├── baseline_nono.sh                  # probe runs under a permissive nono policy
 ├── baseline_claude.sh                # probe runs unconfined; Claude Code is just the runner
 ├── baseline_gemini.sh                # ... same for Gemini
 ├── sandbox_nono.sh                   # probe runs under a restrictive nono policy
 ├── sandbox_claude.sh                 # Claude Code runs the probe inside its real sandbox
 ├── sandbox_gemini.sh                 # ... same for Gemini
-├── detect_docker.sh                  # probe runs inside Docker
-├── detect_podman.sh                  # probe runs inside Podman
-├── detect_bwrap.sh                   # probe runs inside Bubblewrap
 ├── detect_claude.sh                  # probe runs inside Claude Code's own sandbox (real binary, model stubbed — no LLM)
 ├── detect_codex.sh                   # ... same for Codex
 └── detect_gemini.sh                  # ... same for Gemini
@@ -151,8 +166,8 @@ tests/
 Reports land in `./reports/`. A typical diff workflow:
 
 ```bash
-./tests/baseline_claude.sh
-./tests/sandbox_claude.sh
+./tests/agent-driven/baseline_claude.sh
+./tests/agent-driven/sandbox_claude.sh
 
 diff <(jq -S . reports/baseline-claude.json) \
      <(jq -S . reports/sandbox-claude.json)
@@ -161,7 +176,7 @@ diff <(jq -S . reports/baseline-claude.json) \
 [`nono`](https://github.com/always-further/nono) plays two roles in this repo: it's a Landlock (Linux) / Seatbelt (macOS) wrapper that applies a sandbox policy to any binary, so we use it (a) as a *harness* to run the probe under a known policy and (b) as one of the *sandboxes whose enforcement we're characterising*. The two `nono` scripts demonstrate both modes.
 
 > [!IMPORTANT]
-> The `sandbox_claude.sh` and `sandbox_gemini.sh` scripts ask a real AI agent to execute the probe binary. Consider the risk that the agent could take other actions, especially on non-interactive/YOLO modes. Pure-sandbox runs (`sandbox_nono.sh`, `detect_docker.sh`, etc.) don't involve an agent and don't carry this risk.
+> The `sandbox_claude.sh` and `sandbox_gemini.sh` scripts ask a real AI agent to execute the probe binary. Consider the risk that the agent could take other actions, especially on non-interactive/YOLO modes. Pure-sandbox runs (`sandbox_nono.sh`, `tests/fingerprint/detect_docker.sh`, etc.) don't involve an agent and don't carry this risk.
 >
 > You can reduce the risk by using the interactive variants (`*_interactive.sh`), but the agent may still take autonomous action you don't expect.
 
@@ -282,8 +297,8 @@ The console output during a scan is structured logs; the same data is also writt
 
 The included test scripts target:
 
-- **[Claude Code](https://code.claude.com/docs/en/overview)** — see `tests/baseline_claude.sh`, `tests/sandbox_claude.sh` (which drive a real, billed agent), and `tests/detect_claude.sh` (the deterministic, no-LLM path described below)
-- **[Gemini CLI](https://geminicli.com/)** — see `tests/baseline_gemini.sh`, `tests/sandbox_gemini.sh` (and `*_interactive.sh` variants)
+- **[Claude Code](https://code.claude.com/docs/en/overview)** — see `tests/agent-driven/baseline_claude.sh`, `tests/agent-driven/sandbox_claude.sh` (which drive a real, billed agent), and `tests/agent-driven/detect_claude.sh` (the deterministic, no-LLM path described below)
+- **[Gemini CLI](https://geminicli.com/)** — see `tests/agent-driven/baseline_gemini.sh`, `tests/agent-driven/sandbox_gemini.sh` (and `*_interactive.sh` variants)
 
 ### Agent sandboxes with no LLM
 

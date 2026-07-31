@@ -22,7 +22,7 @@ if [ "$(uname -s)" = "Linux" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 [ -x bin/sandbox-probe ] || skip "bin/sandbox-probe not built (run: make build)"

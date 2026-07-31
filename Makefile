@@ -51,18 +51,32 @@ tests: ## Run all Go tests
 
 # Testing targets
 .PHONY: e2etests
-e2etests: ## Run end-to-end tests
+e2etests: ## Run the probe's own sandbox-fingerprint e2e tests (no agent CLI, no node required)
 	@echo "Building sandbox-probe binary..."
 	@mkdir -p bin
 	@go build -o bin/sandbox-probe .
-	@echo "Running e2e tests..."
-	@for test in tests/*.sh; do \
+	@echo "Running fingerprint e2e tests..."
+	@for test in tests/fingerprint/*.sh; do \
 		if [ -f "$$test" ]; then \
 			echo "Running $$test..."; \
 			bash "$$test" || exit 1; \
 		fi \
 	done
-	@echo "All e2e tests completed successfully!"
+	@echo "All fingerprint e2e tests completed successfully!"
+
+.PHONY: e2etests-agents
+e2etests-agents: ## Run the agent-driven fingerprint checks (requires the relevant agent CLI/node/nono)
+	@echo "Building sandbox-probe binary..."
+	@mkdir -p bin
+	@go build -o bin/sandbox-probe .
+	@echo "Running agent-driven e2e tests..."
+	@for test in tests/agent-driven/*.sh; do \
+		if [ -f "$$test" ]; then \
+			echo "Running $$test..."; \
+			bash "$$test" || exit 1; \
+		fi \
+	done
+	@echo "All agent-driven e2e tests completed successfully!"
 
 # Installation targets
 .PHONY: install-buf
