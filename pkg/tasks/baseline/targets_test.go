@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -37,6 +38,70 @@ func TestSeedableTargetsAreHomeFilesOnly(t *testing.T) {
 	}
 	if seedable == 0 {
 		t.Fatal("expected at least one seedable target")
+	}
+}
+
+// Every entry's kind comes from the fixed set, and every IPC entry (socket /
+// pipe / process) says what tool class it stands in for and how strong the
+// evidence for it is — so a catalogue addition cannot land with an invented
+// vocabulary, and the seeder can dispatch on kind.
+func TestTargetKindAndProvenanceVocabularies(t *testing.T) {
+	for _, tg := range listTargetsForHome("/home/tester") {
+		if !targetKinds[tg.Kind] {
+			t.Errorf("target %q has unrecognised kind %q", tg.Path, tg.Kind)
+		}
+		if tg.Category != "" && !targetCategories[tg.Category] {
+			t.Errorf("target %q has unrecognised category %q", tg.Path, tg.Category)
+		}
+		if tg.Evidence != "" && !evidenceTiers[tg.Evidence] {
+			t.Errorf("target %q has unrecognised evidence tier %q", tg.Path, tg.Evidence)
+		}
+		if tg.Kind == "file" || tg.Kind == "dir" {
+			continue // the probe's own check list, not a tool catalogue
+		}
+		if tg.Category == "" || tg.Evidence == "" {
+			t.Errorf("%s target %q must carry a category and an evidence tier (got %q / %q)",
+				tg.Kind, tg.Path, tg.Category, tg.Evidence)
+		}
+	}
+}
+
+// The listing is OS-scoped, so the seeder is never handed a Windows pipe on
+// Linux.
+func TestTargetsForOSOmitsOtherOperatingSystems(t *testing.T) {
+	all := []Target{
+		{Path: "/everywhere"},
+		{Path: `\\.\pipe\thing`, OS: []string{"windows"}},
+		{Path: "/run/thing.sock", OS: []string{"linux", "darwin"}},
+	}
+	want := map[string][]string{
+		"windows": {"/everywhere", `\\.\pipe\thing`},
+		"linux":   {"/everywhere", "/run/thing.sock"},
+		"darwin":  {"/everywhere", "/run/thing.sock"},
+	}
+	for goos, paths := range want {
+		got := []string{}
+		for _, tg := range targetsForOS(all, goos) {
+			got = append(got, tg.Path)
+		}
+		if !slices.Equal(got, paths) {
+			t.Errorf("targetsForOS(%s) = %v, want %v", goos, got, paths)
+		}
+	}
+}
+
+// The OS filter must not disturb what was already emitted: the sensitive-file
+// registry and its seedable flags stay identical on every operating system.
+func TestFileRegistryUnchangedOnEveryOS(t *testing.T) {
+	home := "/home/tester"
+	all := listTargetsForHome(home)
+	same := func(a, b Target) bool {
+		return a.Path == b.Path && a.Kind == b.Kind && a.Scope == b.Scope && a.Seedable == b.Seedable
+	}
+	for _, goos := range []string{"linux", "darwin", "windows"} {
+		if got := targetsForOS(all, goos); !slices.EqualFunc(got, all, same) {
+			t.Errorf("registry on %s has %d targets, want the full %d unchanged", goos, len(got), len(all))
+		}
 	}
 }
 

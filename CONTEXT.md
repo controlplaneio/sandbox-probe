@@ -66,7 +66,26 @@ version change in the harness or its supporting technology. The inverse
 ### Target registry
 The probe's own list of things it checks (sensitive paths, and later network /
 socket targets). The probe is the single source of truth and exposes it
-(`list-targets`) so the seeder cannot drift from what is actually probed.
+(`list-targets`) so the seeder cannot drift from what is actually probed. The
+listing is OS-scoped: a target applicable only to another operating system is
+not emitted, so the seeder never attempts a Windows pipe on Linux.
+
+### Kind
+*How* a target is seeded — one of `file`, `dir`, `socket`, `pipe`, `process`.
+The seeder dispatches on it.
+
+### Category
+*Why* an IPC target (`socket` / `pipe` / `process`) is on the list: the
+real-world tool class it stands in for — one of `container-runtime`,
+`credential-agent`, `editor-ipc`, `agent-ipc`, `chat-client`, `browser`,
+`password-manager`, `desktop-bus`. Filesystem targets carry none: they are the
+probe's own check list, not a tool catalogue.
+
+### Evidence
+How strongly an IPC target is attested — one of `empirical-own-machine`,
+`empirical-contributed` (names its source), `documented-not-verified`,
+`reasoned-by-analogy`. Keeps a reasoned-by-analogy path from passing as an
+observed one when the catalogue is extended by contribution.
 
 ### Seed / Decoy
 A harmless stand-in planted at a real canonical path (a fake `~/.aws/credentials`,
