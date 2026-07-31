@@ -10,10 +10,11 @@ type ProxyConfig struct {
 	PACURL     string
 }
 
-// EnvFinding represents a secret found in an environment variable
+// EnvFinding represents a secret found in an environment variable. The matched value is
+// deliberately absent: findings end up in a published report, so the secret material must never
+// leave the detector.
 type EnvFinding struct {
 	EnvKey      string
-	EnvValue    string
 	Description string
 }
 

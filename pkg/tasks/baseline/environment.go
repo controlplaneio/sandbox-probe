@@ -65,8 +65,8 @@ var readProcAttr = func(path string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// detectSensitiveEnvVars scans environment variables for secrets
-func detectSensitiveEnvVars() ([]models.EnvFinding, error) {
+// DetectSensitiveEnvVars scans environment variables for secrets
+func DetectSensitiveEnvVars() ([]models.EnvFinding, error) {
 	// TODO: Make it configurable
 	detector, err := detect.NewDetectorDefaultConfig()
 	if err != nil {
@@ -88,7 +88,6 @@ func detectSensitiveEnvVars() ([]models.EnvFinding, error) {
 		for _, f := range findings {
 			results = append(results, models.EnvFinding{
 				EnvKey:      key,
-				EnvValue:    value,
 				Description: f.Description,
 			})
 		}

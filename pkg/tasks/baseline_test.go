@@ -2,9 +2,12 @@ package tasks
 
 import (
 	"context"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 
+	reportv1 "github.com/controlplaneio/sandbox-probe/api/gen/proto/report/v1"
 	"github.com/controlplaneio/sandbox-probe/pkg/models"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -381,6 +384,56 @@ func TestProxyTaskRun(t *testing.T) {
 		if _, ok := structValue.Fields[field]; !ok {
 			t.Errorf("Missing expected field: %s", field)
 		}
+	}
+}
+
+// The env-secret task must emit an env_secret_detection finding naming a secret-shaped variable
+// while one is present, and nothing for that variable once it is gone — and the finding must never
+// carry the secret material itself.
+func TestEnvSecretTaskEmitsFindingOnlyWhenSecretPresent(t *testing.T) {
+	const key = "TEST_ENV_SECRET_TASK_TOKEN"
+	// gitleaks' Anthropic rule shape; not a real key.
+	secret := "sk-ant-api03-" + strings.Repeat("X", 93) + "AA"
+
+	findingFor := func() *reportv1.Finding {
+		findings, err := NewEnvSecretTask().Run(context.Background(), Inputs{})
+		if err != nil {
+			t.Fatalf("EnvSecretTask.Run returned error: %v", err)
+		}
+		for _, f := range findings {
+			if f.FindingType != ENVSECRETDETECTION {
+				t.Errorf("findingType = %q, want %q", f.FindingType, ENVSECRETDETECTION)
+				continue
+			}
+			m, ok := f.Value.AsInterface().(map[string]interface{})
+			if !ok {
+				t.Fatalf("value is %T, want map", f.Value.AsInterface())
+			}
+			if m["env_key"] == key {
+				return f
+			}
+		}
+		return nil
+	}
+
+	t.Setenv(key, secret)
+	f := findingFor()
+	if f == nil {
+		t.Fatalf("no %s finding for %s while the secret was set", ENVSECRETDETECTION, key)
+	}
+	m := f.Value.AsInterface().(map[string]interface{})
+	if d, _ := m["description"].(string); d == "" {
+		t.Error("finding does not say why the variable matched")
+	}
+	if strings.Contains(f.Value.String(), secret) {
+		t.Error("finding carries the secret material")
+	}
+
+	if err := os.Unsetenv(key); err != nil {
+		t.Fatalf("failed to unset %s: %v", key, err)
+	}
+	if f := findingFor(); f != nil {
+		t.Errorf("%s finding emitted for %s with no secret present", ENVSECRETDETECTION, key)
 	}
 }
 

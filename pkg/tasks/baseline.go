@@ -535,6 +535,56 @@ func (t *EnvironmentTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Findi
 	}, nil
 }
 
+// EnvSecretTask produces: ENVSECRETDETECTION
+type EnvSecretTask struct {
+	baseTask
+}
+
+func NewEnvSecretTask() *EnvSecretTask {
+	return &EnvSecretTask{
+		baseTask: baseTask{
+			name:        fmt.Sprintf("%s_env_secrets", TaskPrefix),
+			description: "Detects secret-shaped values in the run's own environment variables",
+		},
+	}
+}
+
+func (t *EnvSecretTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, error) {
+	log.Info().Str("task", t.GetName()).Msg("Starting environment secret detection task")
+
+	envFindings, err := baselineTasks.DetectSensitiveEnvVars()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to scan environment for secrets")
+		return nil, err
+	}
+
+	log.Info().Int("secret_count", len(envFindings)).Msg("Environment secret scan completed")
+
+	// One finding per secret-shaped variable, so a clean environment emits nothing at all rather
+	// than an empty list. The matched value is never carried — only the variable name and why it
+	// matched — because findings end up in a published report.
+	var findings []*reportv1.Finding
+	for _, ef := range envFindings {
+		envValue, err := structpb.NewValue(map[string]interface{}{
+			"env_key":     ef.EnvKey,
+			"description": ef.Description,
+		})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to convert environment secret to protobuf value")
+			return nil, err
+		}
+		findings = append(findings, &reportv1.Finding{
+			FindingType: ENVSECRETDETECTION,
+			Task:        t.GetName(),
+			Description: "Secret-shaped environment variable",
+			Value:       envValue,
+		})
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("Environment secret detection task completed successfully")
+	return findings, nil
+}
+
 // SandboxTask produces: SANDBOXDETECTION
 type SandboxTask struct {
 	baseTask
@@ -699,6 +749,7 @@ func GetBaselineTasks() []Task {
 		NewUserContextTask(), // USERCONTEXTDETECTION
 		NewHostnameTask(),    // HOSTNAMEDETECTION
 		NewEnvironmentTask(), // ENVIRONMENTDETECTION
+		NewEnvSecretTask(),   // ENVSECRETDETECTION
 		NewSandboxTask(),     // SANDBOXDETECTION
 		NewMountTask(),       // MOUNTEDVOLUMESDETECTION
 	}
