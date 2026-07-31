@@ -222,6 +222,20 @@ make fmt              # format Go code
 cd api && buf generate     # regenerate Protocol Buffers
 ```
 
+One check is **gated** and nothing runs it for you — not `go test ./...`, not `make e2etests`, not a push or
+a pull request. It needs root and a gVisor installation, so a contribution from a machine without either is
+unaffected:
+
+```bash
+make e2etest-gvisor-bind  # probe under real gVisor; fails unless a known bind mount is in the mount finding
+```
+
+It exists because the mount-table fixtures under `pkg/tasks/baseline/testdata/mountinfo/` are pinned captures
+that can drift from what the kernel reports; this run reads the real thing. Run it after touching the mount
+enumerator, and via the [`gvisor-bind-mount`](../.github/workflows/gvisor-bind-mount.yaml) workflow
+(`workflow_dispatch`) otherwise. `tests/gated/gvisor_bind_mount.sh` documents how to run it inside a
+privileged container when the host cannot run `runsc` directly.
+
 ##### Known Working Tooling Versions
 
 The agent CLIs and sandbox runtimes change quickly and their interfaces (and system prompts) aren't always stable. CI
