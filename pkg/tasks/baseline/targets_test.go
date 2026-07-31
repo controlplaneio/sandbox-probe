@@ -180,7 +180,7 @@ func TestEverySeedableTargetIsScanned(t *testing.T) {
 	}
 	roots := socketRootsForHome(home)
 
-	sockets, processes := 0, 0
+	sockets, pipes, processes := 0, 0, 0
 	for _, tg := range listTargetsForHome(home, "/private/tmp/cc-daemon-1/decoy/control.sock") {
 		if !tg.Seedable {
 			continue
@@ -194,6 +194,17 @@ func TestEverySeedableTargetIsScanned(t *testing.T) {
 			sockets++
 			if !underAnyRoot(tg.Path, roots) {
 				t.Errorf("seedable socket target %q is under none of the scanned socket roots %v", tg.Path, roots)
+			}
+		case "pipe":
+			pipes++
+			// The pipe scan is one flat listing of the whole namespace, so the
+			// coupling is the name's form: a decoy served under anything the
+			// enumeration does not return in that shape could never be found again.
+			if !strings.HasPrefix(tg.Path, pipePrefix) || tg.Path == pipePrefix {
+				t.Errorf("seedable pipe target %q is not a full %s<name> path, so the pipe scan cannot report it", tg.Path, pipePrefix)
+			}
+			if !slices.Equal(tg.OS, []string{"windows"}) {
+				t.Errorf("pipe target %q is emitted on %v, where there is no pipe namespace", tg.Path, tg.OS)
 			}
 		case "process":
 			processes++
@@ -214,6 +225,9 @@ func TestEverySeedableTargetIsScanned(t *testing.T) {
 	if sockets == 0 {
 		t.Fatal("expected at least one seedable socket target")
 	}
+	if pipes == 0 {
+		t.Fatal("expected at least one seedable pipe target")
+	}
 	if processes == 0 {
 		t.Fatal("expected at least one seedable process target")
 	}
@@ -229,6 +243,33 @@ func underAnyRoot(path string, roots []string) bool {
 		}
 	}
 	return false
+}
+
+// The Windows pipe catalogue is the registry's, not the seeder's: without these
+// entries a Windows scan has nothing of the host's to find and the IPC column
+// stays n/a on every Windows row.
+func TestWindowsPipeCatalogueIsRegistered(t *testing.T) {
+	want := map[string]string{
+		`\\.\pipe\openssh-ssh-agent`: "credential-agent",
+		`\\.\pipe\docker_engine`:     "container-runtime",
+	}
+	got := map[string]Target{}
+	for _, tg := range targetsForOS(listTargetsForHome("/home/tester", ""), "windows") {
+		if tg.Kind == "pipe" {
+			got[tg.Path] = tg
+		}
+	}
+	for path, category := range want {
+		tg, ok := got[path]
+		if !ok {
+			t.Errorf("no pipe catalogue entry for %q", path)
+			continue
+		}
+		if !tg.Seedable || tg.Category != category || tg.Evidence == "" {
+			t.Errorf("pipe entry %q = seedable %v category %q evidence %q, want a seedable %s entry with an evidence tier",
+				path, tg.Seedable, tg.Category, tg.Evidence, category)
+		}
+	}
 }
 
 // The catalogue carries a sibling session's daemon socket, so cross-instance

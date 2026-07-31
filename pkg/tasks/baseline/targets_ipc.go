@@ -16,6 +16,13 @@ import (
 // name, rather than a cryptic bind() failure at seeding time.
 const maxUnixSocketPathLen = 104
 
+// pipePrefix is the Win32 path of the named-pipe object namespace. The
+// namespace is machine-global (unlike \Sessions\<n>\BaseNamedObjects), so what
+// a scan sees does not depend on the session it runs in. Defined here rather
+// than beside the enumerator because the catalogue is cross-platform: the
+// registry names Windows targets on every OS and lets the OS filter drop them.
+const pipePrefix = `\\.\pipe\`
+
 // decoyTag marks a seeded socket whose real-world counterpart is named per
 // instance (a random VS Code IPC uuid, a launchd Listeners dir, an ssh-agent
 // pid). The catalogue keeps the observed shape and puts this where the random
@@ -84,6 +91,38 @@ func socketTargets(home, siblingSock string) []Target {
 		}
 	}
 	return out
+}
+
+// pipeDecoy builds a Windows named-pipe catalogue entry. Unlike a socket, a
+// pipe only exists while a server holds it open, so its decoy is a live
+// artifact on the belt-and-suspenders lifecycle — and unlike a process decoy it
+// carries no decoyTag: the name is the whole point (nothing finds
+// `docker_engine-sandbox-probe-decoy`), so cleanup identifies the server by the
+// pid it spawned and that pid's creation time instead.
+func pipeDecoy(name, category, evidence string) Target {
+	return Target{
+		Path:     pipePrefix + name,
+		Kind:     "pipe",
+		Scope:    "system", // the pipe namespace is machine-global, not per-user
+		Seedable: true,
+		Category: category,
+		Evidence: evidence,
+		OS:       []string{"windows"},
+	}
+}
+
+// pipeTargets is the v1 Windows named-pipe catalogue from ADR 0002. Both names
+// are the real ones — a pipe decoy under an invented name would stand in for
+// nothing — so the soft-plant rule carries the safety here: a name a real
+// service already serves is skipped, never shadowed.
+func pipeTargets() []Target {
+	return []Target{
+		// OpenSSH ships with Windows 11; starting the service is what creates this.
+		pipeDecoy("openssh-ssh-agent", "credential-agent", "empirical-own-machine"),
+		// Docker Desktop's engine pipe. Documented, not observed: its installer is
+		// GUI-bound and cannot be automated in the Session 0 research VM.
+		pipeDecoy("docker_engine", "container-runtime", "documented-not-verified"),
+	}
 }
 
 // procDecoy builds a process catalogue entry. A process target's Path is the
