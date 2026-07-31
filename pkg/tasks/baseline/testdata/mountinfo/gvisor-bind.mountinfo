@@ -1,0 +1,7 @@
+16 15 0:18 / / ro - 9p none ro,trans=fd,rfdno=3,wfdno=3,aname=/,dfltuid=4294967294,dfltgid=4294967294,dcache=1000,cache=fscache,disable_fifo_open,overlayfs_stale_read,directfs
+18 16 0:19 / /dev rw - dev none rw,mode=0755
+19 16 0:20 / /sys ro,noexec,nosuid - sysfs none ro,dentry_cache_limit=1000
+20 16 0:21 / /proc rw - proc none rw,dentry_cache_limit=1000
+21 18 0:22 / /dev/pts rw - devpts none rw
+22 16 0:23 / /hostbind ro - 9p none ro,trans=fd,rfdno=4,wfdno=4,aname=/,dfltuid=4294967294,dfltgid=4294967294,dcache=1000,cache=remote_revalidating,disable_fifo_open,directfs
+23 16 0:24 / /tmp rw - tmpfs none rw,mode=01777

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/controlplaneio/sandbox-probe/pkg/models"
@@ -20,6 +21,10 @@ type Mount struct {
 	Source string
 	Target string
 	FSType string
+	// Root is the subtree of the source filesystem this mount exposes. A root of "/" means the
+	// whole filesystem; anything deeper names the specific host path a bind mount shares in — the
+	// evidence that tells a sandbox's own root filesystem apart from a bind of a host subtree.
+	Root string
 }
 
 const (
@@ -411,25 +416,27 @@ func readProcSelfStatus() (map[string]string, error) {
 	return result, nil
 }
 
-func GetHostMounts() ([]Mount, error) {
-	fs, err := procfs.NewFS("/proc")
-	if err != nil {
-		return []Mount{}, err
-	}
+// procMountInfo is the kernel's mount table. Read through readFile, like the runtime-detection
+// chain, so the enumerator can be driven from a captured mount table instead of the host's own.
+const procMountInfo = "/proc/self/mountinfo"
 
-	mounts, err := fs.GetMounts()
+func GetHostMounts() ([]Mount, error) {
+	// An unreadable mount table is a restricted environment, not a failure: report nothing rather
+	// than raise a finding about the probe's own confinement.
+	data, err := readFile(procMountInfo)
 	if err != nil {
-		return []Mount{}, err
+		return []Mount{}, nil
 	}
 
 	var res []Mount
 
-	for _, m := range mounts {
-		if isLikelyHostMount(m) {
+	for _, m := range parseMountInfo(data) {
+		if !isKernelPseudoFilesystem(m.FSType) {
 			res = append(res, Mount{
 				Source: m.Source,
 				Target: m.MountPoint,
 				FSType: m.FSType,
+				Root:   m.Root,
 			})
 		}
 	}
@@ -437,19 +444,50 @@ func GetHostMounts() ([]Mount, error) {
 	return res, nil
 }
 
-func isLikelyHostMount(m *procfs.MountInfo) bool {
-	// Ignore virtual/container-internal filesystems
-	switch m.FSType {
-	case "overlay", "tmpfs", "proc", "sysfs", "cgroup", "cgroup2", "devpts":
-		return false
+// parseMountInfo parses /proc/self/mountinfo. Each line is fixed up to the mount options, then a
+// variable-length list of optional fields terminated by "-", after which come the filesystem type,
+// the source and the super options. Lines that do not carry that separator are skipped.
+func parseMountInfo(data []byte) []*procfs.MountInfo {
+	var res []*procfs.MountInfo
+
+	for _, line := range strings.Split(string(data), "\n") {
+		f := strings.Fields(line)
+		sep := slices.Index(f, "-")
+		if sep < 6 || len(f) < sep+3 {
+			continue
+		}
+		res = append(res, &procfs.MountInfo{
+			Root:       f[3],
+			MountPoint: f[4],
+			FSType:     f[sep+1],
+			Source:     f[sep+2],
+		})
 	}
 
-	// Heuristics for host/VM-mounted paths
-	if strings.HasPrefix(m.Source, "/") {
+	return res
+}
+
+// isKernelPseudoFilesystem reports whether fstype is one of the kernel's own virtual filesystems:
+// interfaces the kernel synthesises, which by construction cannot expose content from another
+// filesystem. Everything else is reported.
+//
+// The filter excludes rather than includes because the two lists behave differently as runtimes
+// are added. An inclusion list has to recognise how each new runtime spells a shared filesystem —
+// the previous one kept a mount only if its source began with a slash, which is why gVisor's
+// binds, whose source is always "none", were reported as absent. An exclusion list of
+// pseudo-filesystems is finite, named by the kernel and stable, so an unrecognised runtime
+// produces a noisy report rather than a silent pass. No decision here looks at a mount's source.
+//
+// Before adding an entry: the filesystem type must be a kernel interface that can never carry
+// content from another filesystem, whatever the runtime that mounted it. Being usually a
+// sandbox's own storage is not enough — overlay and tmpfs are both commonly that and are both
+// reported, because "usually" is a guess about intent rather than a fact about the mount, and a
+// missed mount is invisible where a spurious one is merely noise.
+func isKernelPseudoFilesystem(fstype string) bool {
+	switch fstype {
+	case "proc", "sysfs", "cgroup", "cgroup2", "devpts", "mqueue",
+		"debugfs", "tracefs", "securityfs", "bpf", "configfs", "nsfs", "pipefs":
 		return true
-	}
-	if strings.Contains(m.FSType, "fuse") {
-		return true // macOS Docker Desktop mounts
 	}
 
 	return false
