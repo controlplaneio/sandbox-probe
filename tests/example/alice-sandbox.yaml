@@ -9,14 +9,20 @@
 #     --output_path /tmp/sandbox-probe-report.json
 #
 # Schema:
-#   identity       — who this config is for (informational + used for path inference)
+#   identity       — who this config is for (informational only)
 #   custom_paths   — the boundary declarations
-#     must_block   — paths that MUST be denied (readdir + open). FAIL if readable.
+#     must_block   — paths whose readdir, open, and write operations MUST be denied.
 #     must_read    — paths that MUST be readable (readdir OK). FAIL if denied.
-#     must_readwrite — paths that MUST be fully accessible. FAIL if denied.
+#     must_readwrite — paths that MUST permit directory reading and writing.
 #     audit        — paths to probe and report on with no pass/fail expectation.
 #
-# severity levels: critical (abort on failure), error (fail scan), warn (log only)
+# severity levels: critical and error fail the completed scan after its report
+# is written; warn records a finding without failing the scan.
+#
+# check_ops replaces a category's default operations for that entry.
+# check_files is available only on must_block and accepts simple file names.
+# stat_may_fail permits an absent must_read or must_readwrite path.
+# Paths must be absolute POSIX, Windows drive, or Windows UNC paths.
 
 identity:
   sandbox_user: alice       # The AI agent's unix user
@@ -27,8 +33,8 @@ identity:
 custom_paths:
 
   # ─────────────────────────────────────────────────────────────────────────
-  # MUST BLOCK — content MUST be inaccessible (readdir=DENIED, open=DENIED)
-  # stat() returning true is expected and acceptable (VFS path existence leak).
+  # MUST BLOCK — readdir, open, and write must be denied.
+  # stat() visibility is recorded but does not violate this expectation.
   # ─────────────────────────────────────────────────────────────────────────
   must_block:
 
@@ -89,7 +95,7 @@ custom_paths:
       reason: "Shared libraries — required for dynamic linking"
 
   # ─────────────────────────────────────────────────────────────────────────
-  # MUST READWRITE — the AI agent's active working area
+  # MUST READWRITE — paths must permit directory reading and writing
   # ─────────────────────────────────────────────────────────────────────────
   must_readwrite:
 
