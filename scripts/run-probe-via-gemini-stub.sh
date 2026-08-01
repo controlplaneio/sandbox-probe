@@ -12,6 +12,7 @@
 # Optional env: GEMINI_SANDBOX (''|sandbox-exec|docker|podman), RUNNER, PORT, MODEL,
 #               SCAN_ARGS (default "scan --tasksets baseline").
 set -eo pipefail
+# shellcheck disable=SC1091 # dynamic script-relative shared helper path.
 source "$(dirname "$0")/stub-common.sh"
 
 PORT="${PORT:-8788}"
@@ -40,17 +41,25 @@ if [ "${GEMINI_SANDBOX:-}" = "docker" ] && command -v docker >/dev/null 2>&1; th
   DOCKER_VERSION="$(docker --version 2>/dev/null | awk 'NR==1{gsub(/,/,"",$3); print $3}')" || DOCKER_VERSION=""
   [ -n "$DOCKER_VERSION" ] && SANDBOX_TOOL_TAG=",docker=${DOCKER_VERSION}"
 fi
+# shellcheck disable=SC2034 # stub_start_mock consumes this contract variable.
 TAGS="runner=${RUNNER},harness=gemini,sandbox=${GEMINI_SANDBOX:-none},gemini=${VERSION}${SANDBOX_TOOL_TAG},mode=via-gemini-stub"
 
 # Bind/reach the mock differently for the container sandbox (whole CLI runs inside it).
 MOCK_HOST=127.0.0.1; BASE_HOST=localhost; SANDBOX_FLAG=()
 case "$GEMINI_SANDBOX" in
   docker|podman)
+    # shellcheck disable=SC2034 # stub_start_mock consumes this contract variable.
     MOCK_HOST=0.0.0.0; BASE_HOST=host.docker.internal; SANDBOX_FLAG=(--sandbox)
     export GEMINI_SANDBOX
     # The whole CLI re-execs inside the container: route the mock via host.docker.internal, and pass
     # through the key/base-URL + workspace trust so the mounted .gemini/settings.json auth is honoured.
     export SANDBOX_FLAGS="--add-host host.docker.internal:host-gateway --entrypoint \"\" -e GEMINI_CLI_TRUST_WORKSPACE=true -e GEMINI_API_KEY=dummy -e GOOGLE_GEMINI_BASE_URL=http://host.docker.internal:${PORT}"
+    if [ "$(uname -s)" = "Linux" ]; then
+      # Gemini CLI 0.40 rejects non-localhost HTTP base URLs before it launches
+      # Docker. Host networking retains mock reachability while using localhost.
+      BASE_HOST=localhost
+      export SANDBOX_FLAGS="--network host --entrypoint \"\" -e GEMINI_CLI_TRUST_WORKSPACE=true -e GEMINI_API_KEY=dummy -e GOOGLE_GEMINI_BASE_URL=http://localhost:${PORT}"
+    fi
     ;;
   sandbox-exec)
     SANDBOX_FLAG=(--sandbox); export GEMINI_SANDBOX ;;

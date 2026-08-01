@@ -1,14 +1,14 @@
 #!/bin/sh
 
-mkdir -p $HOME/.sandbox-probe/tmp
-TMPDIR=$(mktemp -d -p $HOME/.sandbox-probe/tmp)
+mkdir -p "$HOME/.sandbox-probe/tmp"
+TMPDIR=$(mktemp -d -p "$HOME/.sandbox-probe/tmp")
 echo "created TMPDIR: $TMPDIR"
 
 echo "Testing sandbox mode (normal usage) with Nono"
 
-cp ./bin/sandbox-probe $TMPDIR
+cp ./bin/sandbox-probe "$TMPDIR"
 OLDDIR="$PWD"
-cd "$TMPDIR"
+cd "$TMPDIR" || exit
 
 # file needs to exist before nono allows access
 touch report.json
@@ -24,14 +24,14 @@ nono run --silent --allow-cwd --allow-file ./report.json ./sandbox-probe scan
 
 # Display the report
 if [ -f "$TMPDIR/report.json" ]; then
-    echo "\n=== Report Generated ==="
-    jq '.' $TMPDIR/report.json
+    printf '\n=== Report Generated ===\n'
+    jq '.' "$TMPDIR/report.json"
 else
     echo "ERROR: report.json not found"
     exit 1
 fi
 
-cd "$OLDDIR"
+cd "$OLDDIR" || exit
 
 mkdir -p ./reports
-cp $TMPDIR/report.json ./reports/sandbox-nono.json
+cp "$TMPDIR/report.json" ./reports/sandbox-nono.json

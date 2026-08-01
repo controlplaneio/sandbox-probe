@@ -18,6 +18,7 @@ set -eo pipefail
 : "${RUNTIME:?RUNTIME (srt|firejail|nono|podman|docker|bwrap|nspawn|gvisor) is required}"
 RUNNER="${RUNNER:-$(uname -s)}"
 SCAN_ARGS="${SCAN_ARGS:-scan --tasksets baseline}"
+read -r -a SCAN_ARGV <<< "$SCAN_ARGS"
 
 mkdir -p "$(dirname "$OUT")"
 PROBE_ABS="$(cd "$(dirname "$PROBE")" && pwd)/$(basename "$PROBE")"
@@ -41,7 +42,7 @@ sandbox_version() {
 }
 RUNTIME_VERSION="$(sandbox_version "$RUNTIME")" || RUNTIME_VERSION=""
 TAGS="runner=${RUNNER},harness=${RUNTIME},${RUNTIME}=${RUNTIME_VERSION:-unknown},sandbox=on,mode=via-sandbox"
-CMD=("$PROBE_ABS" $SCAN_ARGS --tags "$TAGS" --output_path "$OUT_ABS")
+CMD=("$PROBE_ABS" "${SCAN_ARGV[@]}" --tags "$TAGS" --output_path "$OUT_ABS")
 
 # The container runtimes mount $PWD at /work and strip the $PWD prefix from the probe/report paths;
 # that only holds when both live under $PWD. Fail clearly otherwise (instead of a cryptic broken
@@ -73,13 +74,13 @@ JSON
     # the report lands back on the host. PROBE/OUT must be under $PWD (mounted at /work).
     require_under_pwd "$PROBE_ABS" PROBE; require_under_pwd "$OUT_ABS" OUT
     podman run --rm --network=none -v "$PWD:/work" -w /work docker.io/library/ubuntu:latest \
-      "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" </dev/null || true
+      "/work/${PROBE_ABS#"$PWD"/}" "${SCAN_ARGV[@]}" --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" </dev/null || true
     ;;
   docker)
     # Same as podman but the Docker daemon; the probe fingerprints it as "docker".
     require_under_pwd "$PROBE_ABS" PROBE; require_under_pwd "$OUT_ABS" OUT
     docker run --rm --network=none -v "$PWD:/work" -w /work ubuntu:latest \
-      "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" </dev/null || true
+      "/work/${PROBE_ABS#"$PWD"/}" "${SCAN_ARGV[@]}" --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" </dev/null || true
     ;;
   bwrap)
     # Standalone bubblewrap with bwrap left visible as the parent — the invocation the probe DOES
@@ -89,7 +90,7 @@ JSON
     bwrap --ro-bind /usr /usr --ro-bind /bin /bin --ro-bind-try /sbin /sbin \
       --ro-bind /lib /lib --ro-bind-try /lib64 /lib64 --ro-bind /etc /etc --proc /proc --dev /dev \
       --bind "$PWD" /work --chdir /work --unshare-user --unshare-ipc --unshare-uts --unshare-cgroup --die-with-parent \
-      "/work/${PROBE_ABS#"$PWD"/}" $SCAN_ARGS --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" || true
+      "/work/${PROBE_ABS#"$PWD"/}" "${SCAN_ARGV[@]}" --tags "$TAGS" --output_path "/work/${OUT_ABS#"$PWD"/}" || true
     ;;
   nspawn)
     # ROOTFS is a prepared root filesystem (built by the workflow); copy the probe in and bind the
@@ -97,7 +98,7 @@ JSON
     : "${ROOTFS:?ROOTFS (prepared rootfs dir) is required for nspawn}"
     sudo cp "$PROBE_ABS" "$ROOTFS/probe"
     sudo systemd-nspawn -q -D "$ROOTFS" --bind="$(dirname "$OUT_ABS")" \
-      /probe $SCAN_ARGS --tags "$TAGS" --output_path "$OUT_ABS" </dev/null || true
+      /probe "${SCAN_ARGV[@]}" --tags "$TAGS" --output_path "$OUT_ABS" </dev/null || true
     ;;
   gvisor)
     # Full runsc container (systrap platform — no KVM needed) so /__runsc_containers__ exists ->
@@ -108,7 +109,7 @@ JSON
     OUTDIR="$(dirname "$OUT_ABS")"
     BUNDLE="$(mktemp -d)"
     ( cd "$BUNDLE" && runsc spec )
-    ARGS_JSON="$(printf '%s\n' /probe $SCAN_ARGS --tags "$TAGS" --output_path "$OUT_ABS" | jq -R . | jq -s .)"
+    ARGS_JSON="$(printf '%s\n' /probe "${SCAN_ARGV[@]}" --tags "$TAGS" --output_path "$OUT_ABS" | jq -R . | jq -s .)"
     TMPCFG="$(mktemp)"
     jq --arg root "$ROOTFS" --arg out "$OUTDIR" --argjson args "$ARGS_JSON" \
       '.root.path=$root | .process.args=$args | .process.terminal=false

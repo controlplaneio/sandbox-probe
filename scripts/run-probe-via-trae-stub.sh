@@ -14,6 +14,7 @@
 # Optional env: RUNNER, PORT, SCAN_ARGS, TRAE_DOCKER (off|on), TRAE_SRC (trae-agent checkout dir),
 #               TRAE_CLI (trae-cli path), TRAE_DOCKER_IMAGE (default ubuntu:latest).
 set -eo pipefail
+# shellcheck disable=SC1091 # shellcheck cannot follow the dynamic script-relative source path.
 source "$(dirname "$0")/stub-common.sh"
 
 PORT="${PORT:-8794}"
@@ -27,7 +28,12 @@ stub_init
 PROBE_ABS="$(cd "$(dirname "$PROBE")" && pwd)/$(basename "$PROBE")"
 OUT_ABS="$(cd "$(dirname "$OUT")" && pwd)/$(basename "$OUT")"
 # trae-cli's own venv bin on PATH so pyinstaller (docker mode) resolves.
-case "$TRAE_CLI" in */*) export PATH="$(cd "$(dirname "$TRAE_CLI")" && pwd):$PATH" ;; esac
+case "$TRAE_CLI" in
+  */*)
+    trae_bin_dir="$(cd "$(dirname "$TRAE_CLI")" && pwd)"
+    export PATH="$trae_bin_dir:$PATH"
+    ;;
+esac
 
 HARNESS=trae; [ "$TRAE_DOCKER" = "on" ] && HARNESS=trae-docker
 TAGS="runner=${RUNNER},harness=${HARNESS},trae=$(stub_semver "$TRAE_CLI" --version),mode=via-trae-stub"
@@ -42,6 +48,7 @@ if [ "$TRAE_DOCKER" = "on" ]; then
   PROBE_CMD="/workspace/probe ${SCAN_ARGS} --tags ${TAGS} --output_path /workspace/report.json"
   DOCKER_FLAGS=(--docker-image "$TRAE_DOCKER_IMAGE")
 else
+  # shellcheck disable=SC2034 # stub_start_mock consumes this contract variable.
   PROBE_CMD="${PROBE_ABS} ${SCAN_ARGS} --tags ${TAGS} --output_path ${OUT_ABS}"
   DOCKER_FLAGS=()
 fi

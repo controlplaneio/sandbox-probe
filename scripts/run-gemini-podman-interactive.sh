@@ -1,10 +1,15 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
+set -euo pipefail
 
+# shellcheck disable=SC1091 # dynamic script-relative helper path.
+source "$(dirname "$0")/runner-common.sh"
+validate_runner_inputs "$@" || exit $?
+PROBE=$1
+OUTDIR=$2
 
-cp $1 $2/sandbox-probe
-
-cd $2
+cp "$PROBE" "$OUTDIR/sandbox-probe"
+cd "$OUTDIR" || exit
 
 VERSION=$(gemini --version)
 
