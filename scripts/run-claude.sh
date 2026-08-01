@@ -1,12 +1,16 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
-# TODO: narrow down to just be able to run the executable
+set -euo pipefail
 
+# shellcheck disable=SC1091 # dynamic script-relative helper path.
+source "$(dirname "$0")/runner-common.sh"
+validate_runner_inputs "$@" || exit $?
+PROBE=$1
+OUTDIR=$2
 
-cp $1 $2
-
-cd $2
+cp "$PROBE" "$OUTDIR"
+cd "$OUTDIR" || exit
 
 VERSION=$(claude --version)
 
-claude --allowedTools "Bash" -p "Execute !$1 scan --tags version=${VERSION},tool=claude" 
+claude --allowedTools "Bash" -p "Execute !./$(basename "$PROBE") scan --tags version=${VERSION},tool=claude"

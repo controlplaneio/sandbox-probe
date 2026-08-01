@@ -264,8 +264,15 @@ func TestPathConstants(t *testing.T) {
 		minCount int
 	}{
 		{
-			name:     "SensitiveReadPaths",
-			paths:    func() []string { ps := buildSensitivePaths(); out := make([]string, len(ps)); for i, p := range ps { out[i] = p.path }; return out }(),
+			name: "SensitiveReadPaths",
+			paths: func() []string {
+				ps := buildSensitivePaths()
+				out := make([]string, len(ps))
+				for i, p := range ps {
+					out[i] = p.path
+				}
+				return out
+			}(),
 			minCount: 10,
 		},
 		{

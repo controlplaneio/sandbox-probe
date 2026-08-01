@@ -37,9 +37,11 @@ jobs:
           HASH_CLEAN=$(echo "$HASH" | cut -d: -f 2)
           TAG=$(echo "$hash_tag" | cut -d',' -f2)
 
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "hash=$HASH" >> "$GITHUB_OUTPUT"
-          echo "hash_clean=$HASH_CLEAN" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag=$TAG"
+            echo "hash=$HASH"
+            echo "hash_clean=$HASH_CLEAN"
+          } >> "$GITHUB_OUTPUT"
           echo -e "Outputs\nTAG: $TAG\nHASH: $HASH\HASH_CLEAN: $HASH_CLEAN"
 
       #  not storing reports in GH right now

@@ -1,12 +1,19 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
-# TODO: narrow down to just be able to run the executable
+set -euo pipefail
 
-cp $1 $2
+# shellcheck disable=SC1091 # dynamic script-relative helper path.
+source "$(dirname "$0")/runner-common.sh"
+validate_runner_inputs "$@" || exit $?
+PROBE=$1
+OUTDIR=$2
 
-cd $2
+cp "$PROBE" "$OUTDIR"
 
-BINARY_NAME=$(echo $1 | awk -F '/' '{print $NF}')
+cd "$OUTDIR" || exit
+
+BINARY_NAME=$(basename "$PROBE")
+WORKDIR=$(pwd)
 
 bwrap \
   --ro-bind /proc /proc \
@@ -16,7 +23,7 @@ bwrap \
   --ro-bind /bin /bin \
   --ro-bind /sbin /sbin \
   --ro-bind /etc /etc \
-  --bind $(pwd) /data \
+  --bind "$WORKDIR" /data \
   --bind /tmp /tmp \
   --chdir /data \
   --unshare-user \
@@ -25,4 +32,4 @@ bwrap \
   --unshare-cgroup \
   --share-net \
   --die-with-parent \
-  /data/${BINARY_NAME} scan --tasks baseline_sandbox_task --tasksets none
+  "/data/${BINARY_NAME}" scan --tasks baseline_sandbox_task --tasksets none

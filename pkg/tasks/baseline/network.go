@@ -2,11 +2,11 @@ package tasks
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -72,7 +72,7 @@ func ScanTCP(host string) []int {
 		go func() {
 			defer wg.Done()
 			for port := range ports {
-				address := fmt.Sprintf("%s:%d", host, port)
+				address := networkAddress(host, port)
 				conn, err := net.DialTimeout("tcp", address, timeout)
 				if err == nil {
 					results <- port
@@ -121,7 +121,7 @@ func ScanUDP(host string) []int {
 		go func() {
 			defer wg.Done()
 			for port := range ports {
-				address := fmt.Sprintf("%s:%d", host, port)
+				address := networkAddress(host, port)
 
 				conn, err := net.DialTimeout("udp", address, timeout)
 				if err != nil {
@@ -162,6 +162,10 @@ func ScanUDP(host string) []int {
 	}
 
 	return openPorts
+}
+
+func networkAddress(host string, port int) string {
+	return net.JoinHostPort(host, strconv.Itoa(port))
 }
 
 func netErrTimeout(err error) bool {

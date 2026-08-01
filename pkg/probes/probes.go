@@ -3,6 +3,7 @@ package probes
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	reportv1 "github.com/controlplaneio/sandbox-probe/api/gen/proto/report/v1"
 	"github.com/controlplaneio/sandbox-probe/pkg/tasks"
@@ -26,19 +27,22 @@ func (p *Probe) Run() error {
 		return noTasksErr
 	}
 
+	var taskErrors []error
 	for idx, task := range p.Tasks {
 		log.Info().Msgf("Running task (%d/%d) %s", idx, len(p.Tasks), task.GetName())
 		findings, err := task.Run(context.TODO(), tasks.Inputs{
 			Fast: p.Fast,
 		})
+		p.Findings = append(p.Findings, findings...)
 		if err != nil {
 			log.Warn().Msgf("Error running task '%s': %s", task.GetName(), err)
-		} else {
-			p.Findings = append(p.Findings, findings...)
+			if tasks.IsScanFailure(err) {
+				taskErrors = append(taskErrors, fmt.Errorf("task %q: %w", task.GetName(), err))
+			}
 		}
 	}
 
-	return nil
+	return errors.Join(taskErrors...)
 }
 
 func NewProbe(opts ...NewProbeOpt) (*Probe, error) {

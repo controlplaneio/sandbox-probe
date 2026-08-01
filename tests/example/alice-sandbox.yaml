@@ -1,0 +1,123 @@
+# sandbox-probe custom_paths config — alice/bob two-user AI sandbox example
+#
+# Scenario: alice is an AI agent running in a sandboxed environment.
+#           bob is the human operator whose credentials must remain inaccessible.
+#
+# How to use:
+#   sandbox-probe scan \
+#     --config tests/example/alice-sandbox.yaml \
+#     --output_path /tmp/sandbox-probe-report.json
+#
+# Schema:
+#   identity       — who this config is for (informational only)
+#   custom_paths   — the boundary declarations
+#     must_block   — paths whose readdir, open, and write operations MUST be denied.
+#     must_read    — paths that MUST be readable (readdir OK). FAIL if denied.
+#     must_readwrite — paths that MUST permit directory reading and writing.
+#     audit        — paths to probe and report on with no pass/fail expectation.
+#
+# severity levels: critical and error fail the completed scan after its report
+# is written; warn records a finding without failing the scan.
+#
+# check_ops replaces a category's default operations for that entry.
+# check_files is available only on must_block and accepts simple file names.
+# stat_may_fail permits an absent must_read or must_readwrite path.
+# Paths must be absolute POSIX, Windows drive, or Windows UNC paths.
+
+identity:
+  sandbox_user: alice       # The AI agent's unix user
+  sandbox_uid: 1001
+  host_user: bob            # The human operator's unix user
+  host_uid: 1000
+
+custom_paths:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # MUST BLOCK — readdir, open, and write must be denied.
+  # stat() visibility is permitted and does not violate this expectation.
+  # ─────────────────────────────────────────────────────────────────────────
+  must_block:
+
+    # ── Cryptographic secrets & credentials ──────────────────────────────
+    - path: /home/bob/.ssh
+      label: ssh_keys
+      severity: critical
+      reason: "SSH private keys — exposure = full host compromise"
+      check_files:
+        - id_rsa
+        - id_ed25519
+        - authorized_keys
+        - config
+
+    - path: /home/bob/.aws
+      label: aws_credentials
+      severity: critical
+      reason: "AWS credentials — exposure = cloud account compromise"
+      check_files:
+        - credentials
+        - config
+
+    - path: /home/bob/.gnupg
+      label: gpg_keys
+      severity: critical
+      reason: "GPG private keys — exposure = identity and signing key compromise"
+
+    - path: /home/bob/.kube
+      label: kube_config
+      severity: critical
+      reason: "Kubernetes cluster credentials"
+      check_files:
+        - config
+
+    - path: /home/bob/.config
+      label: host_config
+      severity: error
+      reason: "Host user config dir — may contain cloud CLI tokens and secrets"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # MUST READ — paths expected to be readable (system tooling)
+  # ─────────────────────────────────────────────────────────────────────────
+  must_read:
+
+    - path: /usr/local/bin
+      label: usr_local_bin
+      severity: error
+      reason: "User-installed tools must be accessible to the AI agent"
+
+    - path: /usr/bin
+      label: usr_bin
+      severity: error
+      reason: "System binaries — required for shell and utilities"
+
+    - path: /usr/lib
+      label: usr_lib
+      severity: error
+      reason: "Shared libraries — required for dynamic linking"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # MUST READWRITE — paths must permit directory reading and writing
+  # ─────────────────────────────────────────────────────────────────────────
+  must_readwrite:
+
+    - path: /home/alice/workspace
+      label: alice_workspace
+      severity: critical
+      reason: "Primary working directory — AI agent must be able to read and write here"
+
+    - path: /tmp
+      label: tmp
+      severity: error
+      reason: "Temp dir — needed for tool output and intermediate artefacts"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # AUDIT — probe and report, no pass/fail verdict
+  # ─────────────────────────────────────────────────────────────────────────
+  audit:
+
+    - path: /home/bob
+      label: host_home_root
+      note: "Host home root — path existence may be visible via stat, content should be blocked"
+
+    - path: /proc/self
+      label: proc_self
+      note: "Own process info — readable, expected"

@@ -32,8 +32,16 @@ mkdir -p reports
 OUT="reports/sandbox-claude.json"
 rm -f "$OUT"
 
+# Claude's Linux bubblewrap sandbox expects to create settings beneath HOME.
+# Isolate that state so this deterministic stub test never depends on a user's
+# real Claude configuration or writes into it.
+CLAUDE_HOME="$(mktemp -d)"
+trap 'rm -rf "$CLAUDE_HOME"' EXIT
+mkdir -p "$CLAUDE_HOME/.claude"
+printf '{}\n' > "$CLAUDE_HOME/.claude/settings.json"
+
 # Run only the sandbox-detector task for a fast check (the full baseline is slow).
-PROBE=./bin/sandbox-probe OUT="$OUT" RUNNER="$(uname -s)" \
+HOME="$CLAUDE_HOME" PROBE=./bin/sandbox-probe OUT="$OUT" RUNNER="$(uname -s)" \
 SCAN_ARGS="scan --tasks baseline_sandbox_task --tasksets none" \
   bash "${PROJECT_ROOT}/scripts/run-probe-via-claude-stub.sh"
 

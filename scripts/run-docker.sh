@@ -1,11 +1,16 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
-# TODO: narrow down to just be able to run the executable
+set -euo pipefail
 
+# shellcheck disable=SC1091 # dynamic script-relative helper path.
+source "$(dirname "$0")/runner-common.sh"
+validate_runner_inputs "$@" || exit $?
+PROBE=$1
+OUTDIR=$2
 
-cp $1 $2
+cp "$PROBE" "$OUTDIR"
 
-cd $2
+cd "$OUTDIR" || exit
 
-
-docker run  -w /data/ --rm -it -v $(pwd):/data ubuntu:latest /data/$(echo $1 | awk -F '/' '{print $NF}') scan --tasks baseline_sandbox_task --tasksets none
+docker run -w /data/ --rm -v "$(pwd):/data" ubuntu:latest \
+  "/data/$(basename "$PROBE")" scan --tasks baseline_sandbox_task --tasksets none
