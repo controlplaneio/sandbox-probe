@@ -19,7 +19,7 @@ jobs:
       semver: ${{ steps.version.outputs.semantic_version }}
     steps:
       - name: Check out code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
@@ -42,22 +42,23 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
 
-      - name: Tag release
+      - name: Create local release tag
         run: |
           git tag "v${{ needs.version.outputs.semver }}"
-          git push origin "v${{ needs.version.outputs.semver }}"
+          # GoReleaser creates the remote release and tag only after artifacts
+          # build successfully. Do not push a tag before that transaction.
 
       - name: Launch goreleaser
-        uses: goreleaser/goreleaser-action@v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           args: release
         env:
