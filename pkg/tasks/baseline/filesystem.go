@@ -14,8 +14,10 @@ type SensitivePath struct {
 	contains string // if set, file must contain this string to be reported
 }
 
-func sp(path string) SensitivePath                  { return SensitivePath{path: path} }
-func spContains(path, substr string) SensitivePath  { return SensitivePath{path: path, contains: substr} }
+func sp(path string) SensitivePath { return SensitivePath{path: path} }
+func spContains(path, substr string) SensitivePath {
+	return SensitivePath{path: path, contains: substr}
+}
 
 // sensitivePaths is populated at runtime (requires home dir expansion).
 // See buildSensitivePaths().
