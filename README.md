@@ -261,7 +261,7 @@ block is informational only; paths are always taken from the explicit
 
 | Category | Meaning | Default checks |
 | --- | --- | --- |
-| `must_block` | The path must be inaccessible. | `readdir`, `open`, and `write` must be denied. `stat` visibility is recorded but does not violate the expectation. |
+| `must_block` | The path must be inaccessible. | `readdir`, `open`, and `write` must be denied. `stat` visibility is permitted and does not violate the expectation. |
 | `must_read` | The path must be accessible for directory reading. | `readdir` must succeed. |
 | `must_readwrite` | The path must be usable as a read-write location. | `readdir` and `write` must succeed. |
 | `audit` | Record observed access without asserting a policy. | `stat`, `readdir`, `open`, and `write` are recorded. |
@@ -431,13 +431,29 @@ curl -LO "https://github.com/controlplaneio/sandbox-probe/releases/latest/downlo
 
 grep " ${ARCHIVE}$" sandbox-probe_checksums.txt | shasum -a 256 -c -
 tar -xzf "${ARCHIVE}"
+mkdir -p ~/.local/bin
 install -m 0755 sandbox-probe ~/.local/bin/sandbox-probe
+export PATH="$HOME/.local/bin:$PATH"
 sandbox-probe version
 ```
 
-Windows releases use `.zip` archives. Verify the downloaded archive against
-`sandbox-probe_checksums.txt` before extracting it and placing
-`sandbox-probe.exe` on `PATH`.
+Add `~/.local/bin` to your shell profile if it is not already on `PATH`.
+
+Windows releases use `.zip` archives. Verify one from PowerShell before
+extracting it and placing `sandbox-probe.exe` on `PATH`:
+
+```powershell
+$Archive = "sandbox-probe_windows_amd64.zip"
+$Line = Get-Content .\sandbox-probe_checksums.txt |
+  Where-Object { $_.EndsWith("  $Archive") }
+if (-not $Line) { throw "No checksum found for $Archive" }
+
+$Expected = ($Line -split '\s+')[0].ToLower()
+$Actual = (Get-FileHash ".\$Archive" -Algorithm SHA256).Hash.ToLower()
+if ($Actual -ne $Expected) { throw "Checksum mismatch for $Archive" }
+
+Expand-Archive ".\$Archive" -DestinationPath .\sandbox-probe
+```
 
 ### Build from source
 

@@ -34,7 +34,7 @@ custom_paths:
 
   # ─────────────────────────────────────────────────────────────────────────
   # MUST BLOCK — readdir, open, and write must be denied.
-  # stat() visibility is recorded but does not violate this expectation.
+  # stat() visibility is permitted and does not violate this expectation.
   # ─────────────────────────────────────────────────────────────────────────
   must_block:
 
