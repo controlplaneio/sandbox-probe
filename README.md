@@ -411,6 +411,34 @@ For end-to-end testing (depending on which sandboxes you want to exercise):
 - `gemini-cli` — Gemini CLI for Gemini testing
 - [`nono`](https://github.com/always-further/nono) — a Landlock/Seatbelt wrapper for AI agents and other programs
 
+### Install a released binary
+
+GitHub releases provide archives for:
+
+- macOS: `amd64`, `arm64`
+- Linux: `amd64`, `arm64`, `armv6`, `armv7`
+- Windows: `amd64`, `arm64`
+
+Download the archive for your platform from the
+[`sandbox-probe` releases page](https://github.com/controlplaneio/sandbox-probe/releases).
+For example, on an Apple Silicon Mac:
+
+```bash
+ARCHIVE="sandbox-probe_darwin_arm64.tar.gz"
+
+curl -LO "https://github.com/controlplaneio/sandbox-probe/releases/latest/download/${ARCHIVE}"
+curl -LO "https://github.com/controlplaneio/sandbox-probe/releases/latest/download/sandbox-probe_checksums.txt"
+
+grep " ${ARCHIVE}$" sandbox-probe_checksums.txt | shasum -a 256 -c -
+tar -xzf "${ARCHIVE}"
+install -m 0755 sandbox-probe ~/.local/bin/sandbox-probe
+sandbox-probe version
+```
+
+Windows releases use `.zip` archives. Verify the downloaded archive against
+`sandbox-probe_checksums.txt` before extracting it and placing
+`sandbox-probe.exe` on `PATH`.
+
 ### Build from source
 
 ```bash
