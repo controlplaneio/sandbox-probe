@@ -45,3 +45,31 @@ archives:
 
 snapshot:
   name_template: "{{ .Tag }}-next"
+
+# Publishes a Homebrew formula on every tagged release, covering macOS and
+# Linux (WSL runs Linux binaries, so no separate WSL formula is needed).
+# main is protected (required review + signed commits), so this opens a PR
+# instead of pushing straight to main; someone still has to merge it.
+brews:
+  - name: sandbox-probe
+    repository:
+      owner: controlplaneio
+      name: sandbox-probe
+      branch: "homebrew-formula-{{ .Version }}"
+      pull_request:
+        enabled: true
+        base:
+          branch: main
+    directory: Formula
+    # Avoids the patch/minor/major keywords in semver.yaml (e.g. the default
+    # template's "update"), so merging this PR does not trigger another
+    # release via the semver-generator step in release.yml.
+    commit_msg_template: "Homebrew formula for {{ .ProjectName }} {{ .Tag }}"
+    homepage: "https://github.com/controlplaneio/sandbox-probe"
+    description: "Measure what an AI coding agent's sandbox actually allows, instead of trusting its policy on faith."
+    license: "Apache-2.0"
+    commit_author:
+      name: goreleaser-bot
+      email: goreleaser-bot@controlplane.io
+    test: |
+      system "#{bin}/sandbox-probe", "version"

@@ -411,6 +411,24 @@ For end-to-end testing (depending on which sandboxes you want to exercise):
 - `gemini-cli` — Gemini CLI for Gemini testing
 - [`nono`](https://github.com/always-further/nono) — a Landlock/Seatbelt wrapper for AI agents and other programs
 
+### Install with Homebrew (macOS and Linux, including WSL)
+
+Every tagged release opens a pull request with an updated formula. Once
+that pull request is merged, install with:
+
+```bash
+brew tap controlplaneio/sandbox-probe https://github.com/controlplaneio/sandbox-probe
+brew install sandbox-probe
+```
+
+This covers macOS (Intel and Apple Silicon) and Linux (`amd64`, `arm64`,
+`armv6`, `armv7`) through [Homebrew on Linux](https://docs.brew.sh/Homebrew-on-Linux).
+WSL runs a real Linux kernel, so the Linux formula works there too — install
+Homebrew inside your WSL distribution first if you have not already.
+
+Run `brew upgrade sandbox-probe` after future releases to pick up the merged
+formula update.
+
 ### Install a released binary
 
 GitHub releases provide archives for:
