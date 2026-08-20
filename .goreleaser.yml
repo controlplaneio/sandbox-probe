@@ -46,23 +46,7 @@ archives:
 snapshot:
   name_template: "{{ .Tag }}-next"
 
-# Publishes a Homebrew formula on every tagged release, covering macOS and
-# Linux (WSL runs Linux binaries, so no separate WSL formula is needed).
-# Pushes straight to the shared org tap (no protection there, unlike main
-# here), so this is one release step, not a PR someone has to merge.
-brews:
-  - name: sandbox-probe
-    repository:
-      owner: controlplaneio
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
-    commit_msg_template: "Homebrew formula for {{ .ProjectName }} {{ .Tag }}"
-    homepage: "https://github.com/controlplaneio/sandbox-probe"
-    description: "Measure what an AI coding agent's sandbox actually allows, instead of trusting its policy on faith."
-    license: "Apache-2.0"
-    commit_author:
-      name: goreleaser-bot
-      email: goreleaser-bot@controlplane.io
-    test: |
-      system "#{bin}/sandbox-probe", "version"
+# No Homebrew-specific config here. controlplaneio/homebrew-tap polls
+# GitHub releases on a schedule and builds its own formula from the
+# archives and checksums.txt this project already publishes above —
+# see controlplaneio-fluxcd/homebrew-tap for the pattern this follows.

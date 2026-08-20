@@ -413,9 +413,6 @@ For end-to-end testing (depending on which sandboxes you want to exercise):
 
 ### Install with Homebrew (macOS and Linux, including WSL)
 
-Every tagged release publishes an updated formula straight away, no extra
-step needed:
-
 ```bash
 brew tap controlplaneio/tap
 brew install controlplaneio/tap/sandbox-probe
@@ -426,8 +423,10 @@ This covers macOS (Intel and Apple Silicon) and Linux (`amd64`, `arm64`,
 WSL runs a real Linux kernel, so the Linux formula works there too — install
 Homebrew inside your WSL distribution first if you have not already.
 
-Run `brew upgrade sandbox-probe` after future releases to pick up the latest
-formula.
+The `controlplaneio/homebrew-tap` repository checks for new `sandbox-probe`
+releases on a schedule and updates the formula from the archives and
+checksums this project publishes. Run `brew upgrade sandbox-probe` after a
+new release to pick up the update once it lands.
 
 ### Install a released binary
 
