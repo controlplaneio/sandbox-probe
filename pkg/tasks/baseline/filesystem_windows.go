@@ -93,11 +93,11 @@ func platformSensitivePaths(home string) []SensitivePath {
 	if appData != "" {
 		paths = append(paths,
 			// ── Windows Credential Manager / generic stores ───────────────
-			sp(filepath.Join(appData, "Microsoft", "Credentials")),
-			sp(filepath.Join(appData, "Microsoft", "Protect")),
+			spDir(filepath.Join(appData, "Microsoft", "Credentials")),
+			spDir(filepath.Join(appData, "Microsoft", "Protect")),
 
 			// ── Cloud SDKs on Windows ─────────────────────────────────────
-			sp(filepath.Join(appData, "gcloud")),
+			spDir(filepath.Join(appData, "gcloud")),
 			sp(filepath.Join(appData, "doctl", "config.yaml")),
 		)
 	}
@@ -108,7 +108,7 @@ func platformSensitivePaths(home string) []SensitivePath {
 			sp(filepath.Join(localAppData, "Google", "Cloud SDK", "application_default_credentials.json")),
 
 			// ── 1Password / password manager local data ───────────────────
-			sp(filepath.Join(localAppData, "1Password")),
+			spDir(filepath.Join(localAppData, "1Password")),
 		)
 	}
 

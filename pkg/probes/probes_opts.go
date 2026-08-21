@@ -1,6 +1,6 @@
 package probes
 
-import "github.com/controlplaneio/sandbox-probe/pkg/tasks"
+import "github.com/controlplaneio/sandbox-probe/v6/pkg/tasks"
 
 type NewProbeOpt func(*Probe) error
 

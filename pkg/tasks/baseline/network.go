@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/controlplaneio/sandbox-probe/pkg/models"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
 	"github.com/rs/zerolog/log"
 )
 
@@ -206,10 +206,23 @@ func GetSockets(startPath string, fast bool) ([]string, error) {
 // /var/lib is omitted on purpose (its sockets are mirrored under /run; its docker/overlay2 tree
 // would re-introduce the multi-million-file walk).
 func DefaultSocketRoots() []string {
+	return socketRootsForHome(homeOrRoot())
+}
+
+// socketRootsForHome is the testable core: it takes the home directory instead
+// of calling os.UserHomeDir().
+func socketRootsForHome(home string) []string {
 	roots := []string{
 		"/run", "/var/run", "/dev",
 		"/tmp", "/var/tmp",
 		"/private/var/run", "/private/tmp", "/private/var/tmp",
+		// Home-scoped runtime dirs the socket catalogue lives in: code-server's
+		// IPC socket (Linux) and Docker Desktop's user socket (macOS) both sit
+		// outside every FHS runtime dir, so a decoy planted at either would
+		// otherwise never be found again. Both are small, unlike the
+		// application-support trees deliberately left unscanned.
+		filepath.Join(home, ".local", "share", "code-server"),
+		filepath.Join(home, ".docker", "run"),
 	}
 	if d := os.Getenv("XDG_RUNTIME_DIR"); d != "" {
 		roots = append(roots, d)

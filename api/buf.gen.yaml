@@ -2,8 +2,14 @@ version: v2
 managed:
   enabled: true
   override:
+    # Changing this value REQUIRES running `make gen`. Do not hand-edit the
+    # module path inside gen/proto/report/v1/report.pb.go: go_package is a
+    # length-delimited field in the raw descriptor, and the enclosing
+    # FileOptions frame carries its own length too. A text substitution leaves
+    # both counts stale, and the protobuf runtime then fails in init() -- so
+    # `go build` still succeeds and the binary dies at startup instead.
     - file_option: go_package_prefix
-      value: github.com/controlplaneio/sandbox-probe/api/gen
+      value: github.com/controlplaneio/sandbox-probe/v6/api/gen
 plugins:
   - remote: buf.build/protocolbuffers/go
     out: gen

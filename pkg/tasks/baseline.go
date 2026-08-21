@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	reportv1 "github.com/controlplaneio/sandbox-probe/api/gen/proto/report/v1"
-	"github.com/controlplaneio/sandbox-probe/pkg/models"
-	baselineTasks "github.com/controlplaneio/sandbox-probe/pkg/tasks/baseline"
+	reportv1 "github.com/controlplaneio/sandbox-probe/v6/api/gen/proto/report/v1"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
+	baselineTasks "github.com/controlplaneio/sandbox-probe/v6/pkg/tasks/baseline"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -275,7 +275,7 @@ func (t *ProxyTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, er
 	}, nil
 }
 
-// SocketTask produces: UNIXSOCKETDETECTION
+// SocketTask produces: UNIXSOCKETDETECTION, and on Windows NAMEDPIPEDETECTION
 type SocketTask struct {
 	baseTask
 	startPaths []string
@@ -285,7 +285,7 @@ func NewSocketTask() *SocketTask {
 	return &SocketTask{
 		baseTask: baseTask{
 			name:        fmt.Sprintf("%s_socket_scanner", TaskPrefix),
-			description: "Scans runtime directories for Unix domain sockets",
+			description: "Scans runtime directories for Unix domain sockets, and the named-pipe namespace on Windows",
 		},
 		startPaths: baselineTasks.DefaultSocketRoots(),
 	}
@@ -308,15 +308,38 @@ func (t *SocketTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, e
 		return nil, err
 	}
 
-	log.Info().Str("task", t.GetName()).Msg("Unix socket scanning task completed successfully")
-	return []*reportv1.Finding{
+	findings := []*reportv1.Finding{
 		{
 			FindingType: UNIXSOCKETDETECTION,
 			Task:        t.GetName(),
 			Description: "Unix sockets detected",
 			Value:       socketsValue,
 		},
-	}, nil
+	}
+
+	// Named pipes are Windows-only: ListNamedPipes returns nil elsewhere, so no
+	// named_pipe_detection finding appears in a non-Windows report. An
+	// enumeration failure is not fatal to the socket scan either — no finding is
+	// exactly what "the sandbox blocked it" looks like.
+	if pipes, err := baselineTasks.ListNamedPipes(); err != nil {
+		log.Warn().Err(err).Msg("Named pipe enumeration failed; emitting no named_pipe_detection finding")
+	} else if pipes != nil {
+		log.Info().Int("pipe_count", len(pipes)).Msg("Named pipe scan completed")
+		pipesValue, err := structpb.NewValue(stringSliceToInterface(pipes))
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to convert named pipes to protobuf value")
+			return nil, err
+		}
+		findings = append(findings, &reportv1.Finding{
+			FindingType: NAMEDPIPEDETECTION,
+			Task:        t.GetName(),
+			Description: "Named pipes detected",
+			Value:       pipesValue,
+		})
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("Unix socket scanning task completed successfully")
+	return findings, nil
 }
 
 // ProcessTask produces: PROCESSDETECTION, PARENTPROCESSDETECTION
@@ -535,6 +558,56 @@ func (t *EnvironmentTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Findi
 	}, nil
 }
 
+// EnvSecretTask produces: ENVSECRETDETECTION
+type EnvSecretTask struct {
+	baseTask
+}
+
+func NewEnvSecretTask() *EnvSecretTask {
+	return &EnvSecretTask{
+		baseTask: baseTask{
+			name:        fmt.Sprintf("%s_env_secrets", TaskPrefix),
+			description: "Detects secret-shaped values in the run's own environment variables",
+		},
+	}
+}
+
+func (t *EnvSecretTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, error) {
+	log.Info().Str("task", t.GetName()).Msg("Starting environment secret detection task")
+
+	envFindings, err := baselineTasks.DetectSensitiveEnvVars()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to scan environment for secrets")
+		return nil, err
+	}
+
+	log.Info().Int("secret_count", len(envFindings)).Msg("Environment secret scan completed")
+
+	// One finding per secret-shaped variable, so a clean environment emits nothing at all rather
+	// than an empty list. The matched value is never carried — only the variable name and why it
+	// matched — because findings end up in a published report.
+	var findings []*reportv1.Finding
+	for _, ef := range envFindings {
+		envValue, err := structpb.NewValue(map[string]interface{}{
+			"env_key":     ef.EnvKey,
+			"description": ef.Description,
+		})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to convert environment secret to protobuf value")
+			return nil, err
+		}
+		findings = append(findings, &reportv1.Finding{
+			FindingType: ENVSECRETDETECTION,
+			Task:        t.GetName(),
+			Description: "Secret-shaped environment variable",
+			Value:       envValue,
+		})
+	}
+
+	log.Info().Str("task", t.GetName()).Msg("Environment secret detection task completed successfully")
+	return findings, nil
+}
+
 // SandboxTask produces: SANDBOXDETECTION
 type SandboxTask struct {
 	baseTask
@@ -665,10 +738,14 @@ func (t *MountTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, er
 
 	log.Info().Int("mount_count", len(mounts)).Msg("Host mounts detected")
 
-	// Convert []Mount to []string for easier display
+	// Convert []Mount to []string for easier display. The mount root is included from this point
+	// on (ticket #41): it names the subtree of the source filesystem exposed, which is what tells
+	// a sandbox's own root filesystem apart from a bind of a host subtree. Reports captured before
+	// this change carry the old three-field string and must be read as that older shape, not as a
+	// rendering fault in a drill-down that expects a root.
 	mountStrings := make([]string, len(mounts))
 	for i, m := range mounts {
-		mountStrings[i] = fmt.Sprintf("%s -> %s (%s)", m.Source, m.Target, m.FSType)
+		mountStrings[i] = fmt.Sprintf("%s -> %s (%s, root=%s)", m.Source, m.Target, m.FSType, m.Root)
 	}
 
 	mountValue, err := structpb.NewValue(stringSliceToInterface(mountStrings))
@@ -699,6 +776,7 @@ func GetBaselineTasks() []Task {
 		NewUserContextTask(), // USERCONTEXTDETECTION
 		NewHostnameTask(),    // HOSTNAMEDETECTION
 		NewEnvironmentTask(), // ENVIRONMENTDETECTION
+		NewEnvSecretTask(),   // ENVSECRETDETECTION
 		NewSandboxTask(),     // SANDBOXDETECTION
 		NewMountTask(),       // MOUNTEDVOLUMESDETECTION
 	}

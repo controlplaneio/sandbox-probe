@@ -2,10 +2,13 @@ package tasks
 
 import (
 	"context"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 
-	"github.com/controlplaneio/sandbox-probe/pkg/models"
+	reportv1 "github.com/controlplaneio/sandbox-probe/v6/api/gen/proto/report/v1"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -384,6 +387,56 @@ func TestProxyTaskRun(t *testing.T) {
 	}
 }
 
+// The env-secret task must emit an env_secret_detection finding naming a secret-shaped variable
+// while one is present, and nothing for that variable once it is gone — and the finding must never
+// carry the secret material itself.
+func TestEnvSecretTaskEmitsFindingOnlyWhenSecretPresent(t *testing.T) {
+	const key = "TEST_ENV_SECRET_TASK_TOKEN"
+	// gitleaks' Anthropic rule shape; not a real key.
+	secret := "sk-ant-api03-" + strings.Repeat("X", 93) + "AA"
+
+	findingFor := func() *reportv1.Finding {
+		findings, err := NewEnvSecretTask().Run(context.Background(), Inputs{})
+		if err != nil {
+			t.Fatalf("EnvSecretTask.Run returned error: %v", err)
+		}
+		for _, f := range findings {
+			if f.FindingType != ENVSECRETDETECTION {
+				t.Errorf("findingType = %q, want %q", f.FindingType, ENVSECRETDETECTION)
+				continue
+			}
+			m, ok := f.Value.AsInterface().(map[string]interface{})
+			if !ok {
+				t.Fatalf("value is %T, want map", f.Value.AsInterface())
+			}
+			if m["env_key"] == key {
+				return f
+			}
+		}
+		return nil
+	}
+
+	t.Setenv(key, secret)
+	f := findingFor()
+	if f == nil {
+		t.Fatalf("no %s finding for %s while the secret was set", ENVSECRETDETECTION, key)
+	}
+	m := f.Value.AsInterface().(map[string]interface{})
+	if d, _ := m["description"].(string); d == "" {
+		t.Error("finding does not say why the variable matched")
+	}
+	if strings.Contains(f.Value.String(), secret) {
+		t.Error("finding carries the secret material")
+	}
+
+	if err := os.Unsetenv(key); err != nil {
+		t.Fatalf("failed to unset %s: %v", key, err)
+	}
+	if f := findingFor(); f != nil {
+		t.Errorf("%s finding emitted for %s with no secret present", ENVSECRETDETECTION, key)
+	}
+}
+
 // The environment task must always emit exactly one environment_detection finding whose value is a
 // map carrying the three host keys — the provenance record used to compare reports over time.
 func TestEnvironmentTaskEmitsFinding(t *testing.T) {
@@ -406,5 +459,22 @@ func TestEnvironmentTaskEmitsFinding(t *testing.T) {
 		if _, present := m[k]; !present {
 			t.Errorf("environment value missing key %q", k)
 		}
+	}
+}
+
+// named_pipe_detection is declared with the same list-of-strings value shape as
+// the socket finding it folds into, so a malformed value is rejected rather
+// than silently shipped in a report.
+func TestNamedPipeFindingValueShape(t *testing.T) {
+	if got, want := expectedTypes[NAMEDPIPEDETECTION], expectedTypes[UNIXSOCKETDETECTION]; got != want {
+		t.Errorf("%s declared as %v, want %v (same shape as %s)", NAMEDPIPEDETECTION, got, want, UNIXSOCKETDETECTION)
+	}
+
+	notAList, err := structpb.NewValue(`\\.\pipe\lsass`)
+	if err != nil {
+		t.Fatalf("structpb.NewValue: %v", err)
+	}
+	if err := Validate(&reportv1.Finding{FindingType: NAMEDPIPEDETECTION, Value: notAList}); err == nil {
+		t.Errorf("%s accepted a non-list value", NAMEDPIPEDETECTION)
 	}
 }

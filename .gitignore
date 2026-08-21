@@ -132,9 +132,8 @@ results/
 
 .direnv/
 
+# tests/fingerprint/*.sh write their scan reports here
 /reports
-# trae-agent writes run trajectories here when driving the probe (scripts/run-probe-via-trae-stub.sh)
-trajectories/
 
 MEMORY/
 

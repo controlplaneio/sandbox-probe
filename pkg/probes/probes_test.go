@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	reportv1 "github.com/controlplaneio/sandbox-probe/api/gen/proto/report/v1"
-	"github.com/controlplaneio/sandbox-probe/pkg/tasks"
+	reportv1 "github.com/controlplaneio/sandbox-probe/v6/api/gen/proto/report/v1"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/tasks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

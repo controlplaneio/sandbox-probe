@@ -54,12 +54,12 @@ test: tests ## Run all Go tests
 
 # Testing targets
 .PHONY: e2etests
-e2etests: ## Run end-to-end tests
+e2etests: ## Run the probe's own sandbox-fingerprint e2e tests (needs docker/podman/bwrap; each script skips if absent)
 	@echo "Building sandbox-probe binary..."
 	@mkdir -p bin
 	@go build -o bin/sandbox-probe .
-	@echo "Running e2e tests..."
-	@for test in tests/*.sh; do \
+	@echo "Running fingerprint e2e tests..."
+	@for test in tests/fingerprint/*.sh; do \
 		if [ -f "$$test" ]; then \
 			case "$$test" in \
 				*_interactive.sh) echo "Skipping interactive test $$test (run manually)"; continue ;; \
@@ -68,7 +68,11 @@ e2etests: ## Run end-to-end tests
 			bash "$$test" || exit 1; \
 		fi \
 	done
-	@echo "All e2e tests completed successfully!"
+	@echo "All fingerprint e2e tests completed successfully!"
+
+.PHONY: e2etest-gvisor-bind
+e2etest-gvisor-bind: ## GATED: run the probe under real gVisor and assert a known bind mount is reported (needs root + runsc)
+	@bash tests/gated/gvisor_bind_mount.sh
 
 # Installation targets
 PREFIX ?= $(HOME)/.local/bin

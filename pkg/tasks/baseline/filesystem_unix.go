@@ -82,17 +82,17 @@ func platformSensitivePaths(_ string) []SensitivePath {
 		sp("/var/run/docker.sock"),
 
 		// ── Root account credentials ──────────────────────────────────────
-		sp("/root"),
-		sp("/root/.ssh"),
+		spDir("/root"),
+		spDir("/root/.ssh"),
 		sp("/root/.bash_history"),
 
 		// ── System credentials and keys ───────────────────────────────────
-		sp("/etc/ssl/private"),
-		sp("/etc/pki/private"),
-		sp("/var/lib/docker"),
+		spDir("/etc/ssl/private"),
+		spDir("/etc/pki/private"),
+		spDir("/var/lib/docker"),
 
 		// ── Runtime secrets (Docker / Kubernetes) ─────────────────────────
-		sp("/run/secrets"),
+		spDir("/run/secrets"),
 		sp("/var/run/secrets/kubernetes.io/serviceaccount/token"),
 		sp("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"),
 	}

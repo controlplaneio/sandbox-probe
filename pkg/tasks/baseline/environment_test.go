@@ -27,7 +27,7 @@ func Test_detectSensitiveEnvVars(t *testing.T) {
 		require.NoError(t, os.Unsetenv(SAFEVARKEY))
 	}()
 
-	findings, err := detectSensitiveEnvVars()
+	findings, err := DetectSensitiveEnvVars()
 	require.NoError(t, err)
 
 	found_sensitive := false
