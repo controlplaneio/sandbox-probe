@@ -44,17 +44,34 @@ mkdir -p "$BASE/rootfs" "$BASE/out"
 
 # Only the mount scanner: the baseline taskset resolves real hostnames and scans ports, none of
 # which this check reads.
+# Self-contained on purpose: the multi-runtime launcher this used to call is comparison
+# methodology and now lives in sandbox-probe-reports. This check asserts a probe capability —
+# that the mount enumerator names a reachable host mount — so it must not depend on it.
+OUT_JSON="$BASE/out/report.json"
+BUNDLE="$(mktemp -d)"
+( cd "$BUNDLE" && runsc spec )
+ARGS_JSON="$(printf '%s\n' /probe scan --tasksets none --tasks baseline_mount_task \
+  --output_path "$OUT_JSON" | jq -R . | jq -s .)"
+BIND_JSON="$(jq -n --arg src "$HOSTBIND" \
+  '[{"destination":"/hostbind","source":$src,"type":"bind","options":["bind","ro"]}]')"
+cp "$BASE/probe" "$BASE/rootfs/probe"
+TMPCFG="$(mktemp)"
+jq --arg root "$BASE/rootfs" --arg out "$BASE/out" --argjson args "$ARGS_JSON" --argjson bind "$BIND_JSON" \
+  '.root.path=$root | .process.args=$args | .process.terminal=false
+   | .mounts += [{"destination":$out,"source":$out,"type":"bind","options":["bind","rw"]}] + $bind' \
+  "$BUNDLE/config.json" > "$TMPCFG" && mv "$TMPCFG" "$BUNDLE/config.json"
+# gVisor maps the container root to an unprivileged host uid; make the report dir writable to it.
+chmod 0777 "$BASE/out"
 set +e
-PROBE="$BASE/probe" OUT="$BASE/out/report.json" ROOTFS="$BASE/rootfs" HOSTBIND="$HOSTBIND" \
-  RUNTIME=gvisor SCAN_ARGS="scan --tasksets none --tasks baseline_mount_task" \
-  "$PROJECT_ROOT/scripts/run-probe-in-sandbox.sh"
+runsc $RUNSC_FLAGS --platform=systrap --network=none run -bundle "$BUNDLE" gvisor-bind-probe </dev/null
 launch=$?
 set -e
+rm -rf "$BUNDLE"
 
 # Two distinct failures, and the output must say which. A sandbox that never started says nothing
 # about the enumerator; only a report that omits the bind is the regression.
 if [ ! -f "$BASE/out/report.json" ]; then
-  echo "FAIL (sandbox): gVisor did not run the probe to completion — no report was written (launcher exited $launch)."
+  echo "FAIL (sandbox): gVisor did not run the probe to completion — no report was written (runsc exited $launch)."
   echo "  This is an environment failure, NOT the mount-enumeration regression. Check runsc, root and the bundle above."
   exit 1
 fi
