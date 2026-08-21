@@ -165,6 +165,25 @@ func Test_getContainerRuntime(t *testing.T) {
 	}
 }
 
+func TestGetContainerRuntimeDetectsPodmanMarker(t *testing.T) {
+	origRead, origExists, origLandlock, origChroot := readFile, fileExistsFunc, probeForLandlock, isChroot
+	t.Cleanup(func() {
+		readFile = origRead
+		fileExistsFunc = origExists
+		probeForLandlock = origLandlock
+		isChroot = origChroot
+	})
+
+	readFile = func(string) ([]byte, error) { return []byte("0::/"), nil }
+	fileExistsFunc = func(path string) bool { return path == "/run/.containerenv" }
+	probeForLandlock = func() (bool, error) { return false, nil }
+	isChroot = func() bool { return false }
+
+	if got := GetContainerRuntime(0, 0); got != RuntimePodman {
+		t.Fatalf("expected podman for /run/.containerenv, got %v", got)
+	}
+}
+
 func TestGetContainerRuntimeAppArmor(t *testing.T) {
 	origRead, origAttr, origExists, origLandlock, origChroot := readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot
 	t.Cleanup(func() {

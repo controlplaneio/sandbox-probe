@@ -14,6 +14,7 @@ This repository is the probe and nothing else. The comparison harness built on t
 - [Reading a report](#reading-a-report)
 - [Quick start](#quick-start)
 - [CLI reference](#cli-reference)
+- [Custom path expectations](#custom-path-expectations)
 - [Report format](#report-format)
 - [Installation](#installation)
 - [Development](#development)
@@ -141,6 +142,7 @@ Run the configured tasks and write a JSON report.
 | `--output_path` | Path to write the JSON report | `report.json` |
 | `--tags` | Metadata tags to append to the report (comma-separated) | _none_ |
 | `--fast` | Skip "likely safe" paths for quicker iteration | `false` |
+| `--config` | YAML file declaring custom filesystem boundary expectations | _none_ |
 
 Examples:
 
@@ -156,7 +158,14 @@ Examples:
 
 # Custom output path
 ./bin/sandbox-probe scan --output_path results.json
+
+# Check environment-specific filesystem boundaries
+./bin/sandbox-probe scan \
+  --config tests/example/alice-sandbox.yaml \
+  --output_path results.json
 ```
+
+`--config` is a global flag, so it may appear before or after `scan`.
 
 ### `tasks list`
 
@@ -204,6 +213,94 @@ Example output:
 version dev
 git commit 44f7a7bcd2d3ae4215de43dd4d893c3b24587f40
 build date 2026-05-16T10:39:11Z
+```
+
+## Custom path expectations
+
+A custom-path policy turns environment-specific filesystem boundaries into
+executable expectations. This complements the built-in baseline: use it to
+assert that an agent cannot reach a host user's credentials while retaining
+access to its toolchain and workspace.
+
+Run a policy with `--config`:
+
+```bash
+./bin/sandbox-probe scan \
+  --config tests/example/alice-sandbox.yaml \
+  --output_path report.json
+```
+
+The example at
+[`tests/example/alice-sandbox.yaml`](./tests/example/alice-sandbox.yaml) models
+an agent user (`alice`) separated from a human operator (`bob`). The `identity`
+block is informational only; paths are always taken from the explicit
+`custom_paths` entries.
+
+### Categories and default checks
+
+| Category | Meaning | Default checks |
+| --- | --- | --- |
+| `must_block` | The path must be inaccessible. | `readdir`, `open`, and `write` must be denied. `stat` visibility is permitted and does not violate the expectation. |
+| `must_read` | The path must be accessible for directory reading. | `readdir` must succeed. |
+| `must_readwrite` | The path must be usable as a read-write location. | `readdir` and `write` must succeed. |
+| `audit` | Record observed access without asserting a policy. | `stat`, `readdir`, `open`, and `write` are recorded. |
+
+`check_ops` replaces the defaults for an entry rather than adding to them.
+Supported operations are category-specific:
+
+- `must_block`: `readdir`, `open`, `write`
+- `must_read`: `stat`, `readdir`, `open`
+- `must_readwrite` and `audit`: `stat`, `readdir`, `open`, `write`
+
+For `must_block`, `check_files` adds `open` checks for named files beneath the
+directory. Values must be simple file names: absolute paths and traversal such
+as `../secret` are rejected. `stat_may_fail: true` permits a missing
+`must_read` or `must_readwrite` path without producing a violation; other
+access failures are still violations.
+
+### Severity and exit status
+
+Expectation entries require a `severity` of `critical`, `error`, or `warn`.
+Both `critical` and `error` violations make the command exit non-zero. The
+probe still completes its selected tasks and writes the JSON report before
+returning that failure, so CI retains the evidence. A `warn` violation is
+included as a finding without failing the command. `audit` entries have no
+pass/fail verdict and do not require severity.
+
+### Validation and portable paths
+
+The parser rejects unknown fields, multiple YAML documents, empty policies,
+unsupported operations, and entries without an absolute path. A path may use:
+
+- POSIX absolute form: `/home/alice/workspace`
+- Windows drive form: `C:\Users\Alice\workspace` or `D:/Users/Alice/workspace`
+- Windows UNC form: `\\server\share\path`
+
+This allows a policy targeting one platform to be validated in CI on another.
+Drive-relative paths such as `C:temp` and ordinary relative paths are rejected.
+
+Minimal example:
+
+```yaml
+custom_paths:
+  must_block:
+    - path: /home/bob/.ssh
+      label: host_ssh_keys
+      severity: critical
+      reason: Host credentials must not be visible to the agent
+      check_files: [id_rsa, id_ed25519]
+
+  must_readwrite:
+    - path: /home/alice/workspace
+      label: agent_workspace
+      severity: error
+      reason: The agent needs a usable workspace
+
+  audit:
+    - path: /proc/self
+      label: own_process
+      check_ops: [stat, open]
+      note: Record process information exposure without failing
 ```
 
 ## Report format
@@ -270,6 +367,50 @@ For the fingerprint end-to-end checks:
 
 - `jq` — JSON processor for parsing reports
 - `docker`, `podman` and/or `bubblewrap` — whichever runtimes you want to exercise
+
+### Install a released binary
+
+GitHub releases provide archives for:
+
+- macOS: `amd64`, `arm64`
+- Linux: `amd64`, `arm64`, `armv6`, `armv7`
+- Windows: `amd64`, `arm64`
+
+Download the archive for your platform from the
+[`sandbox-probe` releases page](https://github.com/controlplaneio/sandbox-probe/releases).
+For example, on an Apple Silicon Mac:
+
+```bash
+ARCHIVE="sandbox-probe_darwin_arm64.tar.gz"
+
+curl -LO "https://github.com/controlplaneio/sandbox-probe/releases/latest/download/${ARCHIVE}"
+curl -LO "https://github.com/controlplaneio/sandbox-probe/releases/latest/download/sandbox-probe_checksums.txt"
+
+grep " ${ARCHIVE}$" sandbox-probe_checksums.txt | shasum -a 256 -c -
+tar -xzf "${ARCHIVE}"
+mkdir -p ~/.local/bin
+install -m 0755 sandbox-probe ~/.local/bin/sandbox-probe
+export PATH="$HOME/.local/bin:$PATH"
+sandbox-probe version
+```
+
+Add `~/.local/bin` to your shell profile if it is not already on `PATH`.
+
+Windows releases use `.zip` archives. Verify one from PowerShell before
+extracting it and placing `sandbox-probe.exe` on `PATH`:
+
+```powershell
+$Archive = "sandbox-probe_windows_amd64.zip"
+$Line = Get-Content .\sandbox-probe_checksums.txt |
+  Where-Object { $_.EndsWith("  $Archive") }
+if (-not $Line) { throw "No checksum found for $Archive" }
+
+$Expected = ($Line -split '\s+')[0].ToLower()
+$Actual = (Get-FileHash ".\$Archive" -Algorithm SHA256).Hash.ToLower()
+if ($Actual -ne $Expected) { throw "Checksum mismatch for $Archive" }
+
+Expand-Archive ".\$Archive" -DestinationPath .\sandbox-probe
+```
 
 ### Build from source
 

@@ -3,6 +3,7 @@ package tasks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -90,6 +91,34 @@ var taskSetRegistry = map[string]func() []Task{
 
 type Inputs struct {
 	Fast bool
+}
+
+// ScanFailure marks a task error that must make the overall scan fail after
+// the report has been produced. Ordinary task errors remain non-fatal so an
+// optional or platform-specific probe cannot invalidate an otherwise useful
+// report.
+type ScanFailure struct {
+	err error
+}
+
+func (e *ScanFailure) Error() string {
+	return e.err.Error()
+}
+
+func (e *ScanFailure) Unwrap() error {
+	return e.err
+}
+
+// NewScanFailure wraps a task error that must result in a non-zero scan exit.
+func NewScanFailure(err error) error {
+	return &ScanFailure{err: err}
+}
+
+// IsScanFailure reports whether err represents a task failure that must fail
+// the overall scan.
+func IsScanFailure(err error) bool {
+	var scanFailure *ScanFailure
+	return errors.As(err, &scanFailure)
 }
 
 type Task interface {

@@ -184,6 +184,10 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 	if fileExistsFunc("/.dockerenv") {
 		return RuntimeDocker
 	}
+	// Podman creates this marker in both rootful and rootless containers.
+	if fileExistsFunc("/run/.containerenv") {
+		return RuntimePodman
+	}
 
 	// OpenVZ detection
 	if fileExistsFunc("/proc/vz") && !fileExistsFunc("/proc/bc") {

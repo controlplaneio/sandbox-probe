@@ -49,6 +49,9 @@ fmt: ## Format Go code
 tests: ## Run all Go tests
 	go test -v ./...
 
+.PHONY: test
+test: tests ## Run all Go tests
+
 # Testing targets
 .PHONY: e2etests
 e2etests: ## Run the probe's own sandbox-fingerprint e2e tests (needs docker/podman/bwrap; each script skips if absent)
@@ -58,6 +61,9 @@ e2etests: ## Run the probe's own sandbox-fingerprint e2e tests (needs docker/pod
 	@echo "Running fingerprint e2e tests..."
 	@for test in tests/fingerprint/*.sh; do \
 		if [ -f "$$test" ]; then \
+			case "$$test" in \
+				*_interactive.sh) echo "Skipping interactive test $$test (run manually)"; continue ;; \
+			esac; \
 			echo "Running $$test..."; \
 			bash "$$test" || exit 1; \
 		fi \
@@ -69,6 +75,20 @@ e2etest-gvisor-bind: ## GATED: run the probe under real gVisor and assert a know
 	@bash tests/gated/gvisor_bind_mount.sh
 
 # Installation targets
+PREFIX ?= $(HOME)/.local/bin
+
+.PHONY: install
+install: build ## Install sandbox-probe to PREFIX (default: ~/.local/bin)
+	@mkdir -p $(PREFIX)
+	@install -m 755 bin/$(NAME) $(PREFIX)/$(NAME)
+	@echo "Installed $(NAME) to $(PREFIX)/$(NAME)"
+
+.PHONY: docker-test
+docker-test: ## Build a Linux binary and run the alice/bob boundary demo (requires Docker)
+	@mkdir -p bin
+	@CGO_ENABLED=0 GOOS=linux GOARCH=$$(go env GOARCH) go build $(GO_LDFLAGS_STATIC) -o bin/sandbox-probe .
+	@bash tests/example/run.sh
+
 .PHONY: install-buf
 install-buf: ## Install buf tool
 	BIN="/usr/local/bin" && \

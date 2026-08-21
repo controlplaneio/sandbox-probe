@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/controlplaneio/sandbox-probe/pkg/config"
 	"github.com/controlplaneio/sandbox-probe/pkg/probes"
 	"github.com/controlplaneio/sandbox-probe/pkg/tasks"
 	"github.com/rs/zerolog/log"
@@ -79,6 +80,18 @@ func scan() error {
 		return err
 	}
 
+	// Load custom-paths config and append the custom task if a config was given.
+	if cfgFile != "" {
+		cfg, err := config.LoadConfig(cfgFile)
+		if err != nil {
+			return fmt.Errorf("loading config: %w", err)
+		}
+		if cfg != nil {
+			log.Info().Str("config", cfgFile).Msg("Custom-paths config loaded")
+			loadedTasks = append(loadedTasks, tasks.NewCustomPathsTask(cfg))
+		}
+	}
+
 	p, err := probes.NewProbe(
 		probes.WithName("sandbox-probe"),
 		probes.WithTasks(loadedTasks),
@@ -88,11 +101,16 @@ func scan() error {
 		return err
 	}
 
-	if err := p.Run(); err != nil {
-		return err
+	runErr := p.Run()
+	if runErr != nil {
+		log.Warn().Err(runErr).Msg("Probe completed with failed checks")
 	}
 
-	log.Info().Msg("Probe execution completed successfully")
+	if runErr == nil {
+		log.Info().Msg("Probe execution completed successfully")
+	} else {
+		log.Warn().Msg("Probe execution completed with failed checks")
+	}
 	log.Info().Msg("Creating the report")
 
 	// Create the report
@@ -135,5 +153,5 @@ func scan() error {
 	log.Info().Str("file", viper.GetString("output_path")).Msg("Report written successfully")
 	log.Info().Msg("Sandbox probe completed")
 
-	return nil
+	return runErr
 }

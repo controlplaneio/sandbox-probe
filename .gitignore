@@ -134,3 +134,8 @@ results/
 
 # tests/fingerprint/*.sh write their scan reports here
 /reports
+
+MEMORY/
+
+# Personal test directories (machine-specific configs — keep in private repos)
+tests/cpai-*/

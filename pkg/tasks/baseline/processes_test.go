@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestStringToContainerRuntime(t *testing.T) {
 	tests := []struct {
 		name     string
