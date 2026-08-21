@@ -6,28 +6,50 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
 
-// TestMain doubles as the decoy pipe server. seedPipe spawns os.Executable()
-// with `serve-pipe <name> <lifetime>` — the probe binary in production, this
-// test binary here — so the round trip below exercises the real spawn, the real
+// TestMain doubles as the decoy servers. Both seedPipe and seedPort spawn
+// os.Executable() with a subcommand — the probe binary in production, this test
+// binary here — so the round trips below exercise the real spawn, the real
 // server and the real termination rather than a stand-in for them.
 func TestMain(m *testing.M) {
-	if len(os.Args) == 4 && os.Args[1] == "serve-pipe" {
-		d, err := time.ParseDuration(os.Args[3])
-		if err == nil {
-			err = ServePipe(os.Args[2], d)
+	if len(os.Args) == 4 {
+		switch os.Args[1] {
+		case "serve-pipe":
+			exitAfter(func() error {
+				d, err := time.ParseDuration(os.Args[3])
+				if err != nil {
+					return err
+				}
+				return ServePipe(os.Args[2], d)
+			})
+		case "serve-port":
+			exitAfter(func() error {
+				port, err := strconv.Atoi(os.Args[2])
+				if err != nil {
+					return err
+				}
+				d, err := time.ParseDuration(os.Args[3])
+				if err != nil {
+					return err
+				}
+				return ServePort(port, d)
+			})
 		}
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		os.Exit(0)
 	}
 	os.Exit(m.Run())
+}
+
+func exitAfter(run func() error) {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	os.Exit(0)
 }
 
 // windowsOnly skips everything below off Windows: no other OS has a pipe

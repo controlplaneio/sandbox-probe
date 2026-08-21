@@ -128,3 +128,6 @@ func inpcbListener(rec []byte, proto string) (Listener, bool) {
 // networkNamespace has no macOS equivalent. Returning "" says so, rather than
 // implying an unnamespaced host.
 func networkNamespace() string { return "" }
+
+// inventorySource names where the table came from, for the report.
+func inventorySource() string { return "sysctl-pcblist" }

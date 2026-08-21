@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	tasks "github.com/controlplaneio/sandbox-probe/v6/pkg/tasks/baseline"
@@ -67,6 +68,29 @@ var servePipeCmd = &cobra.Command{
 	},
 }
 
+// servePortCmd is how a port decoy stays alive. A listening socket exists only
+// while something holds it, so "seed" spawns the probe again in this mode, one
+// process per decoy, each exiting on its own after the given lifetime. Same
+// shape as serve-pipe, and hidden for the same reason: it is an implementation
+// detail of "seed", not something to run by hand.
+var servePortCmd = &cobra.Command{
+	Use:    "serve-port <port> <lifetime>",
+	Short:  "Hold one decoy TCP port open until the lifetime expires (used by seed)",
+	Hidden: true,
+	Args:   cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		port, err := strconv.Atoi(args[0])
+		if err != nil {
+			return err
+		}
+		d, err := time.ParseDuration(args[1])
+		if err != nil {
+			return err
+		}
+		return tasks.ServePort(port, d)
+	},
+}
+
 func init() {
-	rootCmd.AddCommand(seedCmd, cleanupCmd, servePipeCmd)
+	rootCmd.AddCommand(seedCmd, cleanupCmd, servePipeCmd, servePortCmd)
 }

@@ -199,3 +199,6 @@ func extendedTable(proc *windows.LazyProc, name string, family, class uint32) ([
 // networkNamespace has no Windows equivalent that means what the Linux one
 // means. Returning "" says so rather than implying a shared host network.
 func networkNamespace() string { return "" }
+
+// inventorySource names where the table came from, for the report.
+func inventorySource() string { return "iphlpapi" }

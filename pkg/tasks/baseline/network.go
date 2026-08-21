@@ -5,22 +5,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
 	"github.com/rs/zerolog/log"
-)
-
-const (
-	startPort = 1
-	endPort   = 65535
-
-	timeout = 3000 * time.Millisecond
-	workers = 66535
 )
 
 func DnsQuery(name string) ([]net.IP, error) {
@@ -61,121 +51,8 @@ func GetProxy() (*models.ProxyConfig, error) {
 	return GetProxyFromEnv()
 }
 
-func ScanTCP(host string) []int {
-	ports := make(chan int, workers)
-	results := make(chan int, 1024)
-
-	var wg sync.WaitGroup
-
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for port := range ports {
-				address := networkAddress(host, port)
-				conn, err := net.DialTimeout("tcp", address, timeout)
-				if err == nil {
-					results <- port
-					conn.Close()
-				}
-			}
-		}()
-	}
-
-	go func() {
-		for port := startPort; port <= endPort; port++ {
-			ports <- port
-		}
-		close(ports)
-	}()
-
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	var openPorts []int
-	for port := range results {
-		openPorts = append(openPorts, port)
-	}
-
-	return openPorts
-}
-
-// TODO: this method is not the best to get UDP ports exposed
-// it fails for some ports that don't repond to empty queries
-// develop OS specific method in the future
-func ScanUDP(host string) []int {
-	// TODO: fix usage in darwin
-	// it reports all the ports because they all timeout
-	if runtime.GOOS == "darwin" {
-		return []int{}
-	}
-	ports := make(chan int, workers)
-	results := make(chan int, 1024)
-
-	var wg sync.WaitGroup
-
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for port := range ports {
-				address := networkAddress(host, port)
-
-				conn, err := net.DialTimeout("udp", address, timeout)
-				if err != nil {
-					continue
-				}
-
-				_, err = conn.Write([]byte{})
-				if err == nil {
-					_ = conn.SetReadDeadline(time.Now().Add(timeout))
-					buf := make([]byte, 1)
-					_, err = conn.Read(buf)
-
-					// responded OR silent → open|filtered
-					if err == nil || netErrTimeout(err) {
-						results <- port
-					}
-				}
-				conn.Close()
-			}
-		}()
-	}
-
-	go func() {
-		for port := startPort; port <= endPort; port++ {
-			ports <- port
-		}
-		close(ports)
-	}()
-
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	var openPorts []int
-	for port := range results {
-		openPorts = append(openPorts, port)
-	}
-
-	return openPorts
-}
-
 func networkAddress(host string, port int) string {
 	return net.JoinHostPort(host, strconv.Itoa(port))
-}
-
-func netErrTimeout(err error) bool {
-	if err == nil {
-		return false
-	}
-	if ne, ok := err.(net.Error); ok && ne.Timeout() {
-		return true
-	}
-	return false
 }
 
 func GetSockets(startPath string, fast bool) ([]string, error) {

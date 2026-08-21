@@ -15,3 +15,6 @@ func listLocalListeners() ([]Listener, error) { return nil, errUnsupportedInvent
 
 // networkNamespace is Linux-only. Elsewhere there is nothing to name.
 func networkNamespace() string { return "" }
+
+// inventorySource names where the table came from, for the report.
+func inventorySource() string { return "unsupported" }
