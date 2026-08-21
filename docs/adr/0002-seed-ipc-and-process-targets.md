@@ -203,13 +203,13 @@ the start, and now demonstrated directly by the contribution above.
   agent-driven harnesses (no extra work needed there) but explicitly not
   true for the 5 generic runtimes (retired from this comparison
   entirely, not fixed).
-- Full research backing lives on local branches, not yet merged:
-  `research/windows-named-pipes`, `research/linux-dev-footprint`,
-  `research/namespace-parity`, `research/windows-dev-machine-footprint`,
+- Full research backing is published in `docs/research/`:
+  `windows-named-pipe-enumeration.md`, `linux-dev-machine-footprint.md`,
+  `namespace-parity-semantics.md`, `windows-dev-machine-footprint.md`,
   each with cited primary sources and raw command output. The pipe
-  enumeration branch's central finding is **superseded** by the correction
-  above — the doc itself is kept as-is (not rewritten) with the branch
-  marked corrected, per ticket #50, rather than silently edited.
+  enumeration write-up's central finding is **superseded** by the correction
+  above — the doc itself is kept as-is (not rewritten) and marked corrected,
+  per ticket #50, rather than silently edited.
 - This closes the deferred "network/socket decoys" bullet in
   `docs/reporting-site-plan.md`'s "Track 2 — seeder" section — updated to
   point here rather than restate the plan.
@@ -224,7 +224,6 @@ the start, and now demonstrated directly by the contribution above.
   question than "why is this entry in our seed list," and would need its
   own design work if pursued; noted for a future effort, not scoped into
   this one. Full write-up:
-  `docs/research/linux-desktop-inventory-contribution.md` on branch
-  `research/linux-desktop-inventory` (see that doc for the taxonomy
-  detail and the full evidence-ladder proposal, preserved rather than
-  discarded).
+  `docs/research/linux-desktop-inventory-contribution.md` (see that doc for
+  the taxonomy detail and the full evidence-ladder proposal, preserved rather
+  than discarded).
