@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	tasks "github.com/controlplaneio/sandbox-probe/pkg/tasks/baseline"
+	tasks "github.com/controlplaneio/sandbox-probe/v6/pkg/tasks/baseline"
 	"github.com/spf13/cobra"
 )
 

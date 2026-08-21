@@ -7,7 +7,7 @@ package tasks
 // 	"os/exec"
 // 	"strings"
 
-// 	"github.com/controlplaneio/sandbox-probe/pkg/models"
+// 	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
 // )
 
 // func getProxyMacOSCmdLine() (*models.ProxyConfig, error) {

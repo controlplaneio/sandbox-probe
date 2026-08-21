@@ -1,6 +1,10 @@
 version: 1
+# major MUST stay at or above 6 and match the /v6 suffix in go.mod. The Go
+# proxy rejects any tag whose major disagrees with the module path, which is
+# how every tag from v4.8.2 to v5.2.1 became unresolvable. Bumping the major
+# here means renaming the module path in the same commit.
 force:
-  major: 0
+  major: 6
   minor: 1
   patch: 0
 wording:

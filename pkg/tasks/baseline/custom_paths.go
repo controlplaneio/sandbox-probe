@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/controlplaneio/sandbox-probe/pkg/config"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/config"
 )
 
 // CheckResult holds the outcome of probing a single path entry.

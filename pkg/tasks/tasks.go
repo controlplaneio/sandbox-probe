@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"reflect"
 
-	reportv1 "github.com/controlplaneio/sandbox-probe/api/gen/proto/report/v1"
-	"github.com/controlplaneio/sandbox-probe/pkg/models"
+	reportv1 "github.com/controlplaneio/sandbox-probe/v6/api/gen/proto/report/v1"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
 )
 
 type baseTask struct {

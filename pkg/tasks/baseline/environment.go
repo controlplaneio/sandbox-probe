@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/controlplaneio/sandbox-probe/pkg/models"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
 	"github.com/prometheus/procfs"
 	"github.com/rs/zerolog/log"
 	"github.com/zricethezav/gitleaks/v8/detect"

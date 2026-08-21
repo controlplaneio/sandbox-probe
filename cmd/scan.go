@@ -6,16 +6,16 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/controlplaneio/sandbox-probe/pkg/config"
-	"github.com/controlplaneio/sandbox-probe/pkg/probes"
-	"github.com/controlplaneio/sandbox-probe/pkg/tasks"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/config"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/probes"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/tasks"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	reportv1 "github.com/controlplaneio/sandbox-probe/api/gen/proto/report/v1"
+	reportv1 "github.com/controlplaneio/sandbox-probe/v6/api/gen/proto/report/v1"
 )
 
 var scanCmd = &cobra.Command{

@@ -1,4 +1,4 @@
-module github.com/controlplaneio/sandbox-probe
+module github.com/controlplaneio/sandbox-probe/v6
 
 go 1.25.6
 

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	reportv1 "github.com/controlplaneio/sandbox-probe/api/gen/proto/report/v1"
-	"github.com/controlplaneio/sandbox-probe/pkg/config"
-	baselineTasks "github.com/controlplaneio/sandbox-probe/pkg/tasks/baseline"
+	reportv1 "github.com/controlplaneio/sandbox-probe/v6/api/gen/proto/report/v1"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/config"
+	baselineTasks "github.com/controlplaneio/sandbox-probe/v6/pkg/tasks/baseline"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/types/known/structpb"
 )

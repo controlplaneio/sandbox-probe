@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/controlplaneio/sandbox-probe/pkg/config"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

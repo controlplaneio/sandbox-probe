@@ -3,7 +3,7 @@
 
 package tasks
 
-import "github.com/controlplaneio/sandbox-probe/pkg/models"
+import "github.com/controlplaneio/sandbox-probe/v6/pkg/models"
 
 func getRunningProcessCommandLinux(_ int) (*models.Process, error) { return nil, nil }
 func getRunningParentProcessLinux(_ int) (*models.Process, error)  { return nil, nil }

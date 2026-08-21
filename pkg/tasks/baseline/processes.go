@@ -3,7 +3,7 @@ package tasks
 import (
 	"os"
 
-	"github.com/controlplaneio/sandbox-probe/pkg/models"
+	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
 )
 
 // fileExistsFunc checks if a file or directory exists.
