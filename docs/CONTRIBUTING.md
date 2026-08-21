@@ -56,9 +56,9 @@ There are two repositories that work as a pair:
 - **[controlplaneio/sandbox-probe](https://github.com/controlplaneio/sandbox-probe)** — this repo: the probe binary,
   its target registry, its Go tests, and the fingerprint checks under `tests/fingerprint/` with the minimal runtime
   launchers under `scripts/` that they invoke.
-- **[sandbox-probe-reports](https://github.com/chrisns/sandbox-probe-reports)** — the comparison harness: the scan
+- **[sandbox-probe-reports](https://github.com/controlplaneio/sandbox-probe-reports)** — the comparison harness: the scan
   matrix, the seeder, the agent stubs, the baseline-normalised methodology, and the reporting site that publishes at
-  <https://chrisns.github.io/sandbox-probe-reports/>. It depends on this repo through a pinned `go.mod` requirement,
+  <https://controlplaneio.github.io/sandbox-probe-reports/>. It depends on this repo through a pinned `go.mod` requirement,
   and reads the probe through exactly two things: `list-targets` and the report JSON.
 
 If you're adding a probe task, a sandbox detector, or a registry target, that work lives here. If you're changing how
@@ -245,7 +245,7 @@ privileged container when the host cannot run `runsc` directly.
 ##### Known Working Tooling Versions
 
 Checks that drive a real agent CLI, and everything that compares one sandbox against another, live in
-[`sandbox-probe-reports`](https://github.com/chrisns/sandbox-probe-reports).
+[`sandbox-probe-reports`](https://github.com/controlplaneio/sandbox-probe-reports).
 
 Every report carries an `environment_detection` finding with the host kernel release/version and OS release — captured
 on **every** run — so a behaviour change caused by a kernel or OS upgrade (seccomp/landlock/user-namespace behaviour

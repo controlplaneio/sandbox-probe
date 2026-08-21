@@ -6,7 +6,7 @@ reports it emits.
 The comparison-side vocabulary (harness, baseline vs sandbox, identity,
 fingerprint, cell states, capability category, exposure, flip) lives with the
 comparison layer, in
-[`sandbox-probe-reports`](https://github.com/chrisns/sandbox-probe-reports)'s
+[`sandbox-probe-reports`](https://github.com/controlplaneio/sandbox-probe-reports)'s
 `CONTEXT.md`. That is the authoritative definition of those terms; this file
 must not fork them.
 

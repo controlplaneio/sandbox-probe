@@ -12,7 +12,7 @@ Accepted
 > `seed-decoys.sh`, `scan-matrix.yaml`, `site/app.js`,
 > `docs/reporting-site-plan.md`, `CONTEXT.md`'s capability-category table and
 > ADR 0001 — now live in
-> [`sandbox-probe-reports`](https://github.com/chrisns/sandbox-probe-reports).
+> [`sandbox-probe-reports`](https://github.com/controlplaneio/sandbox-probe-reports).
 > The text below is left as it was written.
 
 ## Context
