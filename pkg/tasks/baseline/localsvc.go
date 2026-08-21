@@ -81,7 +81,24 @@ func MeasureLocalServices() LocalServices {
 	out.Status["udp_feedback"] = cal.feedback()
 
 	out.Results = probeAll(listeners)
-	out.Status["results"] = out.Results
+	// structpb only accepts the basic Go kinds, so the per-port detail goes
+	// in as plain maps rather than as []PortResult. Without this the whole
+	// status finding fails to serialise at runtime while building fine.
+	rows := make([]any, 0, len(out.Results))
+	for _, r := range out.Results {
+		row := map[string]any{
+			"proto": r.Proto, "addr": r.Addr,
+			"port": float64(r.Port), "outcome": string(r.Outcome),
+		}
+		if r.Syscall != "" {
+			row["syscall"] = r.Syscall
+		}
+		if r.Errno != "" {
+			row["errno"] = r.Errno
+		}
+		rows = append(rows, row)
+	}
+	out.Status["results"] = rows
 	return out
 }
 

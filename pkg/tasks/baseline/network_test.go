@@ -85,68 +85,6 @@ func TestGetProxy(t *testing.T) {
 	t.Logf("  PAC_URL:     %s", cfg.PACURL)
 }
 
-func Test_scanTCP(t *testing.T) {
-	// Test TCP port scanning on localhost
-	// Note: This scans all ports 1-65535 and may take some time
-	// In most environments, some ports will be open on localhost
-
-	t.Log("Starting TCP port scan on localhost (this may take a moment)...")
-	openPorts := ScanTCP("127.0.0.1")
-
-	// Should return a slice (even if empty)
-	assert.NotNil(t, openPorts, "scanTCP should return a non-nil slice")
-
-	// Log results
-	t.Logf("Found %d open TCP ports on localhost", len(openPorts))
-
-	if len(openPorts) > 0 {
-		// Log first few open ports for debugging
-		maxLog := 10
-		if len(openPorts) < maxLog {
-			maxLog = len(openPorts)
-		}
-
-		// Verify all ports are in valid range
-		for _, port := range openPorts {
-			assert.GreaterOrEqual(t, port, 1, "Port should be >= 1")
-			assert.LessOrEqual(t, port, 65535, "Port should be <= 65535")
-		}
-	} else {
-		t.Log("No open TCP ports found (this may indicate network isolation)")
-	}
-}
-
-func Test_scanUDP(t *testing.T) {
-	// Test UDP port scanning on localhost
-	// Note: UDP scanning is inherently unreliable as it depends on responses
-	// Many UDP services don't respond to empty packets, so results may vary
-
-	t.Log("Starting UDP port scan on localhost (this may take a moment)...")
-	openPorts := ScanUDP("127.0.0.1")
-
-	// Should return a slice (even if empty)
-	assert.NotNil(t, openPorts, "scanUDP should return a non-nil slice")
-
-	// Log results
-	t.Logf("Found %d open/filtered UDP ports on localhost", len(openPorts))
-
-	if len(openPorts) > 0 {
-		// Log first few open ports for debugging
-		maxLog := 10
-		if len(openPorts) < maxLog {
-			maxLog = len(openPorts)
-		}
-
-		// Verify all ports are in valid range
-		for _, port := range openPorts {
-			assert.GreaterOrEqual(t, port, 1, "Port should be >= 1")
-			assert.LessOrEqual(t, port, 65535, "Port should be <= 65535")
-		}
-	} else {
-		t.Log("No open/filtered UDP ports found (this is common as UDP scanning is unreliable)")
-	}
-}
-
 func Test_getSockets(t *testing.T) {
 	// Test getSockets function
 

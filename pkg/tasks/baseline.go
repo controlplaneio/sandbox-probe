@@ -178,46 +178,83 @@ func (t *NetworkTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 		Value:       connValue,
 	})
 
-	// TCPPORTSOPEN
-	log.Info().Str("host", t.testHost).Msg("Scanning TCP ports")
-	tcpPorts := baselineTasks.ScanTCP(t.testHost)
-	log.Info().Int("open_tcp_ports", len(tcpPorts)).Msg("TCP scan completed")
+	// Local services: ask the kernel what is listening, then find out what
+	// this process can actually reach. Two questions, reported separately,
+	// because they diverge under exactly the sandboxes this probe measures.
+	svc := baselineTasks.MeasureLocalServices()
+	log.Info().
+		Interface("table", svc.Status["table"]).
+		Interface("source", svc.Status["source"]).
+		Interface("listeners", svc.Status["listeners_found"]).
+		Interface("udp_feedback", svc.Status["udp_feedback"]).
+		Msg("Local service scan completed")
 
-	if len(tcpPorts) > 0 {
-		tcpValue, err := structpb.NewValue(intSliceToInterface(tcpPorts))
+	// LOCALLISTENERS — the inventory. Emitted whenever the table was read,
+	// including empty, because an empty namespace is a real observation.
+	if svc.Status["table"] == "read" {
+		names := make([]string, 0, len(svc.Listeners))
+		for _, l := range svc.Listeners {
+			names = append(names, l.String())
+		}
+		lv, err := structpb.NewValue(stringSliceToInterface(names))
 		if err != nil {
-			log.Error().Err(err).Msg("Failed to convert TCP ports to protobuf value")
+			log.Error().Err(err).Msg("Failed to convert local listeners to protobuf value")
 			return nil, err
 		}
 		findings = append(findings, &reportv1.Finding{
-			FindingType: TCPPORTSOPEN,
+			FindingType: LOCALLISTENERS,
 			Task:        t.GetName(),
-			Description: "Open TCP ports",
-			Value:       tcpValue,
+			Description: "Local listening sockets (inventory, not a capability)",
+			Value:       lv,
 		})
 	}
 
-	// UDPPORTSOPEN
-	log.Info().Str("host", t.testHost).Msg("Scanning UDP ports")
-	udpPorts := baselineTasks.ScanUDP(t.testHost)
-	log.Info().Int("open_udp_ports", len(udpPorts)).Msg("UDP scan completed")
-
-	if len(udpPorts) > 0 {
-		udpValue, err := structpb.NewValue(intSliceToInterface(udpPorts))
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to convert UDP ports to protobuf value")
+	// TCPPORTSOPEN / UDPPORTSOPEN — the scored halves. Same shape and same
+	// meaning as before: ports this process reached. Emitted even when
+	// empty, because a scan that ran and found nothing is a real negative
+	// and is what makes a baseline comparison mean anything. Omitted only
+	// when the measurement could not conclude, which the site reads as
+	// unmeasured rather than as blocked.
+	if ports, ok := svc.TCPPorts(); ok {
+		if err := appendPorts(&findings, t.GetName(), TCPPORTSOPEN, "Reachable TCP ports", ports); err != nil {
 			return nil, err
 		}
-		findings = append(findings, &reportv1.Finding{
-			FindingType: UDPPORTSOPEN,
-			Task:        t.GetName(),
-			Description: "Open UDP ports",
-			Value:       udpValue,
-		})
 	}
+	if ports, ok := svc.UDPPorts(); ok {
+		if err := appendPorts(&findings, t.GetName(), UDPPORTSOPEN, "Reachable UDP ports", ports); err != nil {
+			return nil, err
+		}
+	}
+
+	// LOCALPROBESTATUS — always, including on failure. This is what tells a
+	// reader "could not measure" apart from "measured zero"; without it a
+	// silence is indistinguishable from a hardened sandbox.
+	sv, err := structpb.NewValue(svc.Status)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to convert local probe status to protobuf value")
+		return nil, err
+	}
+	findings = append(findings, &reportv1.Finding{
+		FindingType: LOCALPROBESTATUS,
+		Task:        t.GetName(),
+		Description: "How the local service measurement went",
+		Value:       sv,
+	})
 
 	log.Info().Str("task", t.GetName()).Msg("Network scanning task completed successfully")
 	return findings, nil
+}
+
+func appendPorts(findings *[]*reportv1.Finding, task, ft, desc string, ports []int) error {
+	v, err := structpb.NewValue(intSliceToInterface(ports))
+	if err != nil {
+		log.Error().Err(err).Str("finding", ft).Msg("Failed to convert ports to protobuf value")
+		return err
+	}
+	*findings = append(*findings, &reportv1.Finding{
+		FindingType: ft, Task: task, Description: desc, Value: v,
+	})
+	return nil
 }
 
 // ProxyTask produces: PROXYDETECTION

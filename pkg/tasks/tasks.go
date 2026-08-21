@@ -43,6 +43,20 @@ const (
 	SANDBOXDETECTION          = "sandbox_detection"
 	ENVIRONMENTDETECTION      = "environment_detection"
 	ENVSECRETDETECTION        = "env_secret_detection"
+
+	// LOCALLISTENERS is the kernel's own socket table: what is bound in this
+	// network namespace, as "tcp 127.0.0.1:22" strings. It is an INVENTORY
+	// and is deliberately not a scored capability — under a Seatbelt profile
+	// denying network it is byte-identical inside and outside the sandbox,
+	// so treating it as exposure would mark every confined macOS row leaked.
+	LOCALLISTENERS = "local_listeners"
+
+	// LOCALPROBESTATUS says how the local-services measurement went: which
+	// table was read, whether the UDP feedback channel is live, the network
+	// namespace, and the per-port outcomes behind the scored integers.
+	// It is what makes "could not measure" distinguishable from "measured
+	// zero", which is the root of the false-blocked class of bug.
+	LOCALPROBESTATUS = "local_probe_status"
 )
 
 var expectedTypes = map[string]reflect.Type{
