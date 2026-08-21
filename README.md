@@ -4,7 +4,7 @@
 
 `sandbox-probe` is a single static Go binary you drop *inside* the sandbox — [Claude Code](https://code.claude.com/docs/en/overview), [Gemini CLI](https://geminicli.com/), [`nono`](https://github.com/nolabs-ai/nono), a container, whatever — and let it look around. It records what the kernel let it do and writes one JSON report. If that report shows it could read `~/.aws/credentials`, resolve arbitrary DNS, or reach `169.254.169.254`, tighten the policy before you ship another line of code through it.
 
-This repository is the probe and nothing else. The comparison harness built on top of it — the scan matrix, the seeder, the agent stubs, the baseline-normalised methodology and the published results — lives in [`sandbox-probe-reports`](https://github.com/chrisns/sandbox-probe-reports), and its site publishes at <https://chrisns.github.io/sandbox-probe-reports/>. (It was previously published from this repository; that is the new address.)
+This repository is the probe and nothing else. The comparison harness built on top of it — the scan matrix, the seeder, the agent stubs, the baseline-normalised methodology and the published results — lives in [`sandbox-probe-reports`](https://github.com/controlplaneio/sandbox-probe-reports), and its site publishes at <https://controlplaneio.github.io/sandbox-probe-reports/>. (It was previously published from this repository; that is the new address.)
 
 ## Table of contents
 
@@ -26,7 +26,7 @@ Four concrete scenarios `sandbox-probe` is built to answer:
 - **Assessing an AI coding agent's blast radius.** You let developers use Claude Code, Gemini CLI, or similar; you want a concrete inventory of what a compromised agent could read, write, or reach from inside its sandbox.
 - **Tuning a sandbox policy.** You're writing Landlock rules (via [`nono`](https://github.com/nolabs-ai/nono)), a seccomp profile, or a container policy and need before-and-after evidence that the rule you added actually closed the door you intended.
 - **Detecting sandbox regressions over time.** Run the probe in your agent's sandbox on every release of the agent (or your wrapper) and alert when the boundary widens — for example, a new agent version starts seeing `~/.aws/credentials`.
-- **Comparing sandboxes apples-to-apples.** The same probe, run under different sandboxes, produces directly comparable reports. Turning many such reports into a matrix is what [`sandbox-probe-reports`](https://github.com/chrisns/sandbox-probe-reports) does.
+- **Comparing sandboxes apples-to-apples.** The same probe, run under different sandboxes, produces directly comparable reports. Turning many such reports into a matrix is what [`sandbox-probe-reports`](https://github.com/controlplaneio/sandbox-probe-reports) does.
 
 ## How it works
 
@@ -470,6 +470,6 @@ tests/fingerprint/
 
 No agent CLI, model access or API key is involved — a Go toolchain plus the runtimes you want to test is the whole requirement.
 
-Checks that drive a real agent CLI, and everything that compares one sandbox against another, live in [`sandbox-probe-reports`](https://github.com/chrisns/sandbox-probe-reports).
+Checks that drive a real agent CLI, and everything that compares one sandbox against another, live in [`sandbox-probe-reports`](https://github.com/controlplaneio/sandbox-probe-reports).
 
 See [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md) for the full contributor guide, and [`CONTEXT.md`](./CONTEXT.md) for the vocabulary.
