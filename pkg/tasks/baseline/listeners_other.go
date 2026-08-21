@@ -1,14 +1,11 @@
-//go:build !linux && !darwin
-// +build !linux,!darwin
+//go:build !linux && !darwin && !windows
+// +build !linux,!darwin,!windows
 
 package tasks
 
-// No socket-table reader on this platform yet. Windows has one — iphlpapi's
-// GetExtendedTcpTable and GetExtendedUdpTable, which is what `netstat -ano`
-// calls and which needs no elevation — but it is not written here yet, because
-// none of it has been run on a real Windows host. The named-pipe work next door
-// is the precedent: ADR 0002 asserted an enumeration mechanism from
-// documentation, and testing on an actual Windows 11 machine disproved it.
+// No socket-table reader on this platform. Linux, macOS and Windows each have
+// one; anything else (freebsd, and the js/wasm and plan9 targets the toolchain
+// will happily build for) does not.
 //
 // Reporting "unsupported" is deliberate and is not the same as reporting an
 // empty table. An empty table is a measurement; a missing implementation is

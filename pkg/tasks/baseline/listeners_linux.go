@@ -5,7 +5,6 @@ package tasks
 
 import (
 	"fmt"
-	"net"
 	"os"
 
 	"github.com/prometheus/procfs"
@@ -110,16 +109,6 @@ func readTables(
 	u6, e := fs.NetUDP6()
 	add("udp", procfs.NetTCP(u6), e, isUDPService)
 	return nil
-}
-
-// bindAddr renders the bound address, collapsing the two wildcard forms to ""
-// so a caller can tell "bound everywhere" from "bound to one interface"
-// without parsing IPs again.
-func bindAddr(ip net.IP) string {
-	if ip == nil || ip.IsUnspecified() {
-		return ""
-	}
-	return ip.String()
 }
 
 // networkNamespace returns the current network namespace's identity, e.g.

@@ -107,6 +107,16 @@ func normalizeListeners(ls []Listener) []Listener {
 	return out
 }
 
+// bindAddr renders a bound address, collapsing both wildcard forms to "" so a
+// caller can tell "bound everywhere" from "bound to one interface" without
+// parsing the address again. Every platform reader funnels through it.
+func bindAddr(ip net.IP) string {
+	if ip == nil || ip.IsUnspecified() {
+		return ""
+	}
+	return ip.String()
+}
+
 // ListenerPorts returns the distinct ports for one protocol, which is the shape
 // the tcp_ports_open / udp_ports_open findings have always carried.
 func ListenerPorts(ls []Listener, proto string) []int {

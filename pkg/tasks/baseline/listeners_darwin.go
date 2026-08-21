@@ -125,15 +125,6 @@ func inpcbListener(rec []byte, proto string) (Listener, bool) {
 	return Listener{Proto: proto, Addr: bindAddr(ip), Port: int(lport)}, true
 }
 
-// bindAddr collapses both wildcard forms to "", so a caller can tell "bound
-// everywhere" from "bound to one interface" without re-parsing.
-func bindAddr(ip net.IP) string {
-	if ip == nil || ip.IsUnspecified() {
-		return ""
-	}
-	return ip.String()
-}
-
 // networkNamespace has no macOS equivalent. Returning "" says so, rather than
 // implying an unnamespaced host.
 func networkNamespace() string { return "" }
