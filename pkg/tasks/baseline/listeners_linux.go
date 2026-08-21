@@ -122,3 +122,6 @@ func networkNamespace() string {
 	}
 	return ns
 }
+
+// inventorySource names where the table came from, for the report.
+func inventorySource() string { return "procfs" }
