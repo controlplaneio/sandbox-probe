@@ -183,10 +183,12 @@ func listTargetsForHome(home, siblingSock string) []Target {
 			kind = "dir"
 		}
 		scope := "system"
-		// Accept either separator: buildSensitivePathsForHome joins with
-		// filepath.Join, so a Windows home yields backslashes, while the
-		// registry's own tests drive this with POSIX-style homes.
-		if strings.HasPrefix(s.path, home+string(os.PathSeparator)) || strings.HasPrefix(s.path, home+"/") {
+		// Compare in the same form buildSensitivePathsForHome produced. It joins
+		// with filepath.Join, which Cleans -- so on Windows a POSIX-looking home
+		// like "/home/tester" comes back as "\home\tester\...". Comparing against
+		// the raw home string then never matches, every path reads as system-scoped
+		// and Windows seeding silently plants nothing.
+		if strings.HasPrefix(s.path, filepath.Clean(home)+string(os.PathSeparator)) {
 			scope = "home"
 		}
 		out = append(out, Target{

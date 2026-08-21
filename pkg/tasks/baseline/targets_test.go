@@ -37,7 +37,11 @@ func TestSeedableTargetsAreHomeFilesOnly(t *testing.T) {
 			continue
 		}
 		seedable++
-		if tg.Scope != "home" || !strings.HasPrefix(tg.Path, home+"/") {
+		// Clean + os.PathSeparator, not home+"/": the registry builds paths with
+		// filepath.Join, so on Windows this synthetic POSIX home comes back as
+		// "\home\tester\...". A "/"-only check passes vacuously there and would
+		// not have caught seeding being disabled on Windows.
+		if tg.Scope != "home" || !strings.HasPrefix(tg.Path, filepath.Clean(home)+string(os.PathSeparator)) {
 			t.Errorf("seedable target %q escapes home %q", tg.Path, home)
 		}
 		if strings.Contains(tg.Path, "..") {
@@ -122,14 +126,18 @@ func TestFileRegistryUnchangedOnEveryOS(t *testing.T) {
 // must not — guards the classification itself, not just its shape.
 func TestSeedableClassificationSpotChecks(t *testing.T) {
 	home := "/home/tester"
+	// Keys are built with filepath.Join, matching how the registry builds them.
+	// Concatenating home+"/..." would look up POSIX keys against backslash paths
+	// on Windows, find nothing, and report every entry as not-seedable.
+	h := func(p string) string { return filepath.Join(home, p) }
 	want := map[string]bool{
-		home + "/.aws/credentials": true,
-		home + "/.ssh/id_rsa":      true,
-		home + "/.npmrc":           true,
-		home + "/.gnupg":           false, // directory
-		home + "/.config/gcloud":   false, // directory
-		"/etc/shadow":              false, // system
-		home + "/.gitconfig":       false, // content-predicate: a decoy corrupts git and never matches the predicate
+		h(".aws/credentials"): true,
+		h(".ssh/id_rsa"):      true,
+		h(".npmrc"):           true,
+		h(".gnupg"):           false, // directory
+		h(".config/gcloud"):   false, // directory
+		"/etc/shadow":         false, // system, and absent entirely on Windows
+		h(".gitconfig"):       false, // content-predicate: a decoy corrupts git and never matches the predicate
 	}
 	got := map[string]bool{}
 	for _, tg := range listTargetsForHome(home, "") {
