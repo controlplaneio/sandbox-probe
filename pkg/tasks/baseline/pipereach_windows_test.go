@@ -148,9 +148,15 @@ func TestSeedPlantsAndScanReachesTheReachabilityDecoy(t *testing.T) {
 	t.Cleanup(func() { _, _ = CleanupSeeded(record) })
 
 	// Deliberately no catalogue targets: the reachability decoy must be planted on its own.
+	//
+	// It is not counted in SeedResult — Planted and Skipped tally the caller's targets, and
+	// this is an instrument the probe plants for itself. So an empty target list must report
+	// nothing planted while still leaving a reachable decoy behind, and both halves of that
+	// are asserted here.
 	res, err := SeedTargets(nil, record)
 	require.NoError(t, err)
-	require.Equal(t, 1, res.Planted, "the reachability decoy was not planted")
+	assert.Equal(t, 0, res.Planted, "the probe's own instrument must not inflate the caller's tally")
+	assert.Equal(t, 0, res.Skipped, "nor its skip count")
 
 	names, ok := MeasurePipeReach().Names()
 	assert.True(t, ok, "the decoy was planted, so the measurement must conclude")

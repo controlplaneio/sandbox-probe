@@ -122,15 +122,26 @@ func TestSeedScanCleanupPipeRoundTrip(t *testing.T) {
 		t.Fatal("the decoy pipe is not reported after seeding")
 	}
 
+	// Two, not one: the catalogue decoy above plus the reachability decoy that SeedTargets
+	// plants for the probe itself.
+	//
+	// The asymmetry with SeedResult.Planted is deliberate and the two counts answer different
+	// questions. Planted and Skipped describe the CALLER's targets, so the probe's own
+	// instrument is excluded from them. This number answers "did you leave anything on my
+	// machine", where under-reporting is the harmful direction — every artifact cleanup took
+	// down is counted, whoever asked for it.
 	removed, err := CleanupSeeded(record)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if removed != 1 {
-		t.Errorf("cleanup removed %d, want 1", removed)
+	if removed != 2 {
+		t.Errorf("cleanup removed %d, want 2 (the catalogue decoy and the reachability decoy)", removed)
 	}
 	if pipeScanned(t, name) {
 		t.Fatal("the decoy pipe is still reported after cleanup")
+	}
+	if pipeScanned(t, ReachPipeName) {
+		t.Fatal("the reachability decoy is still reported after cleanup")
 	}
 	// Cleanup runs after every scan, including after a crashed one: a second pass
 	// over a record whose artifacts are gone is a no-op, not an error.
