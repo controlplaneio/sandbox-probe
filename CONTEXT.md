@@ -106,10 +106,21 @@ must know which one it is contributing to:
   ancestry, markers and, as a last resort, a restricted user namespace's ID
   map. Treat it as a hypothesis, not an attested fact.
 - A **mechanism** (`seccomp-filter`, `no-new-privs`, `landlock`,
-  `user-namespace`, …) is *kernel-attested*: read directly off a kernel
-  interface (`/proc/self/status`, the uid_map), true regardless of whether the
-  wrapper name resolved. Mechanisms are emitted alongside the badge, never
-  folded into it.
+  `user-namespace`, `restricted-token`, …) is *kernel-attested*: read directly
+  off a kernel interface (`/proc/self/status`, the uid_map, `IsTokenRestricted`
+  on Windows), true regardless of whether the wrapper name resolved. Mechanisms
+  are emitted alongside the badge, never folded into it.
+
+`restricted-token` is the Windows mechanism, and it is deliberately the *only*
+Windows signal. Measured against Codex CLI 0.149.1, a sandboxed process has
+`BUILTIN\Administrators` demoted to "use for deny only" and every privilege but
+`SeChangeNotifyPrivilege` stripped — and so does an ordinary non-elevated
+administrator's UAC split token, which is every Windows desktop. Detecting
+either of those would report the unconfined baseline as sandboxed.
+`IsTokenRestricted` looks for restricting SIDs, which UAC filtering does not
+add. Integrity level is not a signal either: measured High both inside and
+outside. Do not "improve" this detector by adding the group or privilege
+checks.
 
 The user-namespace rule (a non-identity uid_map) is the **last resort** in the
 wrapper-name chain, tried only after every more specific runtime detector has

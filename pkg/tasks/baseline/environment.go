@@ -302,6 +302,23 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return RuntimeUnknown
 	}
 
+	// A Windows restricted token says some sandbox is present and cannot say which tool built
+	// it — Codex CLI, Chromium's renderer and psexec -l all produce one. So this is the same
+	// generic "confined, unnamed" answer the no-new-privs fallback gives on Linux, and it sits
+	// in the same fallback tier for the same reason.
+	//
+	// RuntimeUnknown deliberately, rather than a new enum value. A new value needs a matching
+	// case in the switch in baseline.go, and RuntimeBubblewrap is this repository's own proof of
+	// what happens when one is missed: it is returned but has no case, so it silently produces
+	// no badge at all unless a separate ancestor walk also fires.
+	//
+	// This must be reached, not merely emitted as a mechanism: the site's sandboxOf() reports
+	// "none" for a row whose only values are mechanisms, so without a badge a correctly detected
+	// confined run would render as unsandboxed — a worse error than a vague label.
+	if isRestrictedToken() {
+		return RuntimeUnknown
+	}
+
 	return identifiedRuntime
 }
 
@@ -363,6 +380,18 @@ func ActiveMechanisms() []string {
 	// see isUserNamespaceWithUIDMap's doc comment for why the ID map shape doesn't gate this.
 	if isUserNamespaceWithUIDMap() {
 		mechanisms = append(mechanisms, "user-namespace")
+	}
+
+	// Windows restricted token (CreateRestrictedToken), read off this process's own token with
+	// IsTokenRestricted — kernel-attested in exactly the way user-namespace is attested by the
+	// uid_map, and false everywhere else.
+	//
+	// A mechanism and not a wrapper name, because the token cannot say which tool restricted it.
+	// Deliberately NOT keyed off deny-only groups or a stripped privilege set: a non-elevated
+	// administrator's UAC split token is identical on both, so that detector would report every
+	// Windows desktop as sandboxed. See isRestrictedTokenImpl for the measurement.
+	if isRestrictedToken() {
+		mechanisms = append(mechanisms, "restricted-token")
 	}
 
 	// /proc/self/status fields (all kernels that have the feature export it here)
