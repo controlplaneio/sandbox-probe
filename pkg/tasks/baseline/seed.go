@@ -111,6 +111,23 @@ func SeedTargets(targets []Target, recordPath string) (SeedResult, error) {
 		}
 		res.Planted++
 	}
+
+	// The reachability decoy, which is NOT a catalogue entry and must not become one. It
+	// stands in for no real tool, and that is the point: reachability is measured only
+	// against a name no real service can hold, because opening a real service's pipe is not
+	// passive. Same precedent as calibrate()'s control port — an instrument the probe plants
+	// for itself. See ReachPipeName.
+	//
+	// Off Windows seedPipe reports errNoPipeNamespace, which is not a skip: there is nothing
+	// there to skip.
+	if p, err := seedPipe(ReachPipeName); err == nil {
+		rec.Pipes = append(rec.Pipes, p)
+		res.Planted++
+	} else if !errors.Is(err, errNoPipeNamespace) {
+		log.Debug().Err(err).Str("pipe", ReachPipeName).Msg("Reachability decoy skipped")
+		res.Skipped++
+	}
+
 	return res, writeRecord(recordPath, rec)
 }
 

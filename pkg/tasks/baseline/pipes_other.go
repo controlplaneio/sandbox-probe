@@ -4,7 +4,6 @@
 package tasks
 
 import (
-	"errors"
 	"time"
 )
 
@@ -13,12 +12,6 @@ import (
 // a non-Windows report entirely: the caller emits the finding only for a
 // non-nil list.
 func ListNamedPipes() ([]string, error) { return nil, nil }
-
-// errNoPipeNamespace is what the seeding half of the pipe seam reports off
-// Windows. Unreachable in production — pipe targets are windows-scoped and
-// ListTargets filters to the running OS — so if it ever fires it is one skipped
-// entry, not a failed run.
-var errNoPipeNamespace = errors.New("named pipes are Windows-only")
 
 func ServePipe(string, time.Duration) error { return errNoPipeNamespace }
 
