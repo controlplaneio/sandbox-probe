@@ -71,7 +71,19 @@ never an adopted one — so the process scan has something of the host's to find
 A `pipe` decoy is a Windows named pipe served under its real catalogue name by a
 probe process the seeder spawned; a pipe exists only while a server holds it
 open, so the server is the decoy, and a name a real service already serves is
-skipped rather than shadowed.
+skipped rather than shadowed. The server answers clients rather than merely
+holding the name — it writes the pipe's own name back and recycles the instance
+— because reachability is measured by a round trip through it.
+
+One pipe decoy is **not** a catalogue entry: `ReachPipeName`, the reachability
+instrument, plus a per-pid control name nothing ever serves. Reachability is only
+ever measured against those two, never a catalogue name. Opening a real service's
+pipe is not passive — it consumes a server instance and delivers a connection
+event — and at scan time a catalogue name is either our decoy or the real service,
+with no way to tell from a different process. That makes them the same precedent
+as `calibrate()`'s control port: an instrument the probe plants for itself, absent
+from the catalogue and absent from `SeedResult`'s tally, which counts the caller's
+targets only.
 
 ### Belt and suspenders
 The lifecycle of a decoy that has to stay alive during the scan (a `process` or

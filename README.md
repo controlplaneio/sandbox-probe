@@ -72,6 +72,9 @@ Each row below is a `finding_type` string you will see in `report.json`, what it
 | `proxy_detection` | proxy configuration in environment variables | "Is traffic forced through a proxy the agent could subvert?" |
 | `unix_socket_detection` | Unix domain sockets visible from inside | "Can the agent talk to the Docker daemon, SSH agent, dbus, …?" |
 | `named_pipe_detection` | Windows named pipes visible from inside (Windows scans only) | "Can the agent see the host's IPC endpoints — the SSH agent, Docker's `docker_engine` pipe, …?" |
+| `named_pipe_reachable` | the named pipes this process could actually **open**, proven by a token round trip — the probe's own seeded decoy only, never a real service's pipe | "Does the sandbox stop the agent *reaching* an IPC endpoint, as opposed to merely seeing its name?" |
+| `named_pipe_creation` | a pipe the probe created and immediately destroyed | "Can the agent squat a name a privileged service will later use?" |
+| `named_pipe_probe_status` | how that measurement went: the control against a name nothing serves, whether the namespace was readable, whether the decoy was enumerated, and the per-pipe outcome | "Was this measured at all, or merely not observed?" |
 | `process_detection` / `parent_process_detection` | visible processes and the launching parent | "What else is running in the same context, and who launched the agent?" |
 | `mounted_volumes_detections` | mounted filesystems visible from inside | "What of the host filesystem is exposed?" |
 | `user_context_detection` | UID, GID, EUID, EGID | "Is the agent running as a privileged user?" |
