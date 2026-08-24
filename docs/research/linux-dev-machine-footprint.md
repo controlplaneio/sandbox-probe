@@ -1,7 +1,7 @@
 # Linux dev-machine IPC/process footprint
 
-Research for [`issues/06-linux-dev-machine-footprint.md`](../../.scratch/seed-ipc-targets/issues/06-linux-dev-machine-footprint.md),
-feeding the [seed-ipc-targets catalogue ticket](../../.scratch/seed-ipc-targets/issues/09-populate-catalogue-and-registry.md).
+Research for [`issues/06-linux-dev-machine-footprint.md`](https://github.com/controlplaneio/sandbox-probe-reports/blob/main/.scratch/seed-ipc-targets/issues/06-linux-dev-machine-footprint.md),
+feeding the [seed-ipc-targets catalogue ticket](https://github.com/controlplaneio/sandbox-probe-reports/blob/main/.scratch/seed-ipc-targets/issues/09-populate-catalogue-and-registry.md).
 Companion to the macOS data already gathered (see the map's Notes): Docker
 Desktop's `vmnetd` socket, three VS Code git-integration sockets, four
 `ssh-askpass` GUI-prompt sockets, two browsers' singleton sockets, and an AI

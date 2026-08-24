@@ -1,6 +1,13 @@
 # Research: enumerating Windows named pipes from Go
 
-For [wayfinder ticket 04](../../.scratch/seed-ipc-targets/issues/04-windows-named-pipe-enumeration.md).
+> **This document corrects [ADR 0002](../adr/0002-seed-ipc-and-process-targets.md), per ticket #50.**
+> ADR 0002 claimed no Win32 API could enumerate the pipe namespace and that a new
+> `ntdll` dependency was needed. That is wrong. A plain `FindFirstFileW` loop over
+> `\\.\pipe\*` works unelevated, with nothing added — 57 pipe names on a real
+> Windows 11 host as an ordinary standard user. ADR 0002 carries the same
+> correction inline rather than deleting the original text.
+
+For [wayfinder ticket 04](https://github.com/controlplaneio/sandbox-probe-reports/blob/main/.scratch/seed-ipc-targets/issues/04-windows-named-pipe-enumeration.md).
 No existing `docs/research/` convention in this repo — establishing one here;
 future research notes should land alongside this file.
 
@@ -88,7 +95,7 @@ default per the Win32 docs above, which is consistent with unprivileged
 enumeration being the norm, though this is inference from absence of a
 documented restriction rather than an explicit "no admin needed" statement —
 worth confirming empirically once code exists, ideally in
-[the Windows dev-machine footprint capture ticket](../../.scratch/seed-ipc-targets/issues/07-windows-dev-machine-footprint-capture.md).
+[the Windows dev-machine footprint capture ticket](https://github.com/controlplaneio/sandbox-probe-reports/blob/main/.scratch/seed-ipc-targets/issues/07-windows-dev-machine-footprint-capture.md).
 
 ## 3. Shape of the equivalent to `DefaultSocketRoots`/`ScanSocketRoots`
 

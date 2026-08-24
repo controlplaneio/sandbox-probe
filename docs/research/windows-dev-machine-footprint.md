@@ -1,6 +1,6 @@
 # Research: Windows developer-machine named-pipe/process footprint
 
-For [wayfinder ticket 07](../../.scratch/seed-ipc-targets/issues/07-windows-dev-machine-footprint-capture.md).
+For [wayfinder ticket 07](https://github.com/controlplaneio/sandbox-probe-reports/blob/main/.scratch/seed-ipc-targets/issues/07-windows-dev-machine-footprint-capture.md).
 Captured against the `Win11.utm` VM (Windows 11 24H2, build 26100.4875) via
 `utmctl exec`/`utmctl file` — the QEMU guest agent, once installed inside
 the guest, turned this from a fully-manual task into something drivable
@@ -128,7 +128,7 @@ future session wants Docker Desktop / VS Code footprints for real:
 
 ## Consequence for the catalogue ticket
 
-[Ticket 09](../../.scratch/seed-ipc-targets/issues/09-populate-catalogue-and-registry.md)
+[Ticket 09](https://github.com/controlplaneio/sandbox-probe-reports/blob/main/.scratch/seed-ipc-targets/issues/09-populate-catalogue-and-registry.md)
 gets one fully-empirical, high-confidence Windows entry (`ssh-agent` →
 `\\.\pipe\openssh-ssh-agent`) and two documented-but-unverified leads
 (Docker Desktop, VS Code) that should be labeled with that distinction in
