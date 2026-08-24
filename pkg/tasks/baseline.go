@@ -390,10 +390,10 @@ func (t *SocketTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, e
 
 	// Named-pipe REACHABILITY, measured ONLY against the probe's own seeded decoy.
 	//
-	// Enumeration above was measured not to discriminate: 57 pipes confined and 57
-	// unconfined on a Windows 11 host, 40 and 40 on a GitHub runner. Listing \\.\pipe\* is a
-	// directory read that a restricted token does not change, so the name list is identical
-	// either side of the boundary and reachability is the only place signal can come from.
+	// Enumeration above was measured not to discriminate: listing \\.\pipe\* is a directory
+	// read that a restricted token does not change, so the name list is identical either side
+	// of the boundary and reachability is the only place signal can come from. The numbers and
+	// the method are in docs/research/windows-named-pipe-enumeration.md section 4.
 	reach := baselineTasks.MeasurePipeReach()
 
 	if names, ok := reach.Names(); ok {

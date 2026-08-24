@@ -3,7 +3,6 @@ package tasks
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -23,44 +22,6 @@ const maxUnixSocketPathLen = 104
 // than beside the enumerator because the catalogue is cross-platform: the
 // registry names Windows targets on every OS and lets the OS filter drop them.
 const pipePrefix = `\\.\pipe\`
-
-// errNoPipeNamespace is what the seeding half of the pipe seam reports off Windows. Declared
-// here rather than in the !windows file because portable code needs to recognise it: seeding
-// the reachability decoy must tell "there is no pipe namespace on this OS" apart from "the
-// plant failed", and only the second is a skip worth counting.
-var errNoPipeNamespace = errors.New("named pipes are Windows-only")
-
-// ReachPipeName is the ONLY pipe this probe ever opens as a client, and it is deliberately
-// NOT a catalogue entry.
-//
-// Opening a real service's pipe is not passive: it consumes a server instance, delivers a
-// connection event, and can hang a badly written server. So reachability is measured only
-// against a name no real service can hold.
-//
-// Why not the catalogue names, which are what an attacker would actually target. seedPipe
-// plants a decoy at one of those only when it is free, so at SCAN time `\\.\pipe\docker_engine`
-// is either our decoy or a live Docker Desktop — and the scan is a different process from the
-// seeder, with no way to tell which. Making it tell would mean reading the seed record, which
-// puts a SAFETY property behind a filesystem read the sandbox under test may block and whose
-// TMPDIR may differ. That is exactly backwards. Whether the catalogue names are visible is
-// already answered by named_pipe_detection; what reachability adds is whether an open succeeds,
-// and that question can be asked of any pipe — so ask it of the one where the answer costs
-// nobody anything.
-//
-// A name of this shape can only ever be ours: FILE_FLAG_FIRST_PIPE_INSTANCE means the seeder
-// holds it or nobody does. It is fixed rather than per-run for the same reason the record is
-// not consulted — seeder and scan share no state, and the only channel between them is that
-// record. Two concurrent probe runs collide benignly: the second seeder's plant is skipped and
-// the scan measures the first run's decoy, which is still the probe's own.
-const ReachPipeName = pipePrefix + "sandbox-probe-reachability-decoy"
-
-// reachControlPipeName is a name nothing ever serves: the calibration control, the same
-// instrument as calibrate()'s known-free loopback port. It says what "absent" looks like on
-// THIS host, so a not-found against the decoy is interpretable rather than merely
-// disappointing. Per-pid, so two concurrent runs cannot make each other's control real.
-func reachControlPipeName() string {
-	return pipePrefix + "sandbox-probe-control-" + strconv.Itoa(os.Getpid())
-}
 
 // decoyTag marks a seeded socket whose real-world counterpart is named per
 // instance (a random VS Code IPC uuid, a launchd Listeners dir, an ssh-agent

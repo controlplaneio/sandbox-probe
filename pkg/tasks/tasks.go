@@ -61,10 +61,10 @@ const (
 	// NAMEDPIPEREACHABLE is the scored half of the Windows named-pipe measurement:
 	// pipes this process actually OPENED and round-tripped a token through.
 	//
-	// Enumeration was measured not to discriminate — 57 pipes confined and 57
-	// unconfined on a Windows 11 host, 40 and 40 on a GitHub runner — because
-	// listing \\.\pipe\* is a directory read a restricted token does not change.
-	// This is where the signal is.
+	// Enumeration was measured not to discriminate: listing \\.\pipe\* is a
+	// directory read, which a restricted token does not change, so the name list
+	// is identical either side of the boundary. This is where the signal is.
+	// See docs/research/windows-named-pipe-enumeration.md section 4.
 	//
 	// NEVER a catalogue name. Only the probe's own seeded decoy, because opening a
 	// real service's pipe consumes a server instance and delivers a connection

@@ -93,11 +93,11 @@ func createPipeInstance(name string, first bool) (windows.Handle, error) {
 // ServePipe serves name until d expires, answering each client with the pipe's own name and
 // then recycling the instance.
 //
-// This replaces a create-and-sleep server. The scan no longer only LISTS names: enumeration
-// was measured not to discriminate — 57 pipes confined and 57 unconfined on a Windows 11
-// host, 40 and 40 on a GitHub runner — because listing \\.\pipe\* is a directory read that a
-// restricted token does not change. Reachability is where the signal is, and it needs a
-// server that recycles rather than one that holds a single instance and sleeps.
+// This replaces a create-and-sleep server. The scan no longer only LISTS names, because
+// enumeration was measured not to discriminate: listing \\.\pipe\* is a directory read that a
+// restricted token does not change. Reachability is where the signal is, and it needs a server
+// that recycles rather than one that holds a single instance and sleeps. The measurement is in
+// docs/research/windows-named-pipe-enumeration.md section 4.
 //
 // The token written back is the pipe's own name. A client that reads it has provably reached
 // THIS server rather than merely a name that resolved, which is the gap a redirected object
@@ -120,21 +120,57 @@ func ServePipe(name string, d time.Duration) error {
 	//
 	// It must be readPipeToken and not a bare open: a client that connects and never drains
 	// would leave FlushFileBuffers below waiting on it, which is the same wedge in a new place.
+	// stopped closes as soon as the loop below leaves, and the knocker checks it between
+	// attempts. Without that check the knocks outlive our ownership of the name: the first
+	// one unblocks the loop, the loop closes its handle and returns, the name becomes free —
+	// and in production `name` is a real catalogue entry like \\.\pipe\docker_engine, so a
+	// later knock could open the actual Docker Desktop pipe. That is precisely the thing this
+	// package must never do, so the knocker is bounded by the server's own lifetime and not
+	// by an attempt count alone.
+	stopped := make(chan struct{})
+	defer close(stopped)
+
 	deadline := time.Now().Add(d)
 	go func() {
-		time.Sleep(d)
+		select {
+		case <-time.After(d):
+		case <-stopped:
+			return // already finished on its own; nothing to wake
+		}
 		for range knockAttempts {
+			select {
+			case <-stopped:
+				return
+			default:
+			}
 			_, _ = readPipeToken(name)
-			time.Sleep(knockInterval)
+			select {
+			case <-stopped:
+				return
+			case <-time.After(knockInterval):
+			}
 		}
 	}()
 
 	for time.Now().Before(deadline) {
 		// A client that arrived between creation and here is already connected, and
 		// ERROR_PIPE_CONNECTED says exactly that. It is success, not failure.
+		//
+		// Any other error retires this instance but must NOT retire the decoy: returning here
+		// would end the server before its lifetime while reporting success, and a scan would
+		// then read the absent name as a sandbox hiding it. Rebuild the instance and carry on;
+		// only a failure to rebuild is terminal.
 		if cErr := windows.ConnectNamedPipe(h, nil); cErr != nil &&
 			!errors.Is(cErr, windows.ERROR_PIPE_CONNECTED) {
-			return nil // the instance went; there is nothing left to serve
+			log.Debug().Err(cErr).Str("pipe", name).Msg("Pipe instance went; rebuilding it")
+			again, aErr := createPipeInstance(name, false)
+			_ = windows.CloseHandle(h)
+			h = windows.InvalidHandle
+			if aErr != nil {
+				return aErr
+			}
+			h = again
+			continue
 		}
 		var n uint32
 		_ = windows.WriteFile(h, []byte(name), &n, nil)

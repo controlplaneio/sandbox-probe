@@ -72,7 +72,6 @@ func TestClassifyWin32SeparatesDeniedFromProbeError(t *testing.T) {
 // The rework's whole point: the decoy must answer more than one client. Today's
 // create-and-sleep server serves at most one and never recycles the instance.
 func TestServePipeAnswersRepeatedClients(t *testing.T) {
-	windowsOnly(t)
 	name := testPipeName(t)
 	served := make(chan error, 1)
 	go func() { served <- ServePipe(name, 30*time.Second) }()
@@ -100,7 +99,6 @@ func TestServePipeAnswersRepeatedClients(t *testing.T) {
 // standing between a blocking ConnectNamedPipe and a decoy that outlives every scan — a pipe
 // server left running on a developer's laptop until reboot.
 func TestServePipeExpiresWhileWaitingForAClient(t *testing.T) {
-	windowsOnly(t)
 	name := testPipeName(t)
 	done := make(chan error, 1)
 	go func() { done <- ServePipe(name, 2*time.Second) }()
@@ -118,7 +116,6 @@ func TestServePipeExpiresWhileWaitingForAClient(t *testing.T) {
 // and an access check passed; it does not prove WHICH object answered, and Windows redirects
 // object namespaces for exactly the container-shaped isolation being measured.
 func TestReachRejectsAForeignToken(t *testing.T) {
-	windowsOnly(t)
 	name := testPipeName(t) + "-foreign"
 
 	h, err := createPipeInstance(name, true)
@@ -142,7 +139,6 @@ func TestReachRejectsAForeignToken(t *testing.T) {
 
 // End to end, and the last assertion is the one guarding the false-blocked class of bug.
 func TestSeedPlantsAndScanReachesTheReachabilityDecoy(t *testing.T) {
-	windowsOnly(t)
 	record := filepath.Join(t.TempDir(), "record.json")
 	shortLifetime(t, 60*time.Second)
 	t.Cleanup(func() { _, _ = CleanupSeeded(record) })
@@ -173,10 +169,12 @@ func TestSeedPlantsAndScanReachesTheReachabilityDecoy(t *testing.T) {
 
 // Creation is the third access check, measured rather than inferred.
 func TestCreationIsMeasuredAndPidScoped(t *testing.T) {
-	windowsOnly(t)
 	r := MeasurePipeReach()
 	names, ok := r.CreatedPipe()
-	require.True(t, ok, "creation failed on an unconfined runner: %v", r.Status["creation_errno"])
+	require.True(t, ok, "the measurement did not conclude: %v", r.Status["creation_errno"])
+	// An empty list is a legitimate answer — a sandbox denying CreateNamedPipe — so it must not
+	// index-panic here. On an unconfined runner creation succeeds and the name carries the pid.
+	require.Lenf(t, names, 1, "creation was denied on an unconfined runner: %v", r.Status["creation_errno"])
 	assert.Contains(t, names[0], strconv.Itoa(os.Getpid()), "the name must be scoped to this process")
 	assert.False(t, pipeExists(names[0]), "the check pipe must be closed before the call returns")
 }

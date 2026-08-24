@@ -49,52 +49,52 @@ func TestReachDecoyIsNotACatalogueEntry(t *testing.T) {
 // comparison. Portable, because the accessors are where the rule lives.
 func TestOnlyAReachedRoundTripIsScored(t *testing.T) {
 	for _, tt := range []struct {
-		name     string
-		reach    PipeReach
-		want     []string
-		wantOK   bool
-		whyMatte string
+		name         string
+		reach        PipeReach
+		want         []string
+		wantOK       bool
+		whyItMatters string
 	}{
 		{
-			name:     "reached",
-			reach:    PipeReach{Reached: []string{ReachPipeName}, Status: map[string]any{"decoy_enumerated": true}},
-			want:     []string{ReachPipeName},
-			wantOK:   true,
-			whyMatte: "a completed round trip is the only proof of reach",
+			name:         "reached",
+			reach:        PipeReach{Reached: []string{ReachPipeName}, Status: map[string]any{"decoy_enumerated": true}},
+			want:         []string{ReachPipeName},
+			wantOK:       true,
+			whyItMatters: "a completed round trip is the only proof of reach",
 		},
 		{
-			name:     "enumerated but not reachable",
-			reach:    PipeReach{Reached: []string{}, Status: map[string]any{"decoy_enumerated": true}},
-			want:     []string{},
-			wantOK:   true,
-			whyMatte: "the decoy was planted and could not be opened: a measured negative, which is a real finding",
+			name:         "enumerated but not reachable",
+			reach:        PipeReach{Reached: []string{}, Status: map[string]any{"decoy_enumerated": true}},
+			want:         []string{},
+			wantOK:       true,
+			whyItMatters: "the decoy was planted and could not be opened: a measured negative, which is a real finding",
 		},
 		{
-			name:     "decoy never enumerated",
-			reach:    PipeReach{Reached: []string{}, Status: map[string]any{"decoy_enumerated": false}},
-			want:     nil,
-			wantOK:   false,
-			whyMatte: "nothing was planted, so publishing [] would claim a sandbox blocked something never tested",
+			name:         "decoy never enumerated",
+			reach:        PipeReach{Reached: []string{}, Status: map[string]any{"decoy_enumerated": false}},
+			want:         nil,
+			wantOK:       false,
+			whyItMatters: "nothing was planted, so publishing [] would claim a sandbox blocked something never tested",
 		},
 		{
-			name:     "namespace denied",
-			reach:    PipeReach{Reached: []string{}, Status: map[string]any{"namespace": "denied"}},
-			want:     nil,
-			wantOK:   false,
-			whyMatte: "the enumeration itself failed, so nothing about opening is knowable",
+			name:         "namespace denied",
+			reach:        PipeReach{Reached: []string{}, Status: map[string]any{"namespace": "denied"}},
+			want:         nil,
+			wantOK:       false,
+			whyItMatters: "the enumeration itself failed, so nothing about opening is knowable",
 		},
 		{
-			name:     "off windows",
-			reach:    PipeReach{},
-			want:     nil,
-			wantOK:   false,
-			whyMatte: "a zero PipeReach must produce no finding at all",
+			name:         "off windows",
+			reach:        PipeReach{},
+			want:         nil,
+			wantOK:       false,
+			whyItMatters: "a zero PipeReach must produce no finding at all",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			got, ok := tt.reach.Names()
-			assert.Equal(t, tt.wantOK, ok, tt.whyMatte)
-			assert.Equal(t, tt.want, got, tt.whyMatte)
+			assert.Equal(t, tt.wantOK, ok, tt.whyItMatters)
+			assert.Equal(t, tt.want, got, tt.whyItMatters)
 		})
 	}
 }

@@ -44,82 +44,62 @@ func classifyWin32(err error) (Outcome, string, string) {
 	return OutcomeProbeError, call, ""
 }
 
-// win32Outcome maps a Win32 error from a pipe open onto the shared Outcome vocabulary.
+// win32Errors is the single table behind both the outcome and the stable name of a Win32
+// error from a pipe open. One table rather than two switches over the same constants: they
+// have to agree, and two switches that must agree are two switches that will eventually not.
 //
-// Every one of these codes is forgeable: a filesystem minifilter or an object-manager filter
+// Every one of these codes is FORGEABLE. A filesystem minifilter or an object-manager filter
 // chooses what it returns, exactly as iptables can synthesise a TCP reset. So the rule from
-// reach.go transfers unweakened — only OutcomeReachable is scored, and it is reached only by
-// a completed token round trip. Everything below is diagnostic.
-func win32Outcome(e syscall.Errno) Outcome {
-	switch e {
-	// The name did not resolve, so no access check was ever reached. That is "no route",
-	// not "denied" — and it is also what a private object namespace (a server silo, an
+// reach.go transfers unweakened: only OutcomeReachable is scored, and it is reached only by a
+// completed token round trip. Everything here is diagnostic.
+var win32Errors = map[syscall.Errno]struct {
+	outcome Outcome
+	name    string
+}{
+	// The name did not resolve, so no access check was ever reached. That is "no route", not
+	// "denied" — and it is also what a private object namespace (a server silo, an
 	// AppContainer) looks like from the inside.
-	case windows.ERROR_FILE_NOT_FOUND,
-		windows.ERROR_PATH_NOT_FOUND,
-		windows.ERROR_BAD_NETPATH:
-		return OutcomeUnreachable
+	windows.ERROR_FILE_NOT_FOUND: {OutcomeUnreachable, "ERROR_FILE_NOT_FOUND"},
+	windows.ERROR_PATH_NOT_FOUND: {OutcomeUnreachable, "ERROR_PATH_NOT_FOUND"},
+	windows.ERROR_BAD_NETPATH:    {OutcomeUnreachable, "ERROR_BAD_NETPATH"},
 
-	// The name resolved and the access check FAILED. A restricted token or a DACL denial
-	// lands exactly here. This is the case the Winsock helpers lose.
-	case windows.ERROR_ACCESS_DENIED:
-		return OutcomeBlocked
+	// The name resolved and the access check FAILED. A restricted token or a DACL denial lands
+	// exactly here. This is the case the Winsock helpers lose.
+	windows.ERROR_ACCESS_DENIED: {OutcomeBlocked, "ERROR_ACCESS_DENIED"},
 
 	// The wait expired with nothing back. Ambiguous by construction.
-	case windows.ERROR_SEM_TIMEOUT:
-		return OutcomeSilent
+	windows.ERROR_SEM_TIMEOUT: {OutcomeSilent, "ERROR_SEM_TIMEOUT"},
 
-	// NPFS answered: every instance is in use. A real refusal from a real server, and
-	// forgeable like the rest. Against our own decoy — unlimited instances, served
-	// serially — it should never appear, so seeing it is itself a signal.
-	case windows.ERROR_PIPE_BUSY:
-		return OutcomeRefused
+	// NPFS answered: every instance is in use. A real refusal from a real server, and forgeable
+	// like the rest. Against our own decoy — unlimited instances, served serially — it should
+	// never appear, so seeing it is itself a signal.
+	windows.ERROR_PIPE_BUSY: {OutcomeRefused, "ERROR_PIPE_BUSY"},
 
-	// None of these can come from a CreateFile against a live server. They mean our own
-	// server went away mid-round-trip, or we built a bad name: facts about the probe, never
-	// about the sandbox. That distinction is the one the old port scanner lost.
-	case windows.ERROR_PIPE_NOT_CONNECTED,
-		windows.ERROR_BROKEN_PIPE,
-		windows.ERROR_NO_DATA,
-		windows.ERROR_INVALID_NAME,
-		windows.ERROR_NOT_SUPPORTED,
-		windows.ERROR_OPERATION_ABORTED:
-		return OutcomeProbeError
+	// None of these can come from a CreateFile against a live server. They mean our own server
+	// went away mid-round-trip, or we built a bad name: facts about the probe, never about the
+	// sandbox. That distinction is the one the old port scanner lost.
+	windows.ERROR_PIPE_NOT_CONNECTED: {OutcomeProbeError, "ERROR_PIPE_NOT_CONNECTED"},
+	windows.ERROR_BROKEN_PIPE:        {OutcomeProbeError, "ERROR_BROKEN_PIPE"},
+	windows.ERROR_NO_DATA:            {OutcomeProbeError, "ERROR_NO_DATA"},
+	windows.ERROR_INVALID_NAME:       {OutcomeProbeError, "ERROR_INVALID_NAME"},
+	windows.ERROR_NOT_SUPPORTED:      {OutcomeProbeError, "ERROR_NOT_SUPPORTED"},
+	windows.ERROR_OPERATION_ABORTED:  {OutcomeProbeError, "ERROR_OPERATION_ABORTED"},
+}
+
+// win32Outcome and win32Name read that table. An error the table has no opinion on is not
+// silence and is not a verdict, so it says so rather than guessing; its name falls back to the
+// OS message, which is localised and unfit to compare across runs — anything worth reasoning
+// about belongs in the table.
+func win32Outcome(e syscall.Errno) Outcome {
+	if v, ok := win32Errors[e]; ok {
+		return v.outcome
 	}
-	// Same rule as classify(): an error we have no opinion on is not silence and is not a
-	// verdict. Say so rather than guessing.
 	return OutcomeProbeError
 }
 
-// win32Name is the stable symbol for a Win32 error, mirroring errnoName. The fallback is the
-// OS message, which is localised and therefore unfit to compare across runs — so anything
-// worth reasoning about belongs in the switch.
 func win32Name(e syscall.Errno) string {
-	switch e {
-	case windows.ERROR_FILE_NOT_FOUND:
-		return "ERROR_FILE_NOT_FOUND"
-	case windows.ERROR_PATH_NOT_FOUND:
-		return "ERROR_PATH_NOT_FOUND"
-	case windows.ERROR_ACCESS_DENIED:
-		return "ERROR_ACCESS_DENIED"
-	case windows.ERROR_NOT_SUPPORTED:
-		return "ERROR_NOT_SUPPORTED"
-	case windows.ERROR_BAD_NETPATH:
-		return "ERROR_BAD_NETPATH"
-	case windows.ERROR_BROKEN_PIPE:
-		return "ERROR_BROKEN_PIPE"
-	case windows.ERROR_SEM_TIMEOUT:
-		return "ERROR_SEM_TIMEOUT"
-	case windows.ERROR_INVALID_NAME:
-		return "ERROR_INVALID_NAME"
-	case windows.ERROR_PIPE_BUSY:
-		return "ERROR_PIPE_BUSY"
-	case windows.ERROR_NO_DATA:
-		return "ERROR_NO_DATA"
-	case windows.ERROR_PIPE_NOT_CONNECTED:
-		return "ERROR_PIPE_NOT_CONNECTED"
-	case windows.ERROR_OPERATION_ABORTED:
-		return "ERROR_OPERATION_ABORTED"
+	if v, ok := win32Errors[e]; ok {
+		return v.name
 	}
 	return e.Error()
 }

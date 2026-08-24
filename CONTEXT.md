@@ -134,7 +134,15 @@ add. Integrity level is not a signal either: measured High both inside and
 outside. Do not "improve" this detector by adding the group or privilege
 checks.
 
-The user-namespace rule (a non-identity uid_map) is the **last resort** in the
-wrapper-name chain, tried only after every more specific runtime detector has
-had its chance to claim the run — a new detector belongs *above* it, not
-below.
+The wrapper-name chain has two tiers, and a new detector belongs in whichever
+one matches what it can actually claim.
+
+- A detector that **names a tool** goes in the specific tier, above the
+  user-namespace rule. That rule (a non-identity uid_map) is the last resort
+  *for naming*, tried only after every more specific runtime detector has had
+  its chance to claim the run.
+- A detector that proves **enforcement exists but cannot name it** goes in the
+  generic-fallback tier at the very bottom, alongside no-new-privs and the
+  Windows restricted-token check, and returns `RuntimeUnknown`. Placing it
+  higher would let it outrank a detector that *can* name the tool, which is a
+  worse answer, not a better one.
