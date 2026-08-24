@@ -4,22 +4,35 @@
 package tasks
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/sys/windows"
 )
 
-// The badge's false case, which is only deterministic here.
+// The badge's false case: with no restricted token and nothing else present, Windows must
+// report no runtime at all.
 //
-// On Windows every Linux detector is already a hard-false stub — isSeatbelt, probeForLandlock,
-// isChroot and isProcSelfSetNoNewPrivs all come from the !darwin/!linux files, /proc reads fail,
-// and /.dockerenv does not exist — so isRestrictedToken is the only input that can move the
-// answer. That is what makes this the real regression guard: it fails if anyone later wires a
-// second Windows signal into the runtime chain without saying so.
+// Two of the detectors ahead of it are environment-sensitive even on Windows, and both had to
+// be neutralised for this to be deterministic. The `container` env var is the awkward one:
+// os.Getenv is CASE-INSENSITIVE on Windows, because it resolves through
+// GetEnvironmentVariableW, so a variable named CONTAINER or Container in any casing reaches
+// the same check and promotes the answer to RuntimeUnknown. A GitHub windows-latest runner has
+// one; a bare Windows 11 host does not, which is why this passed locally and failed in CI.
+//
+// The remaining detectors really are hard-false stubs here — isSeatbelt, probeForLandlock,
+// isChroot and isProcSelfSetNoNewPrivs all come from the !darwin/!linux files — so with these
+// two pinned, isRestrictedToken is the only input left that can move the answer. That is what
+// makes this a regression guard: it fails if anyone later wires a second Windows signal into
+// the runtime chain without saying so.
 func TestGetContainerRuntimeRestrictedTokenOnWindows(t *testing.T) {
-	orig := isRestrictedToken
-	t.Cleanup(func() { isRestrictedToken = orig })
+	origToken, origRead, origExists := isRestrictedToken, readFile, fileExistsFunc
+	t.Cleanup(func() { isRestrictedToken, readFile, fileExistsFunc = origToken, origRead, origExists })
+	readFile = func(string) ([]byte, error) { return nil, fmt.Errorf("file not found") }
+	fileExistsFunc = func(string) bool { return false }
+	t.Setenv("container", "")
 
 	for _, tt := range []struct {
 		name       string
@@ -31,7 +44,9 @@ func TestGetContainerRuntimeRestrictedTokenOnWindows(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			isRestrictedToken = func() bool { return tt.restricted }
-			assert.Equal(t, tt.want, GetContainerRuntime(0, 0))
+			assert.Equal(t, tt.want, GetContainerRuntime(0, 0),
+				"container=%q — a non-empty value here promotes the answer to RuntimeUnknown",
+				os.Getenv("container"))
 		})
 	}
 }
