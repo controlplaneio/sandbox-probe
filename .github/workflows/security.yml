@@ -1,0 +1,40 @@
+name: "Security Scanning"
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+# Inlined rather than `uses: chrisns/.github/...@main`: an organisation repository
+# should not depend on a personal one, and controlplaneio/.github publishes no
+# reusable workflows to point at instead. The sibling sandbox-probe-reports repo
+# carries the same file for the same reason; keep the two in step.
+jobs:
+  CodeQL:
+    name: CodeQL
+    if: github.event.repository.visibility == 'public'
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      # `languages: go` rather than autodetect. This repository is Go and nothing
+      # else, and an autodetect that quietly resolves to no language produces a
+      # green run that scanned nothing — the failure mode this job exists to stop.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+        continue-on-error: true
+        id: initcodeql
+        with:
+          languages: go
+      - name: Autobuild
+        if: steps.initcodeql.outcome == 'success'
+        uses: github/codeql-action/autobuild@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+      - name: Perform CodeQL Analysis
+        if: steps.initcodeql.outcome == 'success'
+        uses: github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8

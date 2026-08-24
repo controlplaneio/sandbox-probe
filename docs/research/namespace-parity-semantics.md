@@ -1,6 +1,6 @@
 # Research: does a sandbox's "can't see the host socket" mean anything?
 
-Source ticket: `.scratch/seed-ipc-targets/issues/08-namespace-parity-semantics.md`
+Source ticket: [`.scratch/seed-ipc-targets/issues/08-namespace-parity-semantics.md`](https://github.com/controlplaneio/sandbox-probe-reports/blob/main/.scratch/seed-ipc-targets/issues/08-namespace-parity-semantics.md) in `sandbox-probe-reports`
 
 ## Question
 

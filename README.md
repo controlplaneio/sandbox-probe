@@ -423,7 +423,7 @@ make build
 Released binaries are published on the [releases page](https://github.com/controlplaneio/sandbox-probe/releases); the module is also `go build`-able directly:
 
 ```bash
-go build -o bin/sandbox-probe github.com/controlplaneio/sandbox-probe
+go build -o bin/sandbox-probe github.com/controlplaneio/sandbox-probe/v6
 ```
 
 If you intend to run `sandbox-probe` inside a container, make sure it is built statically with standard library paths, or arrange for the relevant paths to be mounted in. This isn't usually an issue but can bite on non-glibc or non-FHS systems like Alpine, NixOS, or anything via Nix.

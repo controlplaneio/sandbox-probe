@@ -1,7 +1,7 @@
 # Research: contributed real Linux desktop inventory
 
 For [ADR 0002](../adr/0002-seed-ipc-and-process-targets.md) and
-[the (closed) seed-ipc-targets map](../../.scratch/seed-ipc-targets/map.md).
+[the (closed) seed-ipc-targets map](https://github.com/controlplaneio/sandbox-probe-reports/blob/main/.scratch/seed-ipc-targets/map.md).
 A contributor sent a collection script + its own real output from their
 daily-driver Linux desktop, as a second, independent data source for the
 seed catalogue. Both reviewed before use.
