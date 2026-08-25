@@ -81,7 +81,7 @@ Each row below is a `finding_type` string you will see in `report.json`, what it
 | `hostname_detection` | system hostname | "Does the sandbox leak the host identity?" |
 | `env_secret_detection` | environment variables whose value is secret-shaped, by name and why they matched (never the value) | "Which credentials were handed to the agent's process in the first place?" |
 | `environment_detection` | host kernel release/version + OS release | "Which kernel/OS produced this result?" (so reports stay comparable across upgrades) |
-| `sandbox_detection` | one **wrapper name** — an inferred best guess at the tool (Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, systemd-nspawn, WSL, OpenVZ, Seatbelt, Landlock, AppArmor, chroot) — plus zero or more kernel-attested **mechanisms** (`seccomp-filter`, `seccomp-notify`, `seccomp-strict`, `no-new-privs`, `landlock`, `user-namespace`, `restricted-token`) | "Is there *any* enforcement at all, and what kind?" |
+| `sandbox_detection` | one **wrapper name** — an inferred best guess at the tool (Docker, Podman, LXC, Firejail, Bubblewrap, gVisor, systemd-nspawn, WSL, OpenVZ, Seatbelt, Landlock, AppArmor, chroot) — plus zero or more kernel-attested **mechanisms** (`seccomp-filter`, `seccomp-notify`, `seccomp-strict`, `no-new-privs`, `landlock`, `user-namespace`, `restricted-token`, `app-container`) | "Is there *any* enforcement at all, and what kind?" |
 
 The wrapper name is a hypothesis; a mechanism is read straight off a kernel interface and is a fact. See [`CONTEXT.md`](./CONTEXT.md) for the distinction and why it matters when adding a detector.
 
