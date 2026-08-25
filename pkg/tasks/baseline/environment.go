@@ -319,6 +319,14 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 		return RuntimeUnknown
 	}
 
+	// An AppContainer says the same thing about Copilot CLI's Windows sandbox that the
+	// restricted token above says about Codex's: confined, and not nameable from the token.
+	// It needs its own line because the two primitives are independent — MXC builds an
+	// AppContainer without calling CreateRestrictedToken, so the check above does not cover it.
+	if isAppContainer() {
+		return RuntimeUnknown
+	}
+
 	return identifiedRuntime
 }
 
@@ -392,6 +400,17 @@ func ActiveMechanisms() []string {
 	// Windows desktop as sandboxed. See isRestrictedTokenImpl for the measurement.
 	if isRestrictedToken() {
 		mechanisms = append(mechanisms, "restricted-token")
+	}
+
+	// TokenIsAppContainer — the primitive behind Copilot CLI's Windows sandbox (MXC's
+	// ProcessContainer backend), kernel-attested in the same way.
+	//
+	// Separate from restricted-token rather than folded into one "windows-sandbox" value,
+	// because they are different primitives and a token can carry either, both or neither.
+	// Keeping them apart is exactly what lets the data tell Codex's Windows sandbox from
+	// Copilot's. See isAppContainerImpl for why this is the only bit read.
+	if isAppContainer() {
+		mechanisms = append(mechanisms, "app-container")
 	}
 
 	// /proc/self/status fields (all kernels that have the feature export it here)

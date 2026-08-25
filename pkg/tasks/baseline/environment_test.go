@@ -269,38 +269,46 @@ func TestGetContainerRuntimeSystemdContainerMarker(t *testing.T) {
 	}
 }
 
-// TestActiveMechanismsRestrictedToken pins "restricted-token" to the IsTokenRestricted bit and
-// to nothing else.
+// TestActiveMechanismsWindowsTokenBits pins "restricted-token" to the IsTokenRestricted bit and
+// "app-container" to the TokenIsAppContainer bit, each to nothing else.
 //
 // The case that matters is the false one. A non-elevated administrator's UAC split token has
 // deny-only BUILTIN\Administrators and a single privilege — exactly the shape measured inside
 // Codex CLI's Windows sandbox — and must NOT be reported. Making the emitted set a pure function
-// of one bool is what guarantees that, and this table is the proof: no group, privilege or
+// of the token bools is what guarantees that, and this table is the proof: no group, privilege or
 // integrity signal reaches the finding, because none of them is an input to any code path.
 //
 // readFile is stubbed to fail so the assertion covers the whole returned list on a Linux runner
 // too, where a container's real NoNewPrivs bit would otherwise leak in.
-func TestActiveMechanismsRestrictedToken(t *testing.T) {
-	origToken, origRead := isRestrictedToken, readFile
-	t.Cleanup(func() { isRestrictedToken, readFile = origToken, origRead })
+func TestActiveMechanismsWindowsTokenBits(t *testing.T) {
+	origToken, origAppC, origRead := isRestrictedToken, isAppContainer, readFile
+	t.Cleanup(func() { isRestrictedToken, isAppContainer, readFile = origToken, origAppC, origRead })
 	readFile = func(string) ([]byte, error) { return nil, fmt.Errorf("file not found") }
 
+	// All four combinations, because the two primitives are independent: MXC builds an
+	// AppContainer without a restricted token, Codex builds a restricted token without an
+	// AppContainer, and a wrapper could do both. A table that only walked one axis would let
+	// one bit mask the other.
 	for _, tt := range []struct {
-		name       string
-		restricted bool
-		want       []string
+		name         string
+		restricted   bool
+		appContainer bool
+		want         []string
 	}{
-		{"restricted token", true, []string{"restricted-token"}},
-		{"unrestricted token", false, nil},
+		{"neither", false, false, nil},
+		{"restricted token only", true, false, []string{"restricted-token"}},
+		{"app container only", false, true, []string{"app-container"}},
+		{"both", true, true, []string{"restricted-token", "app-container"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			isRestrictedToken = func() bool { return tt.restricted }
+			isAppContainer = func() bool { return tt.appContainer }
 			assert.Equal(t, tt.want, ActiveMechanisms())
 		})
 	}
 }
 
-// A restricted token must also reach the wrapper badge, as RuntimeUnknown.
+// Each Windows token bit must also reach the wrapper badge, as RuntimeUnknown.
 //
 // Without it the site's sandboxOf() reports "none" for a row whose only values are mechanisms,
 // so a correctly detected confined Windows run would render as unsandboxed. "unknown" is this
@@ -311,19 +319,33 @@ func TestActiveMechanismsRestrictedToken(t *testing.T) {
 // isProcSelfSetNoNewPrivs is a plain function rather than a stubbable var, and inside a container
 // it can genuinely return RuntimeUnknown for an unrelated reason. It is asserted in
 // environment_windows_test.go instead, where every other detector is a hard-false stub.
-func TestGetContainerRuntimeRestrictedTokenIsUnknown(t *testing.T) {
-	origToken, origRead, origAttr, origExists, origLandlock, origChroot :=
-		isRestrictedToken, readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot
+func TestGetContainerRuntimeWindowsTokenBitsAreUnknown(t *testing.T) {
+	origToken, origAppC, origRead, origAttr, origExists, origLandlock, origChroot :=
+		isRestrictedToken, isAppContainer, readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot
 	t.Cleanup(func() {
-		isRestrictedToken, readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot =
-			origToken, origRead, origAttr, origExists, origLandlock, origChroot
+		isRestrictedToken, isAppContainer, readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot =
+			origToken, origAppC, origRead, origAttr, origExists, origLandlock, origChroot
 	})
 	readFile = func(string) ([]byte, error) { return nil, fmt.Errorf("file not found") }
 	readProcAttr = func(string) string { return "" }
 	fileExistsFunc = func(string) bool { return false }
 	probeForLandlock = func() (bool, error) { return false, nil }
 	isChroot = func() bool { return false }
-	isRestrictedToken = func() bool { return true }
 
-	assert.Equal(t, RuntimeUnknown, GetContainerRuntime(0, 0))
+	// Each bit alone must reach the badge. An AppContainer carries no restricting SIDs, so the
+	// restricted-token branch above it does not fire for a Copilot run — which is exactly the
+	// gap this case exists to hold shut.
+	for _, tt := range []struct {
+		name                     string
+		restricted, appContainer bool
+	}{
+		{"restricted token only", true, false},
+		{"app container only", false, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			isRestrictedToken = func() bool { return tt.restricted }
+			isAppContainer = func() bool { return tt.appContainer }
+			assert.Equal(t, RuntimeUnknown, GetContainerRuntime(0, 0))
+		})
+	}
 }

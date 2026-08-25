@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/windows"
 )
 
-// The badge's false case: with no restricted token and nothing else present, Windows must
+// The badge's false case: with neither Windows token bit set and nothing else present, Windows must
 // report no runtime at all.
 //
 // Two of the detectors ahead of it are environment-sensitive even on Windows, and both had to
@@ -24,31 +26,81 @@ import (
 //
 // The remaining detectors really are hard-false stubs here — isSeatbelt, probeForLandlock,
 // isChroot and isProcSelfSetNoNewPrivs all come from the !darwin/!linux files — so with these
-// two pinned, isRestrictedToken is the only input left that can move the answer. That is what
-// makes this a regression guard: it fails if anyone later wires a second Windows signal into
-// the runtime chain without saying so.
-func TestGetContainerRuntimeRestrictedTokenOnWindows(t *testing.T) {
-	origToken, origRead, origExists := isRestrictedToken, readFile, fileExistsFunc
-	t.Cleanup(func() { isRestrictedToken, readFile, fileExistsFunc = origToken, origRead, origExists })
+// two pinned, the two token bools are the only inputs left that can move the answer. That is
+// what makes this a regression guard: it fails if anyone later wires a third Windows signal
+// into the runtime chain without saying so.
+func TestGetContainerRuntimeWindowsTokenBitsOnWindows(t *testing.T) {
+	origToken, origAppC, origRead, origExists := isRestrictedToken, isAppContainer, readFile, fileExistsFunc
+	t.Cleanup(func() {
+		isRestrictedToken, isAppContainer, readFile, fileExistsFunc = origToken, origAppC, origRead, origExists
+	})
 	readFile = func(string) ([]byte, error) { return nil, fmt.Errorf("file not found") }
 	fileExistsFunc = func(string) bool { return false }
 	t.Setenv("container", "")
 
 	for _, tt := range []struct {
-		name       string
-		restricted bool
-		want       ContainerRuntime
+		name                     string
+		restricted, appContainer bool
+		want                     ContainerRuntime
 	}{
-		{"restricted token", true, RuntimeUnknown},
-		{"unrestricted token", false, RuntimeNotFound},
+		{"neither", false, false, RuntimeNotFound},
+		{"restricted token", true, false, RuntimeUnknown},
+		{"app container", false, true, RuntimeUnknown},
+		{"both", true, true, RuntimeUnknown},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			isRestrictedToken = func() bool { return tt.restricted }
+			isAppContainer = func() bool { return tt.appContainer }
 			assert.Equal(t, tt.want, GetContainerRuntime(0, 0),
 				"container=%q — a non-empty value here promotes the answer to RuntimeUnknown",
 				os.Getenv("container"))
 		})
 	}
+}
+
+// tokenIsAppContainer is a hand-written constant because x/sys/windows does not export it.
+// This checks it against x/sys's own enum, which stops one value earlier at TokenLogonSid.
+//
+// Two independent sources have to agree: the literal is TokenIsAppContainer from winnt.h, and
+// TokenLogonSid+1 is where x/sys's iota run puts it. If a future x/sys inserts a class into
+// that run, this fails rather than the probe silently querying a different token property and
+// reading its result as a boolean.
+func TestTokenIsAppContainerMatchesTheXSysEnum(t *testing.T) {
+	assert.Equal(t, windows.TokenLogonSid+1, tokenIsAppContainer,
+		"TOKEN_INFORMATION_CLASS 29 is one past TokenLogonSid; x/sys has moved the enum")
+}
+
+// The false-positive guard for the AppContainer detector, against the real API rather than a
+// mock of it.
+//
+// The Go test binary is an ordinary console process, so it is not in an AppContainer, and the
+// detector must say so. This is weaker than the UAC guard below only because AppContainer has
+// no near-miss artefact to hand: nothing on a normal desktop resembles one. That is also the
+// reason the detector is safe, and this pins the claim on a real Windows runner.
+//
+// The raw query is repeated here rather than only calling isAppContainerImpl, because that
+// function swallows an error to false. Asserting on it alone would pass identically whether the
+// class number is right and the answer is genuinely false, or the call failed outright and
+// nothing was measured — the same absent-versus-empty confusion the findings themselves avoid.
+// Requiring the syscall to succeed is what proves tokenIsAppContainer names a real class and
+// that the probe can read it on this OS.
+func TestIsAppContainerFalseForAnOrdinaryProcess(t *testing.T) {
+	var tok windows.Token
+	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &tok); err != nil {
+		t.Fatalf("OpenProcessToken: %v", err)
+	}
+	defer func() { _ = tok.Close() }()
+
+	var isAppC, retLen uint32
+	err := windows.GetTokenInformation(tok, tokenIsAppContainer,
+		(*byte)(unsafe.Pointer(&isAppC)), uint32(unsafe.Sizeof(isAppC)), &retLen)
+	require.NoError(t, err,
+		"TokenIsAppContainer (class %d) must be a queryable class on this Windows build", tokenIsAppContainer)
+	assert.Equal(t, uint32(4), retLen, "TokenIsAppContainer yields a DWORD")
+	assert.Zero(t, isAppC, "the test process is not in an AppContainer")
+
+	assert.False(t, isAppContainerImpl(),
+		"the test process is not sandboxed by MXC, so it must not report an app container")
 }
 
 // The false-positive guard against the real artefact, not a mock of it.

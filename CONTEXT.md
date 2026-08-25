@@ -118,21 +118,38 @@ must know which one it is contributing to:
   ancestry, markers and, as a last resort, a restricted user namespace's ID
   map. Treat it as a hypothesis, not an attested fact.
 - A **mechanism** (`seccomp-filter`, `no-new-privs`, `landlock`,
-  `user-namespace`, `restricted-token`, …) is *kernel-attested*: read directly
-  off a kernel interface (`/proc/self/status`, the uid_map, `IsTokenRestricted`
-  on Windows), true regardless of whether the wrapper name resolved. Mechanisms
-  are emitted alongside the badge, never folded into it.
+  `user-namespace`, `restricted-token`, `app-container`, …) is
+  *kernel-attested*: read directly off a kernel interface
+  (`/proc/self/status`, the uid_map, `IsTokenRestricted` or
+  `TokenIsAppContainer` on Windows), true regardless of whether the wrapper
+  name resolved. Mechanisms are emitted alongside the badge, never folded into
+  it.
 
-`restricted-token` is the Windows mechanism, and it is deliberately the *only*
-Windows signal. Measured against Codex CLI 0.149.1, a sandboxed process has
-`BUILTIN\Administrators` demoted to "use for deny only" and every privilege but
-`SeChangeNotifyPrivilege` stripped — and so does an ordinary non-elevated
-administrator's UAC split token, which is every Windows desktop. Detecting
-either of those would report the unconfined baseline as sandboxed.
-`IsTokenRestricted` looks for restricting SIDs, which UAC filtering does not
-add. Integrity level is not a signal either: measured High both inside and
-outside. Do not "improve" this detector by adding the group or privilege
-checks.
+There are exactly two Windows mechanisms, and each reads exactly one token bit.
+
+`restricted-token` is Codex CLI's Windows sandbox. Measured against Codex CLI
+0.149.1, a sandboxed process has `BUILTIN\Administrators` demoted to "use for
+deny only" and every privilege but `SeChangeNotifyPrivilege` stripped — and so
+does an ordinary non-elevated administrator's UAC split token, which is every
+Windows desktop. Detecting either of those would report the unconfined baseline
+as sandboxed. `IsTokenRestricted` looks for restricting SIDs, which UAC
+filtering does not add. Integrity level is not a signal either: measured High
+both inside and outside. Do not "improve" this detector by adding the group or
+privilege checks.
+
+`app-container` is GitHub Copilot CLI's Windows sandbox, which is Microsoft
+Execution Containers (MXC) on its ProcessContainer backend. MXC's Windows
+runner always sets the `app_container` field of the SandboxSpec it hands to
+`Experimental_CreateProcessInSandbox`, so the AppContainer is the one part of
+that spec a caller cannot turn off. Every other control in it — the
+`JOB_OBJECT_UILIMIT` flags, the win32k system-call mitigation, least-privilege,
+the integrity level — is policy the caller chooses, so none of them is safe to
+key off. Do not add them.
+
+The two are separate values rather than one "windows-sandbox", because the
+primitives are independent: MXC builds an AppContainer without a restricted
+token, and Codex builds a restricted token without an AppContainer. Keeping
+them apart is what lets the data tell the two sandboxes apart.
 
 The wrapper-name chain has two tiers, and a new detector belongs in whichever
 one matches what it can actually claim.
@@ -142,7 +159,7 @@ one matches what it can actually claim.
   *for naming*, tried only after every more specific runtime detector has had
   its chance to claim the run.
 - A detector that proves **enforcement exists but cannot name it** goes in the
-  generic-fallback tier at the very bottom, alongside no-new-privs and the
-  Windows restricted-token check, and returns `RuntimeUnknown`. Placing it
+  generic-fallback tier at the very bottom, alongside no-new-privs and the two
+  Windows token checks, and returns `RuntimeUnknown`. Placing it
   higher would let it outrank a detector that *can* name the tool, which is a
   worse answer, not a better one.
