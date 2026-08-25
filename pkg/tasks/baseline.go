@@ -98,7 +98,7 @@ func (t *PathTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, err
 	}
 
 	log.Info().Str("task", t.GetName()).Msg("Filesystem enumeration task completed successfully")
-	return []*reportv1.Finding{
+	findings := []*reportv1.Finding{
 		{
 			FindingType: WRITEABLEPATHS,
 			Task:        t.GetName(),
@@ -111,7 +111,27 @@ func (t *PathTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, err
 			Description: "Readable sensitive paths",
 			Value:       readableValue,
 		},
-	}, nil
+	}
+
+	// Emitted ONLY when the mount table was readable. Without it nothing was attributed to a
+	// filesystem, and an empty list would read as "measured, nothing ephemeral" — the same
+	// absent-versus-empty confusion the named-pipe findings avoid. A host that hides its mounts
+	// says nothing here rather than something false.
+	if paths.MountsReadable {
+		ephemeralValue, err := structpb.NewValue(stringSliceToInterface(paths.EphemeralWritablePaths))
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to convert ephemeral writeable paths to protobuf value")
+			return nil, err
+		}
+		findings = append(findings, &reportv1.Finding{
+			FindingType: EPHEMERALWRITEABLEPATHS,
+			Task:        t.GetName(),
+			Description: "Writeable paths backed by a memory-only filesystem, where a write cannot persist",
+			Value:       ephemeralValue,
+		})
+	}
+
+	return findings, nil
 }
 
 // NetworkTask produces: EXTERNALHOSTDNSRESOLUTION, EXTERNALHOSTCONNECTIVITY, TCPPORTSOPEN, UDPPORTSOPEN
