@@ -478,3 +478,24 @@ func TestNamedPipeFindingValueShape(t *testing.T) {
 		t.Errorf("%s accepted a non-list value", NAMEDPIPEDETECTION)
 	}
 }
+
+// The three reachability finding types, and one deliberate omission.
+//
+// named_pipe_probe_status is map-shaped like local_probe_status and local_listeners, neither of
+// which is registered either: Validate falls through for anything unregistered, so declaring a
+// reflect.Type for it would reject the status map at runtime. The omission is a decision, and
+// this asserts it so nobody "completes" the map later and breaks the status finding.
+func TestNamedPipeReachFindingValueShapes(t *testing.T) {
+	for _, ft := range []string{NAMEDPIPEREACHABLE, NAMEDPIPECREATION} {
+		if got, want := expectedTypes[ft], expectedTypes[NAMEDPIPEDETECTION]; got != want {
+			t.Errorf("%s declared as %v, want %v (same shape as %s)", ft, got, want, NAMEDPIPEDETECTION)
+		}
+	}
+	if _, registered := expectedTypes[NAMEDPIPEPROBESTATUS]; registered {
+		t.Errorf("%s must stay out of expectedTypes: it is a status map, like %s, and registering "+
+			"a type for it would make Validate reject it", NAMEDPIPEPROBESTATUS, LOCALPROBESTATUS)
+	}
+	if _, registered := expectedTypes[LOCALPROBESTATUS]; registered {
+		t.Errorf("%s is the precedent this relies on and it has changed", LOCALPROBESTATUS)
+	}
+}

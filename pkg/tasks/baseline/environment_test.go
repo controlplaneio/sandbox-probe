@@ -268,3 +268,62 @@ func TestGetContainerRuntimeSystemdContainerMarker(t *testing.T) {
 		})
 	}
 }
+
+// TestActiveMechanismsRestrictedToken pins "restricted-token" to the IsTokenRestricted bit and
+// to nothing else.
+//
+// The case that matters is the false one. A non-elevated administrator's UAC split token has
+// deny-only BUILTIN\Administrators and a single privilege — exactly the shape measured inside
+// Codex CLI's Windows sandbox — and must NOT be reported. Making the emitted set a pure function
+// of one bool is what guarantees that, and this table is the proof: no group, privilege or
+// integrity signal reaches the finding, because none of them is an input to any code path.
+//
+// readFile is stubbed to fail so the assertion covers the whole returned list on a Linux runner
+// too, where a container's real NoNewPrivs bit would otherwise leak in.
+func TestActiveMechanismsRestrictedToken(t *testing.T) {
+	origToken, origRead := isRestrictedToken, readFile
+	t.Cleanup(func() { isRestrictedToken, readFile = origToken, origRead })
+	readFile = func(string) ([]byte, error) { return nil, fmt.Errorf("file not found") }
+
+	for _, tt := range []struct {
+		name       string
+		restricted bool
+		want       []string
+	}{
+		{"restricted token", true, []string{"restricted-token"}},
+		{"unrestricted token", false, nil},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			isRestrictedToken = func() bool { return tt.restricted }
+			assert.Equal(t, tt.want, ActiveMechanisms())
+		})
+	}
+}
+
+// A restricted token must also reach the wrapper badge, as RuntimeUnknown.
+//
+// Without it the site's sandboxOf() reports "none" for a row whose only values are mechanisms,
+// so a correctly detected confined Windows run would render as unsandboxed. "unknown" is this
+// project's existing word for "enforcement present, tool unnameable", which is exactly the claim
+// a restricted token supports and the most it supports.
+//
+// Only the true case is asserted here. The false case is not deterministic on a Linux runner —
+// isProcSelfSetNoNewPrivs is a plain function rather than a stubbable var, and inside a container
+// it can genuinely return RuntimeUnknown for an unrelated reason. It is asserted in
+// environment_windows_test.go instead, where every other detector is a hard-false stub.
+func TestGetContainerRuntimeRestrictedTokenIsUnknown(t *testing.T) {
+	origToken, origRead, origAttr, origExists, origLandlock, origChroot :=
+		isRestrictedToken, readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot
+	t.Cleanup(func() {
+		isRestrictedToken, readFile, readProcAttr, fileExistsFunc, probeForLandlock, isChroot =
+			origToken, origRead, origAttr, origExists, origLandlock, origChroot
+	})
+	readFile = func(string) ([]byte, error) { return nil, fmt.Errorf("file not found") }
+	readProcAttr = func(string) string { return "" }
+	fileExistsFunc = func(string) bool { return false }
+	probeForLandlock = func() (bool, error) { return false, nil }
+	isChroot = func() bool { return false }
+	isRestrictedToken = func() bool { return true }
+
+	assert.Equal(t, RuntimeUnknown, GetContainerRuntime(0, 0))
+}

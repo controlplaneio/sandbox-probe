@@ -257,6 +257,19 @@ func appendPorts(findings *[]*reportv1.Finding, task, ft, desc string, ports []i
 	return nil
 }
 
+// appendStrings is appendPorts' twin for list-of-strings findings.
+func appendStrings(findings *[]*reportv1.Finding, task, ft, desc string, items []string) error {
+	v, err := structpb.NewValue(stringSliceToInterface(items))
+	if err != nil {
+		log.Error().Err(err).Str("finding", ft).Msg("Failed to convert strings to protobuf value")
+		return err
+	}
+	*findings = append(*findings, &reportv1.Finding{
+		FindingType: ft, Task: task, Description: desc, Value: v,
+	})
+	return nil
+}
+
 // ProxyTask produces: PROXYDETECTION
 type ProxyTask struct {
 	baseTask
@@ -372,6 +385,43 @@ func (t *SocketTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, e
 			Task:        t.GetName(),
 			Description: "Named pipes detected",
 			Value:       pipesValue,
+		})
+	}
+
+	// Named-pipe REACHABILITY, measured ONLY against the probe's own seeded decoy.
+	//
+	// Enumeration above was measured not to discriminate: listing \\.\pipe\* is a directory
+	// read that a restricted token does not change, so the name list is identical either side
+	// of the boundary and reachability is the only place signal can come from. The numbers and
+	// the method are in docs/research/windows-named-pipe-enumeration.md section 4.
+	reach := baselineTasks.MeasurePipeReach()
+
+	if names, ok := reach.Names(); ok {
+		if err := appendStrings(&findings, t.GetName(), NAMEDPIPEREACHABLE,
+			"Named pipes reached (the probe's own decoy only)", names); err != nil {
+			return nil, err
+		}
+	}
+	if names, ok := reach.CreatedPipe(); ok {
+		if err := appendStrings(&findings, t.GetName(), NAMEDPIPECREATION,
+			"Named pipe the probe could create", names); err != nil {
+			return nil, err
+		}
+	}
+	// Off Windows MeasurePipeReach returns a zero PipeReach, so this one condition keeps
+	// every reachability finding out of a non-Windows report — the same seam ListNamedPipes
+	// uses above.
+	if len(reach.Status) > 0 {
+		sv, err := structpb.NewValue(reach.Status)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to convert pipe probe status to protobuf value")
+			return nil, err
+		}
+		findings = append(findings, &reportv1.Finding{
+			FindingType: NAMEDPIPEPROBESTATUS,
+			Task:        t.GetName(),
+			Description: "How the named-pipe reachability measurement went",
+			Value:       sv,
 		})
 	}
 

@@ -71,7 +71,19 @@ never an adopted one — so the process scan has something of the host's to find
 A `pipe` decoy is a Windows named pipe served under its real catalogue name by a
 probe process the seeder spawned; a pipe exists only while a server holds it
 open, so the server is the decoy, and a name a real service already serves is
-skipped rather than shadowed.
+skipped rather than shadowed. The server answers clients rather than merely
+holding the name — it writes the pipe's own name back and recycles the instance
+— because reachability is measured by a round trip through it.
+
+One pipe decoy is **not** a catalogue entry: `ReachPipeName`, the reachability
+instrument, plus a per-pid control name nothing ever serves. Reachability is only
+ever measured against those two, never a catalogue name. Opening a real service's
+pipe is not passive — it consumes a server instance and delivers a connection
+event — and at scan time a catalogue name is either our decoy or the real service,
+with no way to tell from a different process. That makes them the same precedent
+as `calibrate()`'s control port: an instrument the probe plants for itself, absent
+from the catalogue and absent from `SeedResult`'s tally, which counts the caller's
+targets only.
 
 ### Belt and suspenders
 The lifecycle of a decoy that has to stay alive during the scan (a `process` or
@@ -106,12 +118,31 @@ must know which one it is contributing to:
   ancestry, markers and, as a last resort, a restricted user namespace's ID
   map. Treat it as a hypothesis, not an attested fact.
 - A **mechanism** (`seccomp-filter`, `no-new-privs`, `landlock`,
-  `user-namespace`, …) is *kernel-attested*: read directly off a kernel
-  interface (`/proc/self/status`, the uid_map), true regardless of whether the
-  wrapper name resolved. Mechanisms are emitted alongside the badge, never
-  folded into it.
+  `user-namespace`, `restricted-token`, …) is *kernel-attested*: read directly
+  off a kernel interface (`/proc/self/status`, the uid_map, `IsTokenRestricted`
+  on Windows), true regardless of whether the wrapper name resolved. Mechanisms
+  are emitted alongside the badge, never folded into it.
 
-The user-namespace rule (a non-identity uid_map) is the **last resort** in the
-wrapper-name chain, tried only after every more specific runtime detector has
-had its chance to claim the run — a new detector belongs *above* it, not
-below.
+`restricted-token` is the Windows mechanism, and it is deliberately the *only*
+Windows signal. Measured against Codex CLI 0.149.1, a sandboxed process has
+`BUILTIN\Administrators` demoted to "use for deny only" and every privilege but
+`SeChangeNotifyPrivilege` stripped — and so does an ordinary non-elevated
+administrator's UAC split token, which is every Windows desktop. Detecting
+either of those would report the unconfined baseline as sandboxed.
+`IsTokenRestricted` looks for restricting SIDs, which UAC filtering does not
+add. Integrity level is not a signal either: measured High both inside and
+outside. Do not "improve" this detector by adding the group or privilege
+checks.
+
+The wrapper-name chain has two tiers, and a new detector belongs in whichever
+one matches what it can actually claim.
+
+- A detector that **names a tool** goes in the specific tier, above the
+  user-namespace rule. That rule (a non-identity uid_map) is the last resort
+  *for naming*, tried only after every more specific runtime detector has had
+  its chance to claim the run.
+- A detector that proves **enforcement exists but cannot name it** goes in the
+  generic-fallback tier at the very bottom, alongside no-new-privs and the
+  Windows restricted-token check, and returns `RuntimeUnknown`. Placing it
+  higher would let it outrank a detector that *can* name the tool, which is a
+  worse answer, not a better one.

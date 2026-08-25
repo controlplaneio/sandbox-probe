@@ -58,28 +58,139 @@ func ListNamedPipes() ([]string, error) {
 	}
 }
 
-// ServePipe creates the named pipe name and holds it open for d, then exits —
-// the whole of a pipe decoy. A pipe exists only while a server holds a handle
-// to it, so nothing here waits for a client: the scan lists names and never
-// connects, exactly as the socket scan only stat()s. d is the belt of the
-// live-artifact lifecycle, so an unreachable cleanup is not a permanent leak.
-//
-// FILE_FLAG_FIRST_PIPE_INSTANCE is the soft-plant rule made atomic: if a real
-// service already serves this name, creation fails rather than adding an
-// instance beside it, so a decoy can never end up answering for a real tool.
-func ServePipe(name string, d time.Duration) error {
+const (
+	pipeInstanceBufSize = 512
+	// knockAttempts and knockInterval bound the expiry wake-up below. One knock is
+	// normally enough; repeating means a knock that itself fails cannot strand the
+	// server past its lifetime. The belt is a safety property, not an optimisation.
+	knockAttempts = 5
+	knockInterval = time.Second
+)
+
+// createPipeInstance creates one instance of name. first carries
+// FILE_FLAG_FIRST_PIPE_INSTANCE — the soft-plant rule made atomic: if a real service
+// already serves this name, creation fails rather than adding an instance beside it, so a
+// decoy can never end up answering for a real tool. Every instance AFTER ours must not ask
+// for it, because we hold one and it would fail against ourselves.
+func createPipeInstance(name string, first bool) (windows.Handle, error) {
 	p, err := windows.UTF16PtrFromString(name)
+	if err != nil {
+		return windows.InvalidHandle, err
+	}
+	mode := uint32(windows.PIPE_ACCESS_DUPLEX)
+	if first {
+		mode |= windows.FILE_FLAG_FIRST_PIPE_INSTANCE
+	}
+	h, err := windows.CreateNamedPipe(p, mode,
+		windows.PIPE_TYPE_BYTE, windows.PIPE_UNLIMITED_INSTANCES,
+		pipeInstanceBufSize, pipeInstanceBufSize, 0, nil)
+	if err != nil {
+		return windows.InvalidHandle, fmt.Errorf("creating pipe %s: %w", name, err)
+	}
+	return h, nil
+}
+
+// ServePipe serves name until d expires, answering each client with the pipe's own name and
+// then recycling the instance.
+//
+// This replaces a create-and-sleep server. The scan no longer only LISTS names, because
+// enumeration was measured not to discriminate: listing \\.\pipe\* is a directory read that a
+// restricted token does not change. Reachability is where the signal is, and it needs a server
+// that recycles rather than one that holds a single instance and sleeps. The measurement is in
+// docs/research/windows-named-pipe-enumeration.md section 4.
+//
+// The token written back is the pipe's own name. A client that reads it has provably reached
+// THIS server rather than merely a name that resolved, which is the gap a redirected object
+// namespace — a server silo, an AppContainer — can otherwise hide.
+func ServePipe(name string, d time.Duration) error {
+	h, err := createPipeInstance(name, true)
 	if err != nil {
 		return err
 	}
-	h, err := windows.CreateNamedPipe(p,
-		windows.PIPE_ACCESS_DUPLEX|windows.FILE_FLAG_FIRST_PIPE_INSTANCE,
-		windows.PIPE_TYPE_BYTE, 1, 512, 512, 0, nil)
-	if err != nil {
-		return fmt.Errorf("creating pipe %s: %w", name, err)
+	defer func() {
+		if h != windows.InvalidHandle {
+			_ = windows.CloseHandle(h)
+		}
+	}()
+
+	// The belt has to fire while the loop below is blocked in ConnectNamedPipe. ServePort
+	// closes its listener to unblock Accept; CloseHandle on a handle with a synchronous
+	// ConnectNamedPipe in flight is not the documented equivalent, so the pipe answer is to
+	// become a client of our own pipe — the very client reachability already needs.
+	//
+	// It must be readPipeToken and not a bare open: a client that connects and never drains
+	// would leave FlushFileBuffers below waiting on it, which is the same wedge in a new place.
+	// stopped closes as soon as the loop below leaves, and the knocker checks it between
+	// attempts. Without that check the knocks outlive our ownership of the name: the first
+	// one unblocks the loop, the loop closes its handle and returns, the name becomes free —
+	// and in production `name` is a real catalogue entry like \\.\pipe\docker_engine, so a
+	// later knock could open the actual Docker Desktop pipe. That is precisely the thing this
+	// package must never do, so the knocker is bounded by the server's own lifetime and not
+	// by an attempt count alone.
+	stopped := make(chan struct{})
+	defer close(stopped)
+
+	deadline := time.Now().Add(d)
+	go func() {
+		select {
+		case <-time.After(d):
+		case <-stopped:
+			return // already finished on its own; nothing to wake
+		}
+		for range knockAttempts {
+			select {
+			case <-stopped:
+				return
+			default:
+			}
+			_, _ = readPipeToken(name)
+			select {
+			case <-stopped:
+				return
+			case <-time.After(knockInterval):
+			}
+		}
+	}()
+
+	for time.Now().Before(deadline) {
+		// A client that arrived between creation and here is already connected, and
+		// ERROR_PIPE_CONNECTED says exactly that. It is success, not failure.
+		//
+		// Any other error retires this instance but must NOT retire the decoy: returning here
+		// would end the server before its lifetime while reporting success, and a scan would
+		// then read the absent name as a sandbox hiding it. Rebuild the instance and carry on;
+		// only a failure to rebuild is terminal.
+		if cErr := windows.ConnectNamedPipe(h, nil); cErr != nil &&
+			!errors.Is(cErr, windows.ERROR_PIPE_CONNECTED) {
+			log.Debug().Err(cErr).Str("pipe", name).Msg("Pipe instance went; rebuilding it")
+			again, aErr := createPipeInstance(name, false)
+			_ = windows.CloseHandle(h)
+			h = windows.InvalidHandle
+			if aErr != nil {
+				return aErr
+			}
+			h = again
+			continue
+		}
+		var n uint32
+		_ = windows.WriteFile(h, []byte(name), &n, nil)
+		// Returns once the client has drained it, or once the client goes away.
+		// ponytail: a client that connects and never reads wedges the loop until the
+		// lifetime expires. The process dies then anyway, and the only client this private
+		// name ever has is ours.
+		_ = windows.FlushFileBuffers(h)
+
+		// Create the replacement BEFORE closing the served instance, so the name never
+		// lapses out of the namespace between clients — a scan enumerating at that instant
+		// must not miss it.
+		next, nErr := createPipeInstance(name, false)
+		_ = windows.CloseHandle(h)
+		h = windows.InvalidHandle // the defer must not close it a second time
+		if nErr != nil {
+			return nErr
+		}
+		h = next
 	}
-	defer windows.CloseHandle(h)
-	time.Sleep(d)
 	return nil
 }
 

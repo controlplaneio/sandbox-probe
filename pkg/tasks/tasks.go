@@ -57,6 +57,32 @@ const (
 	// It is what makes "could not measure" distinguishable from "measured
 	// zero", which is the root of the false-blocked class of bug.
 	LOCALPROBESTATUS = "local_probe_status"
+
+	// NAMEDPIPEREACHABLE is the scored half of the Windows named-pipe measurement:
+	// pipes this process actually OPENED and round-tripped a token through.
+	//
+	// Enumeration was measured not to discriminate: listing \\.\pipe\* is a
+	// directory read, which a restricted token does not change, so the name list
+	// is identical either side of the boundary. This is where the signal is.
+	// See docs/research/windows-named-pipe-enumeration.md section 4.
+	//
+	// NEVER a catalogue name. Only the probe's own seeded decoy, because opening a
+	// real service's pipe consumes a server instance and delivers a connection
+	// event to somebody else's software.
+	NAMEDPIPEREACHABLE = "named_pipe_reachable"
+
+	// NAMEDPIPECREATION names the pipe the probe created and immediately destroyed.
+	// Enumerating, opening and creating are three different operations against three
+	// different access checks, and a filter can allow one and deny another — so
+	// creation is measured rather than inferred from the other two.
+	NAMEDPIPECREATION = "named_pipe_creation"
+
+	// NAMEDPIPEPROBESTATUS says how the reachability measurement went: the control
+	// against a name nothing serves, whether the namespace was readable, whether the
+	// decoy was enumerated at all, and the per-pipe outcome behind the scored list.
+	// Same job as LOCALPROBESTATUS — telling "could not measure" from "measured
+	// zero".
+	NAMEDPIPEPROBESTATUS = "named_pipe_probe_status"
 )
 
 var expectedTypes = map[string]reflect.Type{
@@ -69,14 +95,19 @@ var expectedTypes = map[string]reflect.Type{
 	PROXYDETECTION:            reflect.TypeOf(&models.ProxyConfig{}),
 	UNIXSOCKETDETECTION:       reflect.TypeOf([]string{}),
 	NAMEDPIPEDETECTION:        reflect.TypeOf([]string{}),
-	PROCESSDETECTION:          reflect.TypeOf(&models.Process{}),
-	PARENTPROCESSDETECTION:    reflect.TypeOf(&models.Process{}),
-	MOUNTEDVOLUMESDETECTION:   reflect.TypeOf([]string{}),
-	USERCONTEXTDETECTION:      reflect.TypeOf(&models.UserIdentity{}),
-	HOSTNAMEDETECTION:         reflect.TypeOf(""),
-	ENVIRONMENTDETECTION:      reflect.TypeOf(&models.HostEnvironment{}),
-	ENVSECRETDETECTION:        reflect.TypeOf(&models.EnvFinding{}),
-	SANDBOXDETECTION:          reflect.TypeOf(""),
+	NAMEDPIPEREACHABLE:        reflect.TypeOf([]string{}),
+	NAMEDPIPECREATION:         reflect.TypeOf([]string{}),
+	// NAMEDPIPEPROBESTATUS is deliberately absent: it is map-shaped, exactly like
+	// LOCALPROBESTATUS and LOCALLISTENERS, and Validate falls through for anything
+	// unregistered. Asserted in a test so the omission reads as a decision.
+	PROCESSDETECTION:        reflect.TypeOf(&models.Process{}),
+	PARENTPROCESSDETECTION:  reflect.TypeOf(&models.Process{}),
+	MOUNTEDVOLUMESDETECTION: reflect.TypeOf([]string{}),
+	USERCONTEXTDETECTION:    reflect.TypeOf(&models.UserIdentity{}),
+	HOSTNAMEDETECTION:       reflect.TypeOf(""),
+	ENVIRONMENTDETECTION:    reflect.TypeOf(&models.HostEnvironment{}),
+	ENVSECRETDETECTION:      reflect.TypeOf(&models.EnvFinding{}),
+	SANDBOXDETECTION:        reflect.TypeOf(""),
 }
 
 // Registry with wrapper functions

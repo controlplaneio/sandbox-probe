@@ -110,6 +110,47 @@ has no Windows analogue (nothing to configure — there's only one root), and
 Windows side — a Windows equivalent function would be a flat, one-shot
 enumeration, not a walk.
 
+## 4. Enumeration does not discriminate (measured 2026-08-24)
+
+Everything above answers *how to list the pipe namespace*. This section records what that
+list is worth as a sandbox measurement, because the answer turned out to be "very little",
+and that finding is the reason `named_pipe_reachable` exists.
+
+Codex CLI 0.149.1 sandboxes on Windows with a restricted token
+(`[windows] sandbox = "unelevated"` in `config.toml`). Running the probe confined by it and
+unconfined, on the same machine in the same session:
+
+| host | pipes confined | pipes unconfined |
+| --- | --- | --- |
+| Windows 11 VM, Codex CLI 0.149.1 | 57 | 57 |
+| GitHub `windows-latest` runner | 40 | 40 (unconfined `direct` baseline: 38) |
+
+Identical both times. A restricted token changes **access checks**; enumerating
+`\\.\pipe\*` is a directory read, which it does not gate. So `named_pipe_detection` cannot
+tell a sandboxed Windows agent from an unsandboxed one, and never could — the capability had
+produced no comparison data since it was built, and this is why.
+
+The same run showed the token itself *is* observable: `IsTokenRestricted` is true inside and
+false outside, which is what `sandbox_detection`'s `restricted-token` mechanism reads.
+
+### What follows from it
+
+Reachability, not visibility, is where the signal is. But it can only be measured safely
+against a name no real service can hold:
+
+- Opening a real service's pipe is **not passive**. It consumes a server instance, delivers
+  a connection event, and can hang a badly written server.
+- Reading a foreign pipe's DACL by name is *also* a client connect — the access check happens
+  on the open — so `GetNamedSecurityInfo` is not a passive alternative. Microsoft's own
+  guidance for reading a pipe's security descriptor is handle-based `GetSecurityInfo`, on a
+  handle you already hold.
+- `ImpersonateNamedPipeClient` is the attack in the pipe-squatting threat model. It must
+  never be implemented here.
+
+Hence `ReachPipeName`: a fixed private name the probe serves for itself, plus a per-pid
+control nothing ever serves, plus a token round trip so a redirected object namespace cannot
+answer in our place. See `pkg/tasks/baseline/pipereach_windows.go`.
+
 ## Sources
 
 - [Pipelist – Sysinternals | Microsoft Learn](https://learn.microsoft.com/en-us/sysinternals/downloads/pipelist)
