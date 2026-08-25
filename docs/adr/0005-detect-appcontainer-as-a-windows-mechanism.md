@@ -111,8 +111,16 @@ boolean.
 
 Verified: cross-compiles and vets for `windows/amd64`; the portable table test
 covers all four combinations of the two token bools, proving each mechanism is
-a pure function of its own bit; `TestIsAppContainerFalseForAnOrdinaryProcess`
-runs the real API on a Windows runner and asserts the negative.
+a pure function of its own bit.
+
+`TestIsAppContainerFalseForAnOrdinaryProcess` runs the real API on a Windows
+runner, and it requires the syscall to **succeed** rather than only checking
+that the answer is false. Asserting on `isAppContainerImpl` alone would pass
+identically whether the class number is right and the answer is genuinely
+false, or the call failed outright and nothing was measured — the same
+absent-versus-empty confusion the findings themselves avoid. It passed on
+`windows-latest`, so class 29 and the read path are measured facts, not
+assumptions.
 
 **Not verified: the positive case against a live MXC ProcessContainer.** The
 evidence that `app_container` is always set is MXC's own source, not a
