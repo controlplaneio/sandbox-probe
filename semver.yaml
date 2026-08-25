@@ -3,6 +3,11 @@ version: 1
 # proxy rejects any tag whose major disagrees with the module path, which is
 # how every tag from v4.8.2 to v5.2.1 became unresolvable. Bumping the major
 # here means renaming the module path in the same commit.
+#
+# `force` is a FLOOR, not a ceiling. It does not stop the wording rules below
+# from bumping the major past it — v7.0.1 was cut that way on 2026-08-24 and had
+# to be deleted. The release workflow now checks the computed major against
+# go.mod before tagging, because a comment is not a guard.
 force:
   major: 6
   minor: 1
@@ -22,5 +27,10 @@ wording:
     - improve
     - feature
   major:
+    # Deliberately just "breaking". The bare word "major" used to be here and it
+    # is a trap in THIS repository: the module path carries a major-version
+    # suffix, so ordinary prose about it — "no major-version suffix", "whose
+    # major disagrees" — appears in commit messages routinely. That is exactly
+    # what cut the dead v7.0.1 tag, from a commit whose whole subject was fixing
+    # the module path.
     - breaking
-    - major

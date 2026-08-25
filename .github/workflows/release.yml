@@ -51,6 +51,34 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # A tag whose major disagrees with the module path is unresolvable: the Go proxy
+      # refuses it, so the release publishes binaries nobody can `go get`. It has happened
+      # twice — every tag from v4.8.2 to v5.2.1, and v7.0.1 on 2026-08-24, the latter from a
+      # commit whose subject was fixing the module path and whose body contained the word
+      # "major". semver.yaml's `force.major` is a floor and does not prevent it, and a comment
+      # is not a guard, so this fails the release before anything is tagged or published.
+      #
+      # An unsuffixed module path (v0/v1) has no major to check and is skipped.
+      - name: Check the computed major matches the module path
+        run: |
+          set -euo pipefail
+          computed="${{ needs.version.outputs.semver }}"
+          major="${computed%%.*}"
+          modpath="$(go list -m)"
+          suffix="${modpath##*/}"
+          if [[ ! "$suffix" =~ ^v[0-9]+$ ]]; then
+            echo "module path $modpath carries no major suffix; nothing to check"
+            exit 0
+          fi
+          if [ "v$major" != "$suffix" ]; then
+            echo "::error::computed version v$computed has major v$major, but the module is $modpath."
+            echo "::error::The Go proxy would reject that tag. Either the commit wording bumped the"
+            echo "::error::major by accident (see semver.yaml), or the module path must be renamed in"
+            echo "::error::the same change. Not tagging."
+            exit 1
+          fi
+          echo "v$major matches $suffix"
+
       - name: Create local release tag
         run: |
           git tag "v${{ needs.version.outputs.semver }}"
