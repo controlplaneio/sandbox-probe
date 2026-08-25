@@ -27,10 +27,19 @@ wording:
     - improve
     - feature
   major:
-    # Deliberately just "breaking". The bare word "major" used to be here and it
-    # is a trap in THIS repository: the module path carries a major-version
-    # suffix, so ordinary prose about it — "no major-version suffix", "whose
-    # major disagrees" — appears in commit messages routinely. That is exactly
-    # what cut the dead v7.0.1 tag, from a commit whose whole subject was fixing
-    # the module path.
-    - breaking
+    # A sentinel, not an English word, and deliberately one nobody types by accident.
+    #
+    # Both obvious keywords are landmines in THIS repository, and both have fired.
+    # "major" cut the dead v7.0.1 tag, from a commit whose subject was fixing the
+    # module path and whose body said "no major-version suffix". Removing it was not
+    # enough: "breaking" then fired on ordinary prose — two commits from July say
+    # "breaking the git operation", and the very commit that removed "major" said
+    # "'breaking' stays and is unambiguous". It was not unambiguous.
+    #
+    # The deeper reason neither belongs here: a major bump in this repository REQUIRES
+    # renaming the module path in the same change, because the Go proxy rejects any tag
+    # whose major disagrees with the /vN suffix. That is a deliberate, coordinated act.
+    # Nobody performs it by accident, so nothing should trigger it by accident. With no
+    # English keyword here the major can only move by editing force.major below, which
+    # is the level of intent the change actually warrants.
+    - SEMVER-MAJOR-BUMP
