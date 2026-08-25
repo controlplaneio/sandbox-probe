@@ -218,6 +218,16 @@ var SystemWritePaths = platformSystemWritePaths
 type PathPermissions struct {
 	WritablePaths []string
 	ReadablePaths []string
+
+	// EphemeralWritablePaths is the subset of WritablePaths whose backing filesystem keeps its
+	// contents in memory, so a write there cannot persist or reach host content. See
+	// writeable_backing.go for the measurement that makes this necessary.
+	EphemeralWritablePaths []string
+
+	// MountsReadable records whether /proc/self/mountinfo could be read. Without it no path can be
+	// attributed to a filesystem, so EphemeralWritablePaths is unmeasured rather than empty and
+	// the caller must omit the finding entirely.
+	MountsReadable bool
 }
 
 // ScanTargetedPaths performs targeted security enumeration by checking
@@ -263,6 +273,13 @@ func scanTargetedPathsForHome(home string) *PathPermissions {
 				result.WritablePaths = append(result.WritablePaths, path)
 			}
 		}
+	}
+
+	// Attribute each writeable path to the filesystem that actually serves it. Done here rather
+	// than in the caller so the two lists are derived from one scan and cannot drift apart.
+	if mounts, ok := mountTable(); ok {
+		result.MountsReadable = true
+		result.EphemeralWritablePaths = ephemeralWriteablePaths(result.WritablePaths, mounts)
 	}
 
 	return result

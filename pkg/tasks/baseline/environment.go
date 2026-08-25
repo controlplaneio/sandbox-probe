@@ -475,25 +475,55 @@ const procMountInfo = "/proc/self/mountinfo"
 func GetHostMounts() ([]Mount, error) {
 	// An unreadable mount table is a restricted environment, not a failure: report nothing rather
 	// than raise a finding about the probe's own confinement.
+	mounts, ok := mountTable()
+	if !ok {
+		return []Mount{}, nil
+	}
+
+	res := make([]Mount, 0, len(mounts))
+
+	for _, m := range mounts {
+		if !isKernelPseudoFilesystem(m.FSType) {
+			res = append(res, m)
+		}
+	}
+
+	return res, nil
+}
+
+// mountTable is the seam every mount reader goes through. It returns the UNFILTERED table plus
+// whether /proc/self/mountinfo could be read at all.
+//
+// Two things the filtered GetHostMounts view cannot express, and both matter here.
+//
+// The readability bool keeps `absent != empty` intact for callers that derive a finding from the
+// mounts: a host with no readable mount table has measured nothing, and must not emit an empty
+// list that reads as measured-and-negative. GetHostMounts folds both into an empty slice, which is
+// right for reporting the mounts themselves and wrong for reasoning about a path's backing.
+//
+// The table is unfiltered because a pseudo-filesystem is still the mount that BACKS a path. Drop
+// it and the deepest-covering search below silently attributes that path to an ancestor mount of a
+// different type — an answer that is wrong rather than missing.
+var mountTable = mountTableImpl
+
+func mountTableImpl() ([]Mount, bool) {
 	data, err := readFile(procMountInfo)
 	if err != nil {
-		return []Mount{}, nil
+		return nil, false
 	}
 
 	var res []Mount
 
 	for _, m := range parseMountInfo(data) {
-		if !isKernelPseudoFilesystem(m.FSType) {
-			res = append(res, Mount{
-				Source: m.Source,
-				Target: m.MountPoint,
-				FSType: m.FSType,
-				Root:   m.Root,
-			})
-		}
+		res = append(res, Mount{
+			Source: m.Source,
+			Target: m.MountPoint,
+			FSType: m.FSType,
+			Root:   m.Root,
+		})
 	}
 
-	return res, nil
+	return res, true
 }
 
 // parseMountInfo parses /proc/self/mountinfo. Each line is fixed up to the mount options, then a

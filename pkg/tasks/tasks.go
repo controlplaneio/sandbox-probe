@@ -27,6 +27,7 @@ func (t *baseTask) GetDescription() string {
 
 const (
 	WRITEABLEPATHS            = "writeable_paths"
+	EPHEMERALWRITEABLEPATHS   = "ephemeral_writeable_paths"
 	SENSITIVEREADABLEPATHS    = "sensitive_readable_paths"
 	EXTERNALHOSTDNSRESOLUTION = "external_host_dns_resolution"
 	EXTERNALHOSTCONNECTIVITY  = "external_host_connectivity"
@@ -87,6 +88,7 @@ const (
 
 var expectedTypes = map[string]reflect.Type{
 	WRITEABLEPATHS:            reflect.TypeOf([]string{}),
+	EPHEMERALWRITEABLEPATHS:   reflect.TypeOf([]string{}),
 	SENSITIVEREADABLEPATHS:    reflect.TypeOf([]string{}),
 	EXTERNALHOSTDNSRESOLUTION: reflect.TypeOf([]string{}),
 	EXTERNALHOSTCONNECTIVITY:  reflect.TypeOf([]string{}),
