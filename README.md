@@ -371,6 +371,23 @@ For the fingerprint end-to-end checks:
 - `jq` — JSON processor for parsing reports
 - `docker`, `podman` and/or `bubblewrap` — whichever runtimes you want to exercise
 
+### Install with Homebrew (macOS and Linux, including WSL)
+
+```bash
+brew tap controlplaneio/tap
+brew install controlplaneio/tap/sandbox-probe
+```
+
+This covers macOS (Intel and Apple Silicon) and Linux (`amd64`, `arm64`,
+`armv6`, `armv7`) through [Homebrew on Linux](https://docs.brew.sh/Homebrew-on-Linux).
+WSL runs a real Linux kernel, so the Linux formula works there too — install
+Homebrew inside your WSL distribution first if you have not already.
+
+The `controlplaneio/homebrew-tap` repository checks for new `sandbox-probe`
+releases on a schedule and updates the formula from the archives and
+checksums this project publishes. Run `brew upgrade sandbox-probe` after a
+new release to pick up the update once it lands.
+
 ### Install a released binary
 
 GitHub releases provide archives for:
