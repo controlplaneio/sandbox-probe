@@ -25,7 +25,7 @@ jobs:
 
       - name: Generate version
         id: version
-        uses: lukaszraczylo/semver-generator@6ba4a2674f1534199785f77419cb2b82c42c0512 # v1
+        uses: lukaszraczylo/semver-generator@689d41fd79a30506b3a22ce81026002531cc05a3 # v1
         with:
           config_file: semver.yaml
           repository_local: true
@@ -86,7 +86,7 @@ jobs:
           # build successfully. Do not push a tag before that transaction.
 
       - name: Launch goreleaser
-        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
           args: release
         env:
