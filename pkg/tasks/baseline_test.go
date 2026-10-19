@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	reportv1 "github.com/controlplaneio/sandbox-probe/v6/api/gen/proto/report/v1"
 	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
@@ -504,23 +505,15 @@ func TestNamedPipeReachFindingValueShapes(t *testing.T) {
 	}
 }
 
-// runNetworkConnectivity runs NetworkTask with the given lookup and dialer
-// and returns the external_host_connectivity hostnames plus the dial count.
-func runNetworkConnectivity(t *testing.T, lookup func(string) ([]net.IP, error), dialErr error) ([]string, int) {
-	t.Helper()
-	task := NewNetworkTask()
-	task.lookup = lookup
-	dials := 0
-	task.dial = func(_ context.Context, _, _ string) (net.Conn, error) {
-		dials++
-		if dialErr != nil {
-			return nil, dialErr
-		}
-		c, s := net.Pipe()
-		_ = s.Close()
-		return c, nil
-	}
+// imdsAddr is the cloud instance metadata service as the probe dials it.
+const imdsAddr = "169.254.169.254:80"
 
+// runNetworkConnectivity runs task with the given lookup and dialer and
+// returns the external_host_connectivity hostnames.
+func runNetworkConnectivity(t *testing.T, task *NetworkTask, lookup func(string) ([]net.IP, error), dial func(context.Context, string, string) (net.Conn, error)) []string {
+	t.Helper()
+	task.lookup = lookup
+	task.dial = dial
 	findings, err := task.Run(context.Background(), Inputs{})
 	require.NoError(t, err)
 	for _, f := range findings {
@@ -529,11 +522,39 @@ func runNetworkConnectivity(t *testing.T, lookup func(string) ([]net.IP, error),
 			for _, v := range f.Value.GetListValue().GetValues() {
 				hosts = append(hosts, v.GetStringValue())
 			}
-			return hosts, dials
+			return hosts
 		}
 	}
 	t.Fatalf("no %s finding emitted", EXTERNALHOSTCONNECTIVITY)
-	return nil, 0
+	return nil
+}
+
+// fakeDial connects to the addresses in reachable, refuses every other one,
+// and records each address it is asked for in dialled.
+func fakeDial(dialled *[]string, reachable ...string) func(context.Context, string, string) (net.Conn, error) {
+	return func(_ context.Context, _, addr string) (net.Conn, error) {
+		*dialled = append(*dialled, addr)
+		for _, r := range reachable {
+			if r == addr {
+				c, s := net.Pipe()
+				_ = s.Close()
+				return c, nil
+			}
+		}
+		return nil, errors.New("connect: operation not permitted")
+	}
+}
+
+// withoutIMDS drops the metadata-service address, leaving the dials made for
+// the resolved test hostname.
+func withoutIMDS(dialled []string) []string {
+	out := []string{}
+	for _, a := range dialled {
+		if a != imdsAddr {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 func resolvesTo(ips ...string) func(string) ([]net.IP, error) {
@@ -546,23 +567,100 @@ func resolvesTo(ips ...string) func(string) ([]net.IP, error) {
 	}
 }
 
+func failsToResolve(string) ([]net.IP, error) { return nil, errors.New("no such host") }
+
 // The regression: DNS answering is not egress. A sandbox that resolves names
 // but refuses every connection must report no external connectivity.
 func TestNetworkTaskConnectivityEmptyWhenDNSWorksButDialsFail(t *testing.T) {
-	hosts, dials := runNetworkConnectivity(t, resolvesTo("192.0.2.1", "2001:db8::1"), errors.New("connect: operation not permitted"))
+	var dialled []string
+	hosts := runNetworkConnectivity(t, NewNetworkTask(), resolvesTo("192.0.2.1", "2001:db8::1"), fakeDial(&dialled))
 	assert.Empty(t, hosts, "resolution alone must not count as connectivity")
-	assert.Equal(t, 4, dials, "both IPs on 443 and 80 should be tried")
+	assert.Len(t, withoutIMDS(dialled), 4, "both IPs on 443 and 80 should be tried")
+	assert.Contains(t, dialled, imdsAddr, "IMDS is tried and refused too")
 }
 
 func TestNetworkTaskConnectivityReportsHostWhenDialSucceeds(t *testing.T) {
-	hosts, dials := runNetworkConnectivity(t, resolvesTo("192.0.2.1"), nil)
+	var dialled []string
+	hosts := runNetworkConnectivity(t, NewNetworkTask(), resolvesTo("192.0.2.1"), fakeDial(&dialled, "192.0.2.1:443"))
 	assert.Equal(t, []string{"google.com"}, hosts)
-	assert.Equal(t, 1, dials, "the first successful connect should end the probe")
+	assert.Equal(t, []string{"192.0.2.1:443"}, withoutIMDS(dialled), "the first successful connect should end the probe")
 }
 
 func TestNetworkTaskConnectivityEmptyWithoutDialWhenDNSFails(t *testing.T) {
-	failing := func(string) ([]net.IP, error) { return nil, errors.New("no such host") }
-	hosts, dials := runNetworkConnectivity(t, failing, nil)
+	var dialled []string
+	hosts := runNetworkConnectivity(t, NewNetworkTask(), failsToResolve, fakeDial(&dialled))
 	assert.Empty(t, hosts)
-	assert.Zero(t, dials, "nothing to dial when resolution failed")
+	assert.Empty(t, withoutIMDS(dialled), "nothing to dial for google.com when resolution failed")
+}
+
+// A completed connect to the metadata service is reported by its literal IP,
+// and only the TCP handshake is made: nothing is sent, so nothing is fetched.
+func TestNetworkTaskConnectivityReportsIMDSWhenOnlyIMDSConnects(t *testing.T) {
+	var dialled []string
+	hosts := runNetworkConnectivity(t, NewNetworkTask(), resolvesTo("192.0.2.1"), fakeDial(&dialled, imdsAddr))
+	assert.Equal(t, []string{"169.254.169.254"}, hosts)
+	assert.Contains(t, dialled, imdsAddr)
+}
+
+// IMDS is a literal IP, so a sandbox with no DNS can still have the
+// credential-theft path; failed resolution must not skip it.
+func TestNetworkTaskConnectivityReportsIMDSWhenDNSFails(t *testing.T) {
+	var dialled []string
+	hosts := runNetworkConnectivity(t, NewNetworkTask(), failsToResolve, fakeDial(&dialled, imdsAddr))
+	assert.Equal(t, []string{"169.254.169.254"}, hosts)
+}
+
+func TestNetworkTaskConnectivityReportsBothInOrder(t *testing.T) {
+	var dialled []string
+	hosts := runNetworkConnectivity(t, NewNetworkTask(), resolvesTo("192.0.2.1"), fakeDial(&dialled, "192.0.2.1:443", imdsAddr))
+	assert.Equal(t, []string{"google.com", "169.254.169.254"}, hosts)
+}
+
+// Off-cloud the metadata address is usually blackholed. IMDS has its own
+// bound, so Run still returns promptly and the google.com result stands.
+func TestNetworkTaskConnectivityIMDSBlackholeIsBounded(t *testing.T) {
+	task := NewNetworkTask()
+	for i := range task.egressTargets {
+		if task.egressTargets[i].name == "169.254.169.254" {
+			task.egressTargets[i].attemptTimeout = 50 * time.Millisecond
+			task.egressTargets[i].budget = 50 * time.Millisecond
+		}
+	}
+	google := fakeDial(new([]string), "192.0.2.1:443")
+	imdsTried := make(chan struct{}, 1)
+	dial := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if addr == imdsAddr {
+			imdsTried <- struct{}{}
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		return google(ctx, network, addr)
+	}
+
+	done := make(chan []string, 1)
+	start := time.Now()
+	go func() { done <- runNetworkConnectivity(t, task, resolvesTo("192.0.2.1"), dial) }()
+	select {
+	case hosts := <-done:
+		assert.Less(t, time.Since(start), time.Second, "a blackholed IMDS must cost only its own bound")
+		assert.Equal(t, []string{"google.com"}, hosts)
+		assert.Len(t, imdsTried, 1, "the blackholed IMDS connect must actually be attempted")
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run did not return: the IMDS connect is unbounded")
+	}
+}
+
+// The production IMDS target: one literal IP, one port, at most 2s.
+func TestNetworkTaskIMDSTargetDefaults(t *testing.T) {
+	var imds *egressTarget
+	for _, tgt := range NewNetworkTask().egressTargets {
+		if tgt.name == "169.254.169.254" {
+			imds = &tgt
+		}
+	}
+	require.NotNil(t, imds, "IMDS must be a default egress target")
+	assert.Equal(t, []net.IP{net.IPv4(169, 254, 169, 254)}, imds.ips, "a literal IP, so no DNS is involved")
+	assert.Equal(t, []int{80}, imds.ports, "one attempt only")
+	assert.LessOrEqual(t, imds.attemptTimeout, 2*time.Second)
+	assert.LessOrEqual(t, imds.budget, 2*time.Second)
 }
