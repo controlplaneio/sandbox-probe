@@ -67,7 +67,7 @@ Each row below is a `finding_type` string you will see in `report.json`, what it
 | `sensitive_readable_paths` | readable but security-sensitive files (SSH keys, cloud credentials, browser cookies, etc.) | "Could an attacker exfiltrate my AWS keys, SSH keys, browser cookies?" |
 | `writeable_paths` | writable system and home paths | "Could an attacker tamper with shell rc files, cron, systemd units?" |
 | `external_host_dns_resolution` | hostnames the probe could resolve | "Can the agent see public DNS at all?" |
-| `external_host_connectivity` | hosts the probe opened a direct TCP connection to (port 443 or 80); resolving the name alone does not count | "Could an attacker exfiltrate data to an external server?" |
+| `external_host_connectivity` | hosts the probe opened a direct TCP connection to: `google.com` (port 443 or 80) and the cloud metadata address `169.254.169.254` (port 80); resolving a name alone does not count | "Could an attacker exfiltrate data to an external server?" |
 | `tcp_ports_open` / `udp_ports_open` | locally reachable ports | "What local services is the agent exposed to?" |
 | `proxy_detection` | proxy configuration in environment variables | "Is traffic forced through a proxy the agent could subvert?" |
 | `unix_socket_detection` | Unix domain sockets visible from inside | "Can the agent talk to the Docker daemon, SSH agent, dbus, …?" |
@@ -104,6 +104,7 @@ A finding looks like this:
 Read it as a three-step chain: *this finding means X → which tells you Y → which suggests action Z.*
 
 - **`sensitive_readable_paths` includes `~/.aws/credentials`** → the sandbox does not block reads of cloud credentials → tighten the policy (or accept the residual risk explicitly, in writing).
+- **`external_host_connectivity` includes `169.254.169.254`** → the probe completed a TCP connect to the cloud instance metadata service (nothing is sent, so no credentials are fetched) → on EC2/GCE/Azure that is an IAM credential-theft path unless something else stops the request (IMDSv2 with hop limit 1 blocks tokens to a bridged container, not the connect); block egress to link-local.
 - **`external_host_dns_resolution` is populated but `external_host_connectivity` is empty** → the sandbox answers DNS but refuses direct TCP egress → good, but DNS is still a covert channel (data can be tunnelled in query names), so restrict the resolver too if exfiltration is in your threat model.
 - **`sandbox_detection` is empty** → no enforcement was detected → either the runtime is one the probe doesn't fingerprint yet (file an issue) or there really is no sandbox.
 
