@@ -3,7 +3,9 @@ package tasks
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
+	"time"
 
 	reportv1 "github.com/controlplaneio/sandbox-probe/v6/api/gen/proto/report/v1"
 	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
@@ -139,7 +141,21 @@ type NetworkTask struct {
 	baseTask
 	testHost     string
 	testHostname string
+	// lookup and dial are the network seams; tests replace them.
+	lookup func(string) ([]net.IP, error)
+	dial   baselineTasks.DialContextFunc
 }
+
+// Egress is probed on the ports a sandbox is most likely to leave open. Each
+// connect gets connectAttemptTimeout and the whole probe connectBudget, so a
+// blackholed network delays the run by a bounded amount however many IPs the
+// name resolves to.
+var connectPorts = []int{443, 80}
+
+const (
+	connectAttemptTimeout = 3 * time.Second
+	connectBudget         = 8 * time.Second
+)
 
 func NewNetworkTask() *NetworkTask {
 	return &NetworkTask{
@@ -149,6 +165,8 @@ func NewNetworkTask() *NetworkTask {
 		},
 		testHost:     "localhost",
 		testHostname: "google.com",
+		lookup:       baselineTasks.DnsQuery,
+		dial:         (&net.Dialer{}).DialContext,
 	}
 }
 
@@ -158,7 +176,7 @@ func (t *NetworkTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 
 	// EXTERNALHOSTDNSRESOLUTION
 	log.Info().Str("hostname", t.testHostname).Msg("Performing DNS query")
-	ips, err := baselineTasks.DnsQuery(t.testHostname)
+	ips, err := t.lookup(t.testHostname)
 	var dnsHosts []string
 	if err == nil {
 		for _, ip := range ips {
@@ -180,11 +198,20 @@ func (t *NetworkTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 		Value:       dnsValue,
 	})
 
-	// EXTERNALHOSTCONNECTIVITY
+	// EXTERNALHOSTCONNECTIVITY — a completed TCP connect to one of the
+	// resolved IPs, not the resolution itself: sandboxes commonly answer DNS
+	// while refusing egress.
 	connHosts := []string{}
 	if len(dnsHosts) > 0 {
-		connHosts = append(connHosts, t.testHostname)
-		log.Info().Str("host", t.testHostname).Msg("External connectivity confirmed")
+		connCtx, cancel := context.WithTimeout(ctx, connectBudget)
+		reachable := baselineTasks.TCPReachable(connCtx, t.dial, ips, connectPorts, connectAttemptTimeout)
+		cancel()
+		if reachable {
+			connHosts = append(connHosts, t.testHostname)
+			log.Info().Str("host", t.testHostname).Msg("External connectivity confirmed")
+		} else {
+			log.Warn().Str("host", t.testHostname).Ints("ports", connectPorts).Msg("External host resolved but no TCP connection succeeded")
+		}
 	}
 	connValue, err := structpb.NewValue(stringSliceToInterface(connHosts))
 	if err != nil {

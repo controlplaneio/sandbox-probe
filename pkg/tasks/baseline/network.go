@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
 	"github.com/rs/zerolog/log"
@@ -53,6 +54,35 @@ func GetProxy() (*models.ProxyConfig, error) {
 
 func networkAddress(host string, port int) string {
 	return net.JoinHostPort(host, strconv.Itoa(port))
+}
+
+// DialContextFunc has the shape of net.Dialer.DialContext, so the network can
+// be swapped out under test.
+type DialContextFunc func(ctx context.Context, network, address string) (net.Conn, error)
+
+// TCPReachable reports whether a TCP connection to any of ips on any of ports
+// completes. Each attempt is bounded by timeout and the whole probe by ctx, so
+// a blackholed network costs a known amount of time. A failed dial is an
+// observation, not an error: it is logged and the next address is tried.
+func TCPReachable(ctx context.Context, dial DialContextFunc, ips []net.IP, ports []int, timeout time.Duration) bool {
+	for _, ip := range ips {
+		for _, port := range ports {
+			if ctx.Err() != nil {
+				return false
+			}
+			addr := networkAddress(ip.String(), port)
+			attemptCtx, cancel := context.WithTimeout(ctx, timeout)
+			conn, err := dial(attemptCtx, "tcp", addr)
+			cancel()
+			if err != nil {
+				log.Debug().Err(err).Str("address", addr).Msg("TCP connect failed")
+				continue
+			}
+			_ = conn.Close()
+			return true
+		}
+	}
+	return false
 }
 
 func GetSockets(startPath string, fast bool) ([]string, error) {
