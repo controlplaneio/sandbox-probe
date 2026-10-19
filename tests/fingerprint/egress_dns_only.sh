@@ -4,7 +4,8 @@
 # still resolves google.com, the shape of a sandbox that answers DNS but
 # refuses egress, and must report no connectivity there. A second run on the
 # default network is the positive control, asserted only when the container
-# itself can open a TCP connection, so an offline runner doesn't fail it.
+# itself can open a TCP connection, so an offline runner doesn't fail it. It
+# checks membership, since a cloud runner may also reach 169.254.169.254.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -34,7 +35,7 @@ echo "No connectivity reported without a network: ✓"
 echo "Testing egress: default network"
 if docker run --rm "$IMAGE" bash -c ': </dev/tcp/google.com/443' 2>/dev/null; then
     got=$(connectivity)
-    if [ "$got" != '["google.com"]' ]; then
+    if ! echo "$got" | jq -e 'index("google.com")' >/dev/null; then
         echo "external_host_connectivity = $got with working egress: ✗ Test failed"
         exit 1
     fi
