@@ -740,40 +740,13 @@ func (t *SandboxTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 	// Reports the outermost named wrapper when one is found.
 	log.Info().Msg("Detecting container runtime")
 	runtime := baselineTasks.GetContainerRuntime(0, os.Getpid())
-	runtimeStr := ""
-	switch runtime {
-	case baselineTasks.RuntimeDocker:
-		runtimeStr = "docker"
-	case baselineTasks.RuntimePodman:
-		runtimeStr = "podman"
-	case baselineTasks.RuntimeLXC:
-		runtimeStr = "lxc"
-	case baselineTasks.RuntimeOpenVZ:
-		runtimeStr = "openvz"
-	case baselineTasks.RuntimeGVisor:
-		runtimeStr = "gvisor"
-	case baselineTasks.RuntimeWSL:
-		runtimeStr = "wsl"
-	case baselineTasks.RuntimeFirejail:
-		runtimeStr = "firejail"
-	case baselineTasks.RuntimeSeatbelt:
-		runtimeStr = "seatbelt"
-	case baselineTasks.RuntimeLandlock:
-		runtimeStr = "landlock"
-	case baselineTasks.RuntimeNspawn:
-		runtimeStr = "nspawn"
-	case baselineTasks.RuntimeAppArmor:
-		runtimeStr = "apparmor"
-	case baselineTasks.RuntimeChroot:
-		runtimeStr = "chroot"
-	case baselineTasks.RuntimeUnknown:
-		runtimeStr = "unknown"
-	}
+	runtimeStr := containerRuntimeName(runtime)
 
-	// Detect bwrap explicitly (uid-map / ancestor walk)
+	// Detect bwrap explicitly (uid-map / ancestor walk). Not over OpenShell/NemoClaw: their
+	// markers are set by the outermost supervisor, so a bwrap ancestor is nested inside them.
 	log.Info().Msg("Checking for bubblewrap")
 	isBwrap, _ := baselineTasks.GetBubbleWrap(os.Getpid())
-	if isBwrap {
+	if isBwrap && runtime != baselineTasks.RuntimeOpenShell && runtime != baselineTasks.RuntimeNemoClaw {
 		runtimeStr = "bubblewrap"
 	}
 
@@ -887,4 +860,42 @@ func GetBaselineTasks() []Task {
 		NewSandboxTask(),     // SANDBOXDETECTION
 		NewMountTask(),       // MOUNTEDVOLUMESDETECTION
 	}
+}
+
+// containerRuntimeName is the report string for a detected runtime. A runtime with no case here
+// is detected and then silently dropped from the sandbox_detection finding.
+func containerRuntimeName(rt baselineTasks.ContainerRuntime) string {
+	switch rt {
+	case baselineTasks.RuntimeDocker:
+		return "docker"
+	case baselineTasks.RuntimePodman:
+		return "podman"
+	case baselineTasks.RuntimeLXC:
+		return "lxc"
+	case baselineTasks.RuntimeOpenVZ:
+		return "openvz"
+	case baselineTasks.RuntimeGVisor:
+		return "gvisor"
+	case baselineTasks.RuntimeWSL:
+		return "wsl"
+	case baselineTasks.RuntimeFirejail:
+		return "firejail"
+	case baselineTasks.RuntimeSeatbelt:
+		return "seatbelt"
+	case baselineTasks.RuntimeLandlock:
+		return "landlock"
+	case baselineTasks.RuntimeNspawn:
+		return "nspawn"
+	case baselineTasks.RuntimeAppArmor:
+		return "apparmor"
+	case baselineTasks.RuntimeChroot:
+		return "chroot"
+	case baselineTasks.RuntimeOpenShell:
+		return "openshell"
+	case baselineTasks.RuntimeNemoClaw:
+		return "nemoclaw"
+	case baselineTasks.RuntimeUnknown:
+		return "unknown"
+	}
+	return ""
 }
