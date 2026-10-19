@@ -2,6 +2,8 @@ package tasks
 
 import (
 	"context"
+	"errors"
+	"net"
 	"os"
 	"reflect"
 	"strings"
@@ -9,6 +11,8 @@ import (
 
 	reportv1 "github.com/controlplaneio/sandbox-probe/v6/api/gen/proto/report/v1"
 	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -498,4 +502,67 @@ func TestNamedPipeReachFindingValueShapes(t *testing.T) {
 	if _, registered := expectedTypes[LOCALPROBESTATUS]; registered {
 		t.Errorf("%s is the precedent this relies on and it has changed", LOCALPROBESTATUS)
 	}
+}
+
+// runNetworkConnectivity runs NetworkTask with the given lookup and dialer
+// and returns the external_host_connectivity hostnames plus the dial count.
+func runNetworkConnectivity(t *testing.T, lookup func(string) ([]net.IP, error), dialErr error) ([]string, int) {
+	t.Helper()
+	task := NewNetworkTask()
+	task.lookup = lookup
+	dials := 0
+	task.dial = func(_ context.Context, _, _ string) (net.Conn, error) {
+		dials++
+		if dialErr != nil {
+			return nil, dialErr
+		}
+		c, s := net.Pipe()
+		_ = s.Close()
+		return c, nil
+	}
+
+	findings, err := task.Run(context.Background(), Inputs{})
+	require.NoError(t, err)
+	for _, f := range findings {
+		if f.FindingType == EXTERNALHOSTCONNECTIVITY {
+			hosts := []string{}
+			for _, v := range f.Value.GetListValue().GetValues() {
+				hosts = append(hosts, v.GetStringValue())
+			}
+			return hosts, dials
+		}
+	}
+	t.Fatalf("no %s finding emitted", EXTERNALHOSTCONNECTIVITY)
+	return nil, 0
+}
+
+func resolvesTo(ips ...string) func(string) ([]net.IP, error) {
+	return func(string) ([]net.IP, error) {
+		out := make([]net.IP, 0, len(ips))
+		for _, ip := range ips {
+			out = append(out, net.ParseIP(ip))
+		}
+		return out, nil
+	}
+}
+
+// The regression: DNS answering is not egress. A sandbox that resolves names
+// but refuses every connection must report no external connectivity.
+func TestNetworkTaskConnectivityEmptyWhenDNSWorksButDialsFail(t *testing.T) {
+	hosts, dials := runNetworkConnectivity(t, resolvesTo("192.0.2.1", "2001:db8::1"), errors.New("connect: operation not permitted"))
+	assert.Empty(t, hosts, "resolution alone must not count as connectivity")
+	assert.Equal(t, 4, dials, "both IPs on 443 and 80 should be tried")
+}
+
+func TestNetworkTaskConnectivityReportsHostWhenDialSucceeds(t *testing.T) {
+	hosts, dials := runNetworkConnectivity(t, resolvesTo("192.0.2.1"), nil)
+	assert.Equal(t, []string{"google.com"}, hosts)
+	assert.Equal(t, 1, dials, "the first successful connect should end the probe")
+}
+
+func TestNetworkTaskConnectivityEmptyWithoutDialWhenDNSFails(t *testing.T) {
+	failing := func(string) ([]net.IP, error) { return nil, errors.New("no such host") }
+	hosts, dials := runNetworkConnectivity(t, failing, nil)
+	assert.Empty(t, hosts)
+	assert.Zero(t, dials, "nothing to dial when resolution failed")
 }
