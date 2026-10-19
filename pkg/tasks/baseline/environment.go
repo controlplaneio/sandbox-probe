@@ -58,12 +58,15 @@ var lookupEnv = os.LookupEnv
 // OPENSHELL_* variable from the workload and then sets OPENSHELL_SANDBOX=1 as the one marker the
 // workload is meant to see (openshell-sandbox/src/process.rs apply_canonical_process_environment,
 // openshell-core/src/sandbox_env.rs); older releases put the sandbox name there, so any non-empty
-// value counts. openShellCAFile is the CA of its TLS-intercepting proxy, which SSL_CERT_FILE and
-// NODE_EXTRA_CA_CERTS point at (child_env.rs).
-const (
-	openShellEnv    = "OPENSHELL_SANDBOX"
-	openShellCAFile = "/etc/openshell-tls/openshell-ca.pem"
-)
+// value counts. openShellCAFiles hold the CA of its TLS-intercepting proxy, which SSL_CERT_FILE and
+// NODE_EXTRA_CA_CERTS point at: /etc/openshell-tls in source (child_env.rs), and
+// /run/openshell-supervisor-ca/material as observed in a live v0.1.4 docker-driver sandbox.
+const openShellEnv = "OPENSHELL_SANDBOX"
+
+var openShellCAFiles = []string{
+	"/etc/openshell-tls/openshell-ca.pem",
+	"/run/openshell-supervisor-ca/material/ca.crt",
+}
 
 // nemoClawMarkers are the NemoClaw image's install directories (NVIDIA/NemoClaw @4501ee9
 // Dockerfile COPY targets). They only name NemoClaw on top of proven OpenShell: the directory
@@ -365,7 +368,7 @@ func isOpenShell() bool {
 	if v, ok := lookupEnv(openShellEnv); ok && v != "" {
 		return true
 	}
-	return fileExistsFunc(openShellCAFile)
+	return slices.ContainsFunc(openShellCAFiles, fileExistsFunc)
 }
 
 // openShellOrNemoClaw refines proven OpenShell to NemoClaw when the NemoClaw image is present.
