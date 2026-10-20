@@ -62,7 +62,7 @@ func ProbeLandlockSelfDepth() (int, error) {
 		unix.LANDLOCK_ACCESS_FS_READ_DIR)
 
 	attr := unix.LandlockRulesetAttr{
-		Access_fs: handledAccess,
+		Handled_access_fs: handledAccess,
 	}
 
 	rulesetFD, _, errno := unix.Syscall(
@@ -104,7 +104,7 @@ func landlock() error {
 		unix.LANDLOCK_ACCESS_FS_READ_DIR)
 
 	attr := unix.LandlockRulesetAttr{
-		Access_fs: handledAccess,
+		Handled_access_fs: handledAccess,
 	}
 
 	rulesetFD, _, errno := unix.Syscall(
