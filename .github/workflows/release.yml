@@ -8,8 +8,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   version:
@@ -21,6 +20,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Generate version
@@ -40,16 +40,20 @@ jobs:
     # working darwin build at all (no Apple SDK/frameworks), which is why
     # both prior release attempts failed at darwin_amd64_v1.
     runs-on: macos-latest
+    permissions:
+      contents: write # Required for GoReleaser to create releases and upload assets.
     steps:
       - name: Check out code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
+          cache: false
 
       # A tag whose major disagrees with the module path is unresolvable: the Go proxy
       # refuses it, so the release publishes binaries nobody can `go get`. It has happened
@@ -60,9 +64,11 @@ jobs:
       #
       # An unsuffixed module path (v0/v1) has no major to check and is skipped.
       - name: Check the computed major matches the module path
+        env:
+          COMPUTED_SEMVER: ${{ needs.version.outputs.semver }}
         run: |
           set -euo pipefail
-          computed="${{ needs.version.outputs.semver }}"
+          computed="${COMPUTED_SEMVER}"
           major="${computed%%.*}"
           modpath="$(go list -m)"
           suffix="${modpath##*/}"
@@ -80,8 +86,10 @@ jobs:
           echo "v$major matches $suffix"
 
       - name: Create local release tag
+        env:
+          COMPUTED_SEMVER: ${{ needs.version.outputs.semver }}
         run: |
-          git tag "v${{ needs.version.outputs.semver }}"
+          git tag "v${COMPUTED_SEMVER}"
           # GoReleaser creates the remote release and tag only after artifacts
           # build successfully. Do not push a tag before that transaction.
 

@@ -22,6 +22,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 2
       # `languages: go` rather than autodetect. This repository is Go and nothing
       # else, and an autodetect that quietly resolves to no language produces a
@@ -38,3 +39,18 @@ jobs:
       - name: Perform CodeQL Analysis
         if: steps.initcodeql.outcome == 'success'
         uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+
+  lint-gha:
+    name: Lint GitHub Actions
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
