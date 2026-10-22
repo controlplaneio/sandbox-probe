@@ -45,3 +45,8 @@ archives:
 
 snapshot:
   name_template: "{{ .Tag }}-next"
+
+# No Homebrew-specific config here. controlplaneio/homebrew-tap polls
+# GitHub releases on a schedule and builds its own formula from the
+# archives and checksums.txt this project already publishes above —
+# see controlplaneio-fluxcd/homebrew-tap for the pattern this follows.
