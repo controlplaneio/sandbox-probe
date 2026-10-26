@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # external_host_connectivity must mean "a TCP connect succeeded", not "DNS
 # answered". The probe runs in a container with no network whose /etc/hosts
 # still resolves google.com, the shape of a sandbox that answers DNS but
@@ -6,6 +6,11 @@
 # default network is the positive control, asserted only when the container
 # itself can open a TCP connection, so an offline runner doesn't fail it. It
 # checks membership, since a cloud runner may also reach 169.254.169.254.
+
+# Hardened like scripts/ and detect_openshell.sh: a failing docker run or jq here
+# must abort the test, not reach the assertion with an empty value and be read as a
+# verdict about the probe. pipefail is why this is bash and not /bin/sh.
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"

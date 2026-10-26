@@ -1,9 +1,14 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # external_host_connectivity must report 169.254.169.254 when the cloud
 # instance metadata service is reachable, since that is an IAM credential-theft
 # path. A no-network container claims the address on loopback and listens on
 # :80, so the probe sees a reachable "IMDS" with no cloud and no DNS. The same
 # container without the listener is the negative control.
+
+# Hardened like scripts/ and detect_openshell.sh: a failing docker run or jq here
+# must abort the test, not reach the assertion with an empty value and be read as a
+# verdict about the probe. pipefail is why this is bash and not /bin/sh.
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
