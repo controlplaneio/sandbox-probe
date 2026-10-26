@@ -1,5 +1,12 @@
 #!/bin/sh
 
+# Skip rather than fail when the runtime is absent, which is what `make e2etests`
+# advertises and what lets one CI job run the docker row without every other row
+# turning a missing runtime into a red build.
+if ! { command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; }; then
+    echo "SKIP: docker not available (binary missing or daemon not running)"
+    exit 0
+fi
 mkdir -p "$HOME/.sandbox-probe/tmp"
 TMPDIR=$(mktemp -d -p "$HOME/.sandbox-probe/tmp")
 echo "created TMPDIR: $TMPDIR"
