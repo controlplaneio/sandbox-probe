@@ -63,6 +63,9 @@ jq --arg root "$BASE/rootfs" --arg out "$BASE/out" --argjson args "$ARGS_JSON" -
 # gVisor maps the container root to an unprivileged host uid; make the report dir writable to it.
 chmod 0777 "$BASE/out"
 set +e
+# RUNSC_FLAGS is a caller-supplied flag LIST (see the usage note above), so it has to word
+# split. Quoting it would pass '--ignore-cgroups --foo' to runsc as one argument.
+# shellcheck disable=SC2086
 runsc $RUNSC_FLAGS --platform=systrap --network=none run -bundle "$BUNDLE" gvisor-bind-probe </dev/null
 launch=$?
 set -e
