@@ -1,5 +1,12 @@
 #!/bin/sh
 
+# Skip rather than fail when the runtime is absent, which is what `make e2etests`
+# advertises and what lets one CI job run the docker row without every other row
+# turning a missing runtime into a red build.
+if ! { command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; }; then
+    echo "SKIP: podman not available (binary missing or not usable)"
+    exit 0
+fi
 mkdir -p "$HOME/.sandbox-probe/tmp"
 TMPDIR=$(mktemp -d -p "$HOME/.sandbox-probe/tmp")
 echo "created TMPDIR: $TMPDIR"
