@@ -3,7 +3,9 @@ package tasks
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
+	"time"
 
 	reportv1 "github.com/controlplaneio/sandbox-probe/v6/api/gen/proto/report/v1"
 	"github.com/controlplaneio/sandbox-probe/v6/pkg/models"
@@ -139,7 +141,39 @@ type NetworkTask struct {
 	baseTask
 	testHost     string
 	testHostname string
+	// lookup and dial are the network seams; tests replace them.
+	lookup func(string) ([]net.IP, error)
+	dial   baselineTasks.DialContextFunc
+	// egressTargets are probed in order, each independently, and reported
+	// by name in external_host_connectivity when a TCP connect completes.
+	egressTargets []egressTarget
 }
+
+// egressTarget is one destination for the egress probe. A target with ips is
+// dialled at those literal addresses; one without is the test hostname, dialled
+// at whatever it resolved to. Each target has its own bounds, so a blackholed
+// target costs at most its budget and cannot eat another target's time.
+type egressTarget struct {
+	name           string
+	ips            []net.IP
+	ports          []int
+	attemptTimeout time.Duration
+	budget         time.Duration
+}
+
+// Egress to the test hostname is probed on the ports a sandbox is most likely
+// to leave open. Each connect gets connectAttemptTimeout and the whole probe
+// connectBudget, so a blackholed network delays the run by a bounded amount
+// however many IPs the name resolves to.
+var connectPorts = []int{443, 80}
+
+const (
+	connectAttemptTimeout = 3 * time.Second
+	connectBudget         = 8 * time.Second
+	// imdsTimeout bounds the single metadata-service connect: off-cloud the
+	// address is usually blackholed, and this is all the run pays for it.
+	imdsTimeout = 2 * time.Second
+)
 
 func NewNetworkTask() *NetworkTask {
 	return &NetworkTask{
@@ -149,6 +183,15 @@ func NewNetworkTask() *NetworkTask {
 		},
 		testHost:     "localhost",
 		testHostname: "google.com",
+		lookup:       baselineTasks.DnsQuery,
+		dial:         (&net.Dialer{}).DialContext,
+		egressTargets: []egressTarget{
+			{name: "google.com", ports: connectPorts, attemptTimeout: connectAttemptTimeout, budget: connectBudget},
+			// The cloud instance metadata service (AWS, GCP and Azure all
+			// serve it here). Connect and close only: no HTTP request is sent,
+			// so no credentials are ever fetched.
+			{name: "169.254.169.254", ips: []net.IP{net.IPv4(169, 254, 169, 254)}, ports: []int{80}, attemptTimeout: imdsTimeout, budget: imdsTimeout},
+		},
 	}
 }
 
@@ -158,7 +201,7 @@ func (t *NetworkTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 
 	// EXTERNALHOSTDNSRESOLUTION
 	log.Info().Str("hostname", t.testHostname).Msg("Performing DNS query")
-	ips, err := baselineTasks.DnsQuery(t.testHostname)
+	ips, err := t.lookup(t.testHostname)
 	var dnsHosts []string
 	if err == nil {
 		for _, ip := range ips {
@@ -167,6 +210,7 @@ func (t *NetworkTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 		log.Info().Int("ip_count", len(dnsHosts)).Msg("DNS query successful")
 	} else {
 		log.Warn().Err(err).Msg("DNS query failed")
+		ips = nil
 	}
 	dnsValue, err := structpb.NewValue(stringSliceToInterface(dnsHosts))
 	if err != nil {
@@ -180,11 +224,30 @@ func (t *NetworkTask) Run(ctx context.Context, ti Inputs) ([]*reportv1.Finding, 
 		Value:       dnsValue,
 	})
 
-	// EXTERNALHOSTCONNECTIVITY
+	// EXTERNALHOSTCONNECTIVITY — the egress targets a TCP connect completed
+	// to, in target order. A connect, not the resolution: sandboxes commonly
+	// answer DNS while refusing egress. 169.254.169.254 in the list means the
+	// cloud metadata service is reachable, an IAM credential-theft path; it is
+	// a literal IP, so it is probed whether or not DNS works, and is also a
+	// no-DNS egress signal. Connections are closed unused: nothing is sent.
 	connHosts := []string{}
-	if len(dnsHosts) > 0 {
-		connHosts = append(connHosts, t.testHostname)
-		log.Info().Str("host", t.testHostname).Msg("External connectivity confirmed")
+	for _, tgt := range t.egressTargets {
+		targetIPs := tgt.ips
+		if targetIPs == nil {
+			targetIPs = ips
+		}
+		if len(targetIPs) == 0 {
+			continue
+		}
+		connCtx, cancel := context.WithTimeout(ctx, tgt.budget)
+		reachable := baselineTasks.TCPReachable(connCtx, t.dial, targetIPs, tgt.ports, tgt.attemptTimeout)
+		cancel()
+		if reachable {
+			connHosts = append(connHosts, tgt.name)
+			log.Info().Str("host", tgt.name).Msg("External connectivity confirmed")
+		} else {
+			log.Warn().Str("host", tgt.name).Ints("ports", tgt.ports).Msg("No TCP connection succeeded")
+		}
 	}
 	connValue, err := structpb.NewValue(stringSliceToInterface(connHosts))
 	if err != nil {
