@@ -1,11 +1,14 @@
 package tasks
 
 import (
+	"context"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -131,4 +134,66 @@ func Test_ScanSocketRoots_dedupAndNesting(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 1, count, "socket should be reported exactly once despite overlapping/aliased roots; got %v", got)
+}
+
+// TCPReachable must answer from real connects, not from name resolution: a
+// listener on loopback is reachable, the same port once closed is not. This
+// exercises the production dialer, not a fake.
+func TestTCPReachableRealSocket(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	port := l.Addr().(*net.TCPAddr).Port
+	dial := (&net.Dialer{}).DialContext
+	ips := []net.IP{net.ParseIP("127.0.0.1")}
+
+	assert.True(t, TCPReachable(context.Background(), dial, ips, []int{port}, time.Second), "open listener on %d should be reachable", port)
+
+	require.NoError(t, l.Close())
+	assert.False(t, TCPReachable(context.Background(), dial, ips, []int{port}, time.Second), "closed port %d should not be reachable", port)
+}
+
+// Every attempt is bounded by the per-dial timeout, so a blackholed network
+// (a dialer that never answers) costs at most attempts x timeout, never a hang.
+func TestTCPReachableHonoursTimeout(t *testing.T) {
+	var calls int
+	blackhole := func(ctx context.Context, _, _ string) (net.Conn, error) {
+		calls++
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	ips := []net.IP{net.ParseIP("192.0.2.1"), net.ParseIP("2001:db8::1")}
+
+	done := make(chan bool, 1)
+	start := time.Now()
+	go func() {
+		done <- TCPReachable(context.Background(), blackhole, ips, []int{443, 80}, 20*time.Millisecond)
+	}()
+	select {
+	case got := <-done:
+		assert.False(t, got, "a dialer that never connects must not count as reachable")
+		assert.Less(t, time.Since(start), time.Second, "four 20ms attempts should finish well inside a second")
+		assert.Equal(t, 4, calls, "each ip/port pair should be tried once")
+	case <-time.After(2 * time.Second):
+		t.Fatal("TCPReachable did not honour the per-attempt timeout")
+	}
+}
+
+// Addresses go through JoinHostPort, so IPv6 literals are bracketed, and the
+// first success stops further attempts.
+func TestTCPReachableAddressesAndShortCircuit(t *testing.T) {
+	var addrs []string
+	dial := func(_ context.Context, network, addr string) (net.Conn, error) {
+		assert.Equal(t, "tcp", network)
+		addrs = append(addrs, addr)
+		if addr == "[2001:db8::1]:443" {
+			c, s := net.Pipe()
+			_ = s.Close()
+			return c, nil
+		}
+		return nil, errors.New("connection refused")
+	}
+	ips := []net.IP{net.ParseIP("192.0.2.1"), net.ParseIP("2001:db8::1"), net.ParseIP("192.0.2.9")}
+
+	assert.True(t, TCPReachable(context.Background(), dial, ips, []int{443, 80}, time.Second))
+	assert.Equal(t, []string{"192.0.2.1:443", "192.0.2.1:80", "[2001:db8::1]:443"}, addrs)
 }
