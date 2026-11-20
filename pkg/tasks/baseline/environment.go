@@ -42,11 +42,36 @@ const (
 	RuntimeNspawn
 	RuntimeAppArmor
 	RuntimeChroot
+	RuntimeOpenShell
+	RuntimeNemoClaw
 	// add other runtimes as needed
 	RuntimeUnknown
 )
 
 var readFile = os.ReadFile
+
+// lookupEnv reads the probe's own environment. A var so tests can present a sandbox's markers
+// without leaking them into, or inheriting them from, the real process environment.
+var lookupEnv = os.LookupEnv
+
+// NVIDIA OpenShell fingerprints (NVIDIA/OpenShell @55bf786). The supervisor strips every
+// OPENSHELL_* variable from the workload and then sets OPENSHELL_SANDBOX=1 as the one marker the
+// workload is meant to see (openshell-sandbox/src/process.rs apply_canonical_process_environment,
+// openshell-core/src/sandbox_env.rs); older releases put the sandbox name there, so any non-empty
+// value counts. openShellCAFiles hold the CA of its TLS-intercepting proxy, which SSL_CERT_FILE and
+// NODE_EXTRA_CA_CERTS point at: /etc/openshell-tls in source (child_env.rs), and
+// /run/openshell-supervisor-ca/material as observed in a live v0.1.4 docker-driver sandbox.
+const openShellEnv = "OPENSHELL_SANDBOX"
+
+var openShellCAFiles = []string{
+	"/etc/openshell-tls/openshell-ca.pem",
+	"/run/openshell-supervisor-ca/material/ca.crt",
+}
+
+// nemoClawMarkers are the NemoClaw image's install directories (NVIDIA/NemoClaw @4501ee9
+// Dockerfile COPY targets). They only name NemoClaw on top of proven OpenShell: the directory
+// alone says what was copied into an image, not what is confining the process.
+var nemoClawMarkers = []string{"/usr/local/lib/nemoclaw", "/opt/nemoclaw"}
 
 // readProcAttr reads a /proc/*/attr file. os.ReadFile issues a follow-up read to detect EOF, which
 // the AppArmor/SELinux attr interfaces reject with EINVAL — so it fails even though the first read
@@ -152,6 +177,13 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 	// an early exit on darwin
 	if isSeatbelt() {
 		return RuntimeSeatbelt
+	}
+
+	// OpenShell before the cgroup and the /.dockerenv, /run/.containerenv markers: its sandbox
+	// always runs inside a docker/podman container or a k3s pod, so those would name the shell
+	// around it rather than the sandbox itself.
+	if isOpenShell() {
+		return openShellOrNemoClaw()
 	}
 
 	var cgroupFile string
@@ -330,11 +362,32 @@ func GetContainerRuntime(tgid, pid int) ContainerRuntime {
 	return identifiedRuntime
 }
 
+// isOpenShell reports the workload-visible OpenShell markers: the supervisor's env var (any
+// non-empty value) or its proxy CA on disk.
+func isOpenShell() bool {
+	if v, ok := lookupEnv(openShellEnv); ok && v != "" {
+		return true
+	}
+	return slices.ContainsFunc(openShellCAFiles, fileExistsFunc)
+}
+
+// openShellOrNemoClaw refines proven OpenShell to NemoClaw when the NemoClaw image is present.
+func openShellOrNemoClaw() ContainerRuntime {
+	if slices.ContainsFunc(nemoClawMarkers, fileExistsFunc) {
+		return RuntimeNemoClaw
+	}
+	return RuntimeOpenShell
+}
+
 // stringToContainerRuntime parses a string for known runtime keywords
 func stringToContainerRuntime(s string) ContainerRuntime {
 	switch {
 	case strings.TrimSpace(s) == "":
 		return RuntimeNotFound
+	// OpenShell's supervisor binaries (crates/openshell-sandbox), ahead of the generic keywords
+	// below because its command line can name the docker/podman driver it runs under.
+	case strings.Contains(s, "openshell-sandbox"), strings.Contains(s, "openshell-supervisor"):
+		return RuntimeOpenShell
 	case strings.Contains(s, "docker"):
 		return RuntimeDocker
 	case strings.Contains(s, "podman"):
