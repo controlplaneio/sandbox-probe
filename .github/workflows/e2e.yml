@@ -1,0 +1,89 @@
+---
+name: Fingerprint E2E
+
+# The probe's own end-to-end checks: build the binary, run it inside a real sandbox runtime and
+# assert sandbox_detection names that runtime. The reports repo runs a far wider matrix, but it
+# consumes this repo through a PINNED go.mod, so it only ever exercises a release. Nothing here
+# tested a change end to end before merge, which is how a dead `cp` sat in two of these scripts
+# long enough for reports/ to be missing its bwrap and podman files.
+#
+# Split deliberately by how much the result depends on things this repo does not control:
+#
+#   smoke    — docker only, on every PR, BLOCKING. Docker is pre-installed on ubuntu-latest, so
+#              this adds a real end-to-end gate for about half a minute and no apt-get.
+#   full     — every runtime, on a schedule and on demand, NOT on PRs. These rows depend on
+#              runtime versions and runner images that move on someone else's cadence. The
+#              sibling reports matrix is the cautionary tale: it has been red since September
+#              because ubuntu-latest moved underneath it. That belongs in a weekly signal, not
+#              in the merge queue.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "0 7 * * 1" # weekly, Monday
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  smoke:
+    name: E2E smoke (docker)
+    # Not on the schedule: the full job below already covers docker there.
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Build the probe
+        run: make build
+
+      # Named directly rather than via `make e2etests`, so this job fails when the docker row
+      # fails and cannot be quietly satisfied by the other rows skipping themselves.
+      - name: Run the docker fingerprint check
+        run: bash tests/fingerprint/detect_docker.sh
+
+      # A skip here would mean the runner lost docker, which must not read as a pass: the whole
+      # point of this job is that one row really ran.
+      - name: Assert the row was not skipped
+        run: |
+          set -euo pipefail
+          test -f reports/sandbox-docker.json
+          jq -e '.findings[]
+            | select(.findingType == "sandbox_detection" and .task == "baseline_sandbox_detector")
+            | select(.value == "docker")' reports/sandbox-docker.json > /dev/null
+
+  full:
+    name: E2E all runtimes
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Install the runtimes the rows need
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap podman
+
+      - name: Run every fingerprint check
+        run: make e2etests

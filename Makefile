@@ -45,6 +45,17 @@ gen: ## Generate protobuf code from buf schemas
 fmt: ## Format Go code
 	go fmt ./...
 
+.PHONY: lint-shell
+lint-shell: ## Lint every shell script under scripts/ and tests/ with shellcheck
+	@command -v shellcheck >/dev/null || { echo "shellcheck not installed: https://github.com/koalaman/shellcheck#installing"; exit 1; }
+	@echo "==> ShellCheck ($$(shellcheck --version | awk '/^version:/{print $$2}'))..."
+	@# Discovered, not listed: a script added without being added to a list is exactly the
+	@# kind of gap this is meant to close. --severity=style because the tree is clean there,
+	@# and a gate set below what the code already meets protects nothing.
+	@find scripts tests -type f -name '*.sh' -print0 \
+		| sort -z \
+		| xargs -0 shellcheck --severity=style
+
 .PHONY: tests
 tests: ## Run all Go tests
 	go test -v ./...
