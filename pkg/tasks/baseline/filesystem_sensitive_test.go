@@ -87,6 +87,10 @@ func TestBuildSensitivePathsForHome_expandsHome(t *testing.T) {
 		filepath.Join(home, ".cargo", "credentials.toml"),
 		filepath.Join(home, ".m2", "settings.xml"),
 		filepath.Join(home, ".gradle", "gradle.properties"),
+		filepath.Join(home, ".claude", ".credentials.json"),
+		filepath.Join(home, ".codex", "auth.json"),
+		filepath.Join(home, ".gemini", "oauth_creds.json"),
+		filepath.Join(home, ".local", "share", "opencode", "auth.json"),
 	}
 
 	for _, want := range homeRelative {
@@ -366,6 +370,25 @@ func TestScanTargetedPathsForHome_packageManagerTokens(t *testing.T) {
 		".cargo/credentials.toml",
 		".m2/settings.xml",
 		".gradle/gradle.properties",
+	}
+	for _, rel := range files {
+		writeTestFile(t, filepath.Join(home, rel), "placeholder\n")
+	}
+
+	result := scanTargetedPathsForHome(home)
+
+	for _, rel := range files {
+		assert.True(t, inReadable(result, filepath.Join(home, rel)), "%s should be reported", rel)
+	}
+}
+
+func TestScanTargetedPathsForHome_codingAgentCredentials(t *testing.T) {
+	home := t.TempDir()
+	files := []string{
+		".claude/.credentials.json",
+		".codex/auth.json",
+		".gemini/oauth_creds.json",
+		".local/share/opencode/auth.json",
 	}
 	for _, rel := range files {
 		writeTestFile(t, filepath.Join(home, rel), "placeholder\n")
