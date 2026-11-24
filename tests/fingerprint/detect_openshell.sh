@@ -51,6 +51,7 @@ SANDBOX_NAME="probe-e2e-$$"
 
 GATEWAY_PID=""
 
+# shellcheck disable=SC2329 # Invoked indirectly via trap
 cleanup() {
     local exit_code=$?
     if [ -n "${OPENSHELL_BIN}" ]; then
