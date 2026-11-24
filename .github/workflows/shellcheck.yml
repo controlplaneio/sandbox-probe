@@ -1,0 +1,44 @@
+---
+name: ShellCheck
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Pinned by version AND checksum rather than `apt-get install shellcheck`, which is what
+      # the distro happens to ship that week. An unpinned linter changes the gate under us: the
+      # same tree starts failing because the runner image moved, which is how `ubuntu-latest`
+      # becoming ubuntu-26.04 broke other jobs here. The digest is what makes the pin real — a
+      # version tag can be moved, a sha256 cannot.
+      - name: Install ShellCheck (pinned)
+        env:
+          SHELLCHECK_VERSION: v0.11.0
+          SHELLCHECK_SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+        run: |
+          set -euo pipefail
+          url="https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          curl -fsSL --retry 3 -o shellcheck.tar.xz "$url"
+          echo "${SHELLCHECK_SHA256}  shellcheck.tar.xz" | sha256sum -c -
+          tar -xJf shellcheck.tar.xz
+          sudo install -m 0755 "shellcheck-${SHELLCHECK_VERSION}/shellcheck" /usr/local/bin/shellcheck
+          shellcheck --version
+
+      - name: Run ShellCheck
+        run: make lint-shell
