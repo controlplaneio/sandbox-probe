@@ -95,6 +95,15 @@ func buildSensitivePathsForHome(home string) []SensitivePath {
 		sp(h(".cargo/credentials.toml")),
 		sp(h(".m2/settings.xml")),
 		sp(h(".gradle/gradle.properties")),
+
+		// ── AI coding agent credentials ───────────────────────────────────
+		// Each agent's own login, at its default location. Env vars move
+		// them (CLAUDE_CONFIG_DIR, CODEX_HOME, XDG_DATA_HOME); these are the
+		// paths an agent run without overrides reads.
+		sp(h(".claude/.credentials.json")),       // Claude Code (Linux/Windows; Keychain on macOS)
+		sp(h(".codex/auth.json")),                // Codex CLI, default file credential store
+		sp(h(".gemini/oauth_creds.json")),        // gemini-cli OAuth login
+		sp(h(".local/share/opencode/auth.json")), // opencode provider keys
 	}
 
 	return append(platformSensitivePaths(home), homePaths...)
